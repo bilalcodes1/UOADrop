@@ -1,0 +1,22 @@
+{
+  "name": "@uoadrop/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UOADrop librarian Electron app (dashboard + local server + printing)",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "echo 'TODO: electron-vite dev' ",
+    "build": "echo 'TODO: electron-vite build' ",
+    "lint": "echo 'TODO: eslint' ",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist dist-electron release .turbo"
+  },
+  "dependencies": {
+    "@uoadrop/shared": "workspace:*",
+    "@uoadrop/db-schema": "workspace:*",
+    "@uoadrop/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

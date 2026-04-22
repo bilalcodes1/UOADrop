@@ -1,0 +1,20 @@
+{
+  "name": "@uoadrop/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UOADrop student web app (upload + track)",
+  "scripts": {
+    "dev": "echo 'TODO: next dev' ",
+    "build": "echo 'TODO: next build' ",
+    "lint": "echo 'TODO: eslint' ",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next .turbo dist"
+  },
+  "dependencies": {
+    "@uoadrop/shared": "workspace:*",
+    "@uoadrop/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
