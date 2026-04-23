@@ -1,5 +1,4 @@
 import { ipcMain, BrowserWindow, shell, dialog } from 'electron';
-import { extname } from 'node:path';
 import { basename } from 'node:path';
 import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -22,7 +21,6 @@ import {
 import { getCachedPrinterStatus } from './printer';
 import { emit as emitAppEvent } from './events';
 
-const CHROMIUM_NATIVE_EXT = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp'];
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
 
 export function registerIpcHandlers(): void {
@@ -117,69 +115,39 @@ export function registerIpcHandlers(): void {
   });
 
   // ─────────────────────────────────────────
-  // file:print — native print dialog
-  //   PDF/image → chromium in-app dialog
-  //   DOCX/PPTX → OS opens, user presses Ctrl/Cmd+P
+  // file:print — open in OS default app; user prints via Ctrl/Cmd+P.
+  //
+  // Why not webContents.print?
+  //   On macOS, NSPrintPanel invoked from a hidden 1x1 BrowserWindow often
+  //   fails to deliver the cancel callback, hanging the renderer indefinitely.
+  //   shell.openPath is deterministic, instant, and gives users the full
+  //   native print dialog + content preview (Preview.app, Image Viewer, Word…).
   // ─────────────────────────────────────────
   ipcMain.handle('file:print', async (_e, filePath: string) => {
-    const ext = extname(filePath).toLowerCase();
-
-    if (CHROMIUM_NATIVE_EXT.includes(ext)) {
-      const win = new BrowserWindow({ show: false, width: 1, height: 1 });
-      const cleanup = (): void => {
-        try {
-          if (!win.isDestroyed()) win.destroy();
-        } catch {
-          /* ignore */
-        }
-      };
-      try {
-        await win.loadFile(filePath);
-        const printers = await win.webContents.getPrintersAsync();
+    try {
+      const anyWin = BrowserWindow.getAllWindows()[0];
+      if (anyWin) {
+        const printers = await anyWin.webContents.getPrintersAsync();
         if (!printers || printers.length === 0) {
-          cleanup();
           return {
             ok: false,
             error: NO_PRINTERS_ERROR,
             hint: 'لا توجد طابعات مُضافة للنظام. أضف طابعة من إعدادات النظام ثم أعد المحاولة.',
           };
         }
-        await new Promise<void>((r) => setTimeout(r, 350));
-        return await new Promise((resolve) => {
-          let settled = false;
-          const settle = (payload: { ok: boolean; error: string | null }): void => {
-            if (settled) return;
-            settled = true;
-            cleanup();
-            resolve(payload);
-          };
-          // macOS sometimes never fires the print callback on cancel — enforce a cap.
-          const timer = setTimeout(
-            () => settle({ ok: false, error: 'timeout' }),
-            60_000,
-          );
-          try {
-            win.webContents.print({ silent: false }, (success, errorType) => {
-              clearTimeout(timer);
-              settle({ ok: success, error: success ? null : errorType || 'canceled' });
-            });
-          } catch (err) {
-            clearTimeout(timer);
-            settle({ ok: false, error: String(err) });
-          }
-        });
-      } catch (err) {
-        cleanup();
-        return { ok: false, error: String(err) };
       }
+    } catch {
+      /* best-effort printer probe */
     }
 
-    // Non-native formats: open in default app, user prints manually
     const openErr = await shell.openPath(filePath);
     if (openErr) return { ok: false, error: openErr };
     return {
       ok: true,
-      hint: 'اضغط Ctrl+P (Windows) أو Cmd+P (Mac) داخل التطبيق الذي فُتح',
+      hint:
+        process.platform === 'darwin'
+          ? 'افتح الملف واضغط Cmd+P للطباعة'
+          : 'افتح الملف واضغط Ctrl+P للطباعة',
     };
   });
 
