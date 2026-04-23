@@ -5,18 +5,28 @@
   "description": "UOADrop librarian Electron app (dashboard + local server + printing)",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "echo 'TODO: electron-vite dev' ",
-    "build": "echo 'TODO: electron-vite build' ",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
     "lint": "echo 'TODO: eslint' ",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist dist-electron release .turbo"
+    "typecheck": "tsc --build --noEmit",
+    "clean": "rm -rf dist dist-electron release .turbo tsconfig.*.tsbuildinfo"
   },
   "dependencies": {
-    "@uoadrop/shared": "workspace:*",
     "@uoadrop/db-schema": "workspace:*",
-    "@uoadrop/ui": "workspace:*"
+    "@uoadrop/shared": "workspace:*",
+    "@uoadrop/ui": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "typescript": "^5.7.2"
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.1.0",
+    "typescript": "^5.7",
+    "vite": "^6.4.2"
   }
 }
