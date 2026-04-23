@@ -4,7 +4,11 @@ import { resolve } from 'node:path';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin({
+        exclude: ['@uoadrop/shared', '@uoadrop/db-schema', '@uoadrop/ui'],
+      }),
+    ],
     build: {
       outDir: 'dist/main',
       rollupOptions: {
@@ -13,7 +17,11 @@ export default defineConfig({
     },
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin({
+        exclude: ['@uoadrop/shared', '@uoadrop/db-schema', '@uoadrop/ui'],
+      }),
+    ],
     build: {
       outDir: 'dist/preload',
       rollupOptions: {
