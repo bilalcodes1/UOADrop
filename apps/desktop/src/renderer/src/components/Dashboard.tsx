@@ -320,10 +320,16 @@ export function Dashboard(): JSX.Element {
               </button>
               <button
                 className="btn btn-print"
-                disabled={busy === req.id || req.status !== 'pending'}
+                disabled={
+                  busy === req.id ||
+                  req.status === 'done' ||
+                  req.status === 'canceled' ||
+                  req.status === 'blocked'
+                }
                 onClick={() => handlePrint(req)}
+                title={req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}
               >
-                🖨️ طباعة
+                🖨️ {req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}
               </button>
               <button
                 className="btn btn-ready"

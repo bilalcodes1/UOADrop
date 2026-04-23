@@ -1,9 +1,46 @@
 import { app, BrowserWindow, Notification, shell } from 'electron';
 import { join } from 'node:path';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { registerIpcHandlers } from './ipc';
 import { startLocalServer } from './server';
 import { startPrinterPolling } from './printer';
 import { subscribe as subscribeBus, type AppEvent } from './events';
+
+// ─────────────────────────────────────────
+// Cross-platform system "ding" — Electron Notification.silent=false is
+// unreliable on unsigned macOS dev builds, so we trigger the system sound
+// explicitly as a fallback. Non-blocking, failures are swallowed.
+// ─────────────────────────────────────────
+function playSystemDing(): void {
+  try {
+    if (process.platform === 'darwin') {
+      const candidates = [
+        '/System/Library/Sounds/Glass.aiff',
+        '/System/Library/Sounds/Ping.aiff',
+        '/System/Library/Sounds/Funk.aiff',
+      ];
+      const sound = candidates.find((p) => existsSync(p));
+      if (sound) spawn('afplay', [sound], { detached: true, stdio: 'ignore' }).unref();
+    } else if (process.platform === 'win32') {
+      // PowerShell system sound
+      spawn(
+        'powershell',
+        ['-c', '[System.Media.SystemSounds]::Asterisk.Play();'],
+        { detached: true, stdio: 'ignore', windowsHide: true },
+      ).unref();
+    } else {
+      // Linux: try paplay with freedesktop theme, fallback to beep via shell.
+      spawn(
+        'paplay',
+        ['/usr/share/sounds/freedesktop/stereo/message.oga'],
+        { detached: true, stdio: 'ignore' },
+      ).unref();
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 const isDev = !app.isPackaged;
 
@@ -91,11 +128,13 @@ app.whenReady().then(() => {
       body = 'تم رفع ملف إضافي لطلب موجود.';
     }
     if (!title) return;
+    // Play system sound via OS CLI (reliable on unsigned dev builds).
+    playSystemDing();
     try {
       const n = new Notification({
         title,
         body,
-        silent: false, // play system default sound
+        silent: true, // we already played the ding above; avoid double-sound
       });
       n.on('click', () => {
         if (mainWindow) {
