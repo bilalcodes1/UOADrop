@@ -3,7 +3,7 @@ import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import { emit, subscribe } from './events';
-import { createWriteStream, mkdirSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { basename, extname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -24,6 +24,7 @@ import {
   addRequestFile,
   createRequest,
   deleteRequest,
+  existsRequestFileBySha256,
   findAbandonedRequests,
   findExpiredCompletedRequests,
   getDb,
@@ -97,111 +98,14 @@ export async function startLocalServer(): Promise<{ port: number }> {
     },
   });
 
+  const studentHtmlPath = resolveStudentHtmlPath();
+  const studentHtml = studentHtmlPath && existsSync(studentHtmlPath)
+    ? readFileSync(studentHtmlPath, 'utf8')
+    : '<!doctype html><html><body><h1>UOADrop</h1><p>student.html not found</p></body></html>';
+
   server.get('/', async (_req, reply) => {
     reply.header('content-type', 'text/html; charset=utf-8');
-    return [
-      '<!doctype html>',
-      '<html lang="ar" dir="rtl">',
-      '  <head>',
-      '    <meta charset="utf-8" />',
-      '    <meta name="viewport" content="width=device-width, initial-scale=1" />',
-      '    <title>UOADrop — رفع ملفات الطباعة</title>',
-      '    <style>',
-      '      body{font-family:-apple-system,Segoe UI,Tahoma,sans-serif;background:#f4f6f9;color:#1a2332;margin:0;padding:24px}',
-      '      .card{max-width:720px;margin:0 auto;background:#fff;border:1px solid #e1e5eb;border-radius:12px;padding:20px;box-shadow:0 6px 20px rgba(0,0,0,.06)}',
-      '      h1{margin:0 0 6px;color:#0b5cff;font-size:22px}',
-      '      p{margin:0 0 14px;color:#64748b}',
-      '      label{display:block;margin:12px 0 6px;font-weight:600}',
-      '      input,select{width:100%;padding:10px 12px;border:1px solid #e1e5eb;border-radius:10px;font-size:14px}',
-      '      .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}',
-      '      button{margin-top:16px;width:100%;padding:12px;border:0;border-radius:10px;background:#0b5cff;color:#fff;font-weight:700;font-size:15px}',
-      '      .out{margin-top:14px;padding:12px;border-radius:10px;background:#0b5cff14;border:1px solid #0b5cff33;display:none}',
-      '      code{font-family:SFMono-Regular,Menlo,monospace}',
-      '    </style>',
-      '  </head>',
-      '  <body>',
-      '    <div class="card">',
-      '      <h1>رفع ملفات الطباعة</h1>',
-      '      <p>املأ المعلومات ثم ارفع الملفات. بعد الإرسال ستحصل على رقم تذكرة + PIN للاستلام.</p>',
-      '      <form id="f">',
-      '        <label>الاسم</label>',
-      '        <input name="studentName" placeholder="الاسم الثلاثي" />',
-      '        <div class="row">',
-      '          <div>',
-      '            <label>عدد النسخ</label>',
-      '            <input name="copies" type="number" min="1" value="1" required />',
-      '          </div>',
-      '          <div>',
-      '            <label>نوع الطباعة</label>',
-      '            <select name="color">',
-      '              <option value="false" selected>أبيض/أسود</option>',
-      '              <option value="true">ملوّن</option>',
-      '            </select>',
-      '          </div>',
-      '        </div>',
-      '        <div class="row">',
-      '          <div>',
-      '            <label>وجهين</label>',
-      '            <select name="doubleSided">',
-      '              <option value="true" selected>نعم</option>',
-      '              <option value="false">لا</option>',
-      '            </select>',
-      '          </div>',
-      '          <div>',
-      '            <label>عدد الصفحات (تقريبي)</label>',
-      '            <input name="totalPages" type="number" min="1" value="1" required />',
-      '          </div>',
-      '        </div>',
-      '        <label>الملفات</label>',
-      '        <input name="files" type="file" multiple required />',
-      '        <button type="submit">إرسال</button>',
-      '      </form>',
-      '      <div id="out" class="out"></div>',
-      '    </div>',
-      '    <script>',
-      '      const f = document.getElementById("f");',
-      '      const out = document.getElementById("out");',
-      '      f.addEventListener("submit", async (e) => {',
-      '        e.preventDefault();',
-      '        out.style.display = "none";',
-      '        out.textContent = "";',
-      '        const fd = new FormData(f);',
-      '        const studentName = fd.get("studentName") || "";',
-      '        const copies = Number(fd.get("copies") || 1);',
-      '        const color = (fd.get("color") || "false") === "true";',
-      '        const doubleSided = (fd.get("doubleSided") || "true") === "true";',
-      '        const totalPages = Number(fd.get("totalPages") || 1);',
-      '        const createRes = await fetch("/api/requests", {',
-      '          method: "POST",',
-      '          headers: { "content-type": "application/json" },',
-      '          body: JSON.stringify({ studentName, options: { copies, color, doubleSided }, totalPages })',
-      '        });',
-      '        if (!createRes.ok) {',
-      '          out.style.display = "block";',
-      '          out.textContent = "فشل إنشاء الطلب";',
-      '          return;',
-      '        }',
-      '        const created = await createRes.json();',
-      '        const requestId = created.request.id;',
-      '        const files = fd.getAll("files");',
-      '        for (const file of files) {',
-      '          const up = new FormData();',
-      '          up.append("file", file);',
-      '          const r = await fetch("/api/requests/" + requestId + "/files", { method: "POST", body: up });',
-      '          if (!r.ok) {',
-      '            out.style.display = "block";',
-      '            out.textContent = "فشل رفع ملف";',
-      '            return;',
-      '          }',
-      '        }',
-      '        out.style.display = "block";',
-      '        out.innerHTML = "تم استلام طلبك ✅<br/>التذكرة: <code>" + created.request.ticket + "</code><br/>PIN: <code>" + created.pin + "</code>";',
-      '        f.reset();',
-      '      });',
-      '    </script>',
-      '  </body>',
-      '</html>',
-    ].join('\n');
+    return studentHtml;
   });
 
   server.get('/health', async () => ({ ok: true }));
@@ -456,13 +360,21 @@ export async function startLocalServer(): Promise<{ port: number }> {
         });
       }
 
+      const sha256Hex = hash.digest('hex');
+
+      if (existsRequestFileBySha256(id, sha256Hex)) {
+        // Idempotent retry — same file already saved for this request
+        await unlink(destPath).catch(() => {});
+        return { ok: true, dedup: true };
+      }
+
       addRequestFile({
         requestId: id,
         localPath: destPath,
         filename: basename(destPath),
         mimeType: mime,
         sizeBytes: bytes,
-        sha256: hash.digest('hex'),
+        sha256: sha256Hex,
         magicByteVerified: true,
       });
 
@@ -535,4 +447,18 @@ function firstLanIpv4(): string | null {
 function defaultUploadUrl(port: number): string {
   const ip = firstLanIpv4() ?? 'localhost';
   return `http://${ip}:${port}/`;
+}
+
+function resolveStudentHtmlPath(): string | null {
+  // Candidates: dev (cwd + repo), build dist, packaged app resources.
+  const candidates = [
+    resolve(process.cwd(), 'apps/desktop/resources/student.html'),
+    resolve(process.cwd(), 'resources/student.html'),
+    resolve(__dirname, '../../resources/student.html'),
+    resolve(__dirname, '../resources/student.html'),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return candidates[0] ?? null;
 }

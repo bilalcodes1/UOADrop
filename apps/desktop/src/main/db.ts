@@ -362,6 +362,16 @@ export function createRequest(args: {
   return { request, pin };
 }
 
+export function existsRequestFileBySha256(requestId: string, sha256: string): boolean {
+  const d = getDb();
+  const row = d
+    .prepare(
+      'SELECT 1 as one FROM request_files WHERE request_id = ? AND sha256 = ? LIMIT 1',
+    )
+    .get(requestId, sha256) as { one: number } | undefined;
+  return !!row;
+}
+
 export function listRequestsPaged(args: {
   statuses?: RequestStatus[];
   search?: string;

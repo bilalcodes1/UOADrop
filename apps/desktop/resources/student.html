@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UOADrop — رفع ملفات الطباعة</title>
+    <style>
+      :root {
+        --primary: #0b5cff;
+        --primary-hover: #0947cc;
+        --bg: #f4f6f9;
+        --surface: #fff;
+        --border: #e1e5eb;
+        --text: #1a2332;
+        --muted: #64748b;
+        --success: #16a34a;
+        --danger: #dc2626;
+        --warning: #d97706;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body { padding: 20px; min-height: 100vh; }
+      .container { max-width: 720px; margin: 0 auto; }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+        margin-bottom: 16px;
+      }
+      h1 { margin: 0 0 6px; color: var(--primary); font-size: 24px; }
+      .sub { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+      label { display: block; margin: 10px 0 6px; font-weight: 600; font-size: 14px; }
+      input, select {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        font-family: inherit;
+        background: var(--surface);
+      }
+      input:focus, select:focus { outline: none; border-color: var(--primary); }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
+
+      /* Dropzone */
+      .drop {
+        margin-top: 14px;
+        border: 2px dashed var(--border);
+        border-radius: 14px;
+        padding: 28px 16px;
+        text-align: center;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .drop.active { background: #f0f5ff; border-color: var(--primary); }
+      .drop p { margin: 6px 0; color: var(--muted); font-size: 13px; }
+      .drop .big { font-size: 16px; color: var(--text); font-weight: 600; }
+      .drop input { display: none; }
+
+      /* File queue */
+      .queue { margin-top: 14px; }
+      .file-item {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        background: var(--surface);
+      }
+      .file-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+      .file-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+      .file-size { color: var(--muted); }
+      .bar {
+        height: 6px;
+        background: #eef1f5;
+        border-radius: 999px;
+        margin-top: 8px;
+        overflow: hidden;
+      }
+      .bar > span {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: var(--primary);
+        transition: width 0.15s linear;
+      }
+      .status { margin-top: 6px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+      .status.ok { color: var(--success); }
+      .status.err { color: var(--danger); }
+      .retry-btn {
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        color: var(--primary);
+      }
+
+      button.primary {
+        margin-top: 16px;
+        width: 100%;
+        padding: 14px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--primary);
+        color: #fff;
+        font-weight: 700;
+        font-size: 15px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      button.primary:hover { background: var(--primary-hover); }
+      button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      /* Success */
+      .success-card { display: none; }
+      .ticket-box {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 10px;
+        text-align: center;
+      }
+      .ticket-box h3 { margin: 0 0 4px; color: var(--success); }
+      .ticket-box .val { font-family: SFMono-Regular, Menlo, monospace; font-size: 22px; font-weight: 700; margin: 8px 0; }
+      .copy-btn {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .err-msg {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: var(--danger);
+        padding: 10px;
+        border-radius: 10px;
+        margin-top: 10px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card" id="formCard">
+        <h1>رفع ملفات الطباعة</h1>
+        <p class="sub">املأ المعلومات ثم اسحب/اختر الملفات. بعد الإرسال ستحصل على رقم تذكرة + PIN للاستلام.</p>
+        <form id="f">
+          <label>الاسم (اختياري)</label>
+          <input name="studentName" placeholder="الاسم الثلاثي" maxlength="80" />
+
+          <div class="row">
+            <div>
+              <label>عدد النسخ</label>
+              <input name="copies" type="number" min="1" max="10" value="1" required />
+            </div>
+            <div>
+              <label>نوع الطباعة</label>
+              <select name="color">
+                <option value="false" selected>أبيض/أسود</option>
+                <option value="true">ملوّن</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>وجهين</label>
+              <select name="doubleSided">
+                <option value="true" selected>نعم</option>
+                <option value="false">لا</option>
+              </select>
+            </div>
+            <div>
+              <label>عدد الصفحات (تقريبي)</label>
+              <input name="totalPages" type="number" min="1" max="500" value="1" required />
+            </div>
+          </div>
+
+          <label>الملفات</label>
+          <div class="drop" id="drop">
+            <div class="big">📎 اسحب الملفات هنا</div>
+            <p>أو انقر للاختيار — PDF, Word, PowerPoint, Excel, صور</p>
+            <p>الحد: 50 ميغا لكل ملف، حتى 10 ملفات</p>
+            <input id="fileInput" type="file" multiple />
+          </div>
+
+          <div class="queue" id="queue"></div>
+
+          <button class="primary" id="submitBtn" type="submit">إرسال الطلب</button>
+          <div id="formError" class="err-msg" style="display:none"></div>
+        </form>
+      </div>
+
+      <div class="card success-card" id="successCard">
+        <h1 style="color: var(--success)">✅ تم الرفع بنجاح</h1>
+        <p class="sub">احفظ رقم التذكرة و PIN — ستحتاجهما عند الاستلام.</p>
+        <div class="ticket-box">
+          <h3>التذكرة</h3>
+          <div class="val" id="ticketVal"></div>
+          <button class="copy-btn" onclick="copyVal('ticketVal')">نسخ</button>
+        </div>
+        <div class="ticket-box">
+          <h3>PIN</h3>
+          <div class="val" id="pinVal"></div>
+          <button class="copy-btn" onclick="copyVal('pinVal')">نسخ</button>
+        </div>
+        <button class="primary" onclick="location.reload()">طلب جديد</button>
+      </div>
+    </div>
+
+    <script>
+      const drop = document.getElementById('drop');
+      const fileInput = document.getElementById('fileInput');
+      const queueEl = document.getElementById('queue');
+      const form = document.getElementById('f');
+      const submitBtn = document.getElementById('submitBtn');
+      const formError = document.getElementById('formError');
+      const formCard = document.getElementById('formCard');
+      const successCard = document.getElementById('successCard');
+
+      /** @type {{file:File, status:string, progress:number, error:string}[]} */
+      const queue = [];
+
+      function render() {
+        queueEl.innerHTML = '';
+        queue.forEach((item, i) => {
+          const div = document.createElement('div');
+          div.className = 'file-item';
+          const sizeMb = (item.file.size / 1024 / 1024).toFixed(2);
+          const pct = Math.round(item.progress || 0);
+          const stateClass = item.status === 'done' ? 'ok' : item.status === 'error' ? 'err' : '';
+          const stateText = {
+            pending: 'قيد الانتظار',
+            uploading: 'جاري الرفع...',
+            done: '✓ تم',
+            error: '✗ خطأ',
+          }[item.status] || item.status;
+          div.innerHTML =
+            '<div class="file-top">' +
+              '<span class="file-name">' + escape(item.file.name) + '</span>' +
+              '<span class="file-size">' + sizeMb + ' MB</span>' +
+            '</div>' +
+            '<div class="bar"><span style="width:' + pct + '%"></span></div>' +
+            '<div class="status ' + stateClass + '">' +
+              '<span>' + stateText + (item.error ? ' — ' + escape(item.error) : '') + '</span>' +
+              (item.status === 'error' ? '<button class="retry-btn" data-retry="' + i + '">إعادة</button>' : '') +
+              (item.status === 'pending' ? '<button class="retry-btn" data-remove="' + i + '">حذف</button>' : '') +
+            '</div>';
+          queueEl.appendChild(div);
+        });
+      }
+      function escape(s) {
+        return String(s).replace(/[&<>"']/g, (c) =>
+          ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]),
+        );
+      }
+
+      queueEl.addEventListener('click', (e) => {
+        const t = e.target;
+        if (!t || !(t instanceof HTMLElement)) return;
+        const retry = t.getAttribute('data-retry');
+        const remove = t.getAttribute('data-remove');
+        if (retry !== null) {
+          const i = Number(retry);
+          queue[i].status = 'pending';
+          queue[i].progress = 0;
+          queue[i].error = '';
+          render();
+          runQueue();
+        } else if (remove !== null) {
+          queue.splice(Number(remove), 1);
+          render();
+        }
+      });
+
+      function addFiles(list) {
+        for (const f of list) {
+          if (queue.length >= 10) break;
+          queue.push({ file: f, status: 'pending', progress: 0, error: '' });
+        }
+        render();
+      }
+
+      drop.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => {
+        addFiles(fileInput.files || []);
+        fileInput.value = '';
+      });
+      ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, (e) => {
+        e.preventDefault(); drop.classList.add('active');
+      }));
+      ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, (e) => {
+        e.preventDefault(); drop.classList.remove('active');
+      }));
+      drop.addEventListener('drop', (e) => {
+        const files = e.dataTransfer ? e.dataTransfer.files : null;
+        if (files && files.length) addFiles(files);
+      });
+
+      let currentRequestId = null;
+      let running = false;
+
+      async function uploadOne(item) {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          const fd = new FormData();
+          fd.append('file', item.file);
+          xhr.open('POST', '/api/requests/' + currentRequestId + '/files');
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              item.progress = (e.loaded / e.total) * 100;
+              render();
+            }
+          };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else {
+              try {
+                const body = JSON.parse(xhr.responseText || '{}');
+                reject(new Error(body.error || body.hint || 'HTTP ' + xhr.status));
+              } catch { reject(new Error('HTTP ' + xhr.status)); }
+            }
+          };
+          xhr.onerror = () => reject(new Error('network error'));
+          xhr.ontimeout = () => reject(new Error('timeout'));
+          xhr.send(fd);
+        });
+      }
+
+      async function runQueue() {
+        if (running || !currentRequestId) return;
+        running = true;
+        for (const item of queue) {
+          if (item.status !== 'pending') continue;
+          item.status = 'uploading';
+          item.progress = 0;
+          render();
+          let attempts = 0;
+          const maxAttempts = 3;
+          while (true) {
+            attempts++;
+            try {
+              await uploadOne(item);
+              item.status = 'done';
+              item.progress = 100;
+              break;
+            } catch (err) {
+              if (attempts >= maxAttempts) {
+                item.status = 'error';
+                item.error = (err && err.message) || 'failed';
+                break;
+              }
+              await new Promise(r => setTimeout(r, 800 * attempts));
+            }
+          }
+          render();
+        }
+        running = false;
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        formError.style.display = 'none';
+
+        if (queue.length === 0) {
+          formError.textContent = 'الرجاء اختيار ملف واحد على الأقل';
+          formError.style.display = 'block';
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'جاري الإرسال...';
+
+        const fd = new FormData(form);
+        const payload = {
+          studentName: fd.get('studentName') || '',
+          options: {
+            copies: Number(fd.get('copies') || 1),
+            color: (fd.get('color') || 'false') === 'true',
+            doubleSided: (fd.get('doubleSided') || 'true') === 'true',
+          },
+          totalPages: Number(fd.get('totalPages') || 1),
+        };
+
+        try {
+          const createRes = await fetch('/api/requests', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!createRes.ok) throw new Error('HTTP ' + createRes.status);
+          const created = await createRes.json();
+          currentRequestId = created.request.id;
+
+          await runQueue();
+
+          const failed = queue.filter(q => q.status === 'error').length;
+          if (failed > 0) {
+            formError.textContent = 'فشل رفع ' + failed + ' ملف — استخدم زر "إعادة" أو انقر إرسال مجدداً';
+            formError.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'إعادة المحاولة';
+            return;
+          }
+
+          document.getElementById('ticketVal').textContent = created.request.ticket;
+          document.getElementById('pinVal').textContent = created.pin;
+          formCard.style.display = 'none';
+          successCard.style.display = 'block';
+        } catch (err) {
+          formError.textContent = 'فشل إنشاء الطلب: ' + ((err && err.message) || err);
+          formError.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'إرسال الطلب';
+        }
+      });
+
+      function copyVal(id) {
+        const v = document.getElementById(id).textContent;
+        navigator.clipboard && navigator.clipboard.writeText(v);
+      }
+    </script>
+  </body>
+</html>
