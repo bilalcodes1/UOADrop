@@ -192,7 +192,7 @@ export async function startLocalServer(): Promise<{ port: number }> {
         priceIqd,
       });
 
-      emit({ type: 'requests:changed', reason: 'created', requestId: created.request.id });
+      emit({ type: 'requests:changed', reason: 'created', requestId: created.request.id, payload: created.request });
       return reply.send(created);
     },
   );

@@ -112,8 +112,17 @@ export function Dashboard(): JSX.Element {
         try {
           const data = JSON.parse(msg.data as string);
           if (data?.type === 'requests:changed') {
+            if (data.reason === 'created' && data.payload) {
+              // Instant prepend — no round-trip needed
+              setRequests((prev) => {
+                if (prev.some((r) => r.id === data.payload.id)) return prev;
+                return [data.payload, ...prev];
+              });
+              setTotal((t) => t + 1);
+              showToast('📩 طلب جديد وصل');
+            }
+            // Always do a background refresh to stay in sync
             void refresh();
-            if (data.reason === 'created') showToast('📩 طلب جديد وصل');
           }
         } catch { /* ignore */ }
       };
