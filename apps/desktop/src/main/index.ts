@@ -117,21 +117,21 @@ app.whenReady().then(() => {
   // Uses system default notification sound (macOS, Windows, Linux).
   subscribeBus('requests:changed', (ev: AppEvent) => {
     if (ev.type !== 'requests:changed') return;
-    if (!Notification.isSupported()) return;
-    let title: string | null = null;
-    let body = '';
-    if (ev.reason === 'file-added') {
-      title = 'UOADrop — ملف جديد';
-      body = 'تم استلام ملف جديد — افتح اللوحة للطباعة.';
+
+    // ── Push to renderer via IPC (instant, no WebSocket needed) ──
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('requests:changed', ev);
     }
-    if (!title) return;
-    // Play system sound via OS CLI (reliable on unsigned dev builds).
+
+    // ── Native OS notification + sound on file-added ──
+    if (ev.reason !== 'file-added') return;
     playSystemDing();
+    if (!Notification.isSupported()) return;
     try {
       const n = new Notification({
-        title,
-        body,
-        silent: true, // we already played the ding above; avoid double-sound
+        title: 'UOADrop — ملف جديد',
+        body: 'تم استلام ملف جديد — افتح اللوحة للطباعة.',
+        silent: true,
       });
       n.on('click', () => {
         if (mainWindow) {
@@ -140,9 +140,7 @@ app.whenReady().then(() => {
         }
       });
       n.show();
-    } catch {
-      /* ignore notification errors */
-    }
+    } catch { /* ignore */ }
   });
 
   app.on('activate', () => {

@@ -49,6 +49,9 @@ declare global {
       onPrinterStatusUpdate: (
         cb: (payload: { status: PrinterStatus; printerName: string | null; count?: number }) => void,
       ) => () => void;
+      onRequestsChanged: (
+        cb: (ev: { reason: string; requestId?: string; payload?: PrintRequest; file?: RequestFile }) => void,
+      ) => () => void;
     };
   }
 }

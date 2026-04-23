@@ -101,57 +101,27 @@ export function Dashboard(): JSX.Element {
     return () => clearInterval(id);
   }, [filter, search, page]);
 
+  // ── Real-time updates via direct Electron IPC (zero network hop) ──
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    let closed = false;
-
-    const connect = (): void => {
-      try {
-        ws = new WebSocket(`ws://${window.location.hostname || 'localhost'}:3737/ws`);
-      } catch {
-        retry = setTimeout(connect, 3000);
-        return;
+    const unsub = window.api.onRequestsChanged((ev) => {
+      if (ev.reason === 'created' && ev.payload) {
+        setRequests((prev) => {
+          if (prev.some((r) => r.id === ev.payload!.id)) return prev;
+          return [ev.payload!, ...prev];
+        });
+        setTotal((t) => t + 1);
       }
-      ws.onmessage = (msg) => {
-        try {
-          const data = JSON.parse(msg.data as string);
-          if (data?.type === 'requests:changed') {
-            if (data.reason === 'created' && data.payload) {
-              setRequests((prev) => {
-                if (prev.some((r: { id: string }) => r.id === data.payload.id)) return prev;
-                return [data.payload, ...prev];
-              });
-              setTotal((t) => t + 1);
-            }
-            if (data.reason === 'file-added') {
-              if (data.requestId) {
-                setFileCounts((prev) => ({
-                  ...prev,
-                  [data.requestId as string]: (prev[data.requestId as string] ?? 0) + 1,
-                }));
-              }
-              showToast('📩 ملف جديد — جاهز للطباعة');
-            }
-            // Always call latest refresh via ref — never stale
-            void refreshRef.current();
-          }
-        } catch { /* ignore */ }
-      };
-      ws.onclose = () => {
-        if (closed) return;
-        retry = setTimeout(connect, 3000);
-      };
-      ws.onerror = () => ws?.close();
-    };
-    connect();
-
-    return () => {
-      closed = true;
-      if (retry) clearTimeout(retry);
-      ws?.close();
-    };
-  }, []); // single persistent connection — refreshRef handles stale closure
+      if (ev.reason === 'file-added' && ev.requestId) {
+        setFileCounts((prev) => ({
+          ...prev,
+          [ev.requestId!]: (prev[ev.requestId!] ?? 0) + 1,
+        }));
+        showToast('📩 ملف جديد — جاهز للطباعة');
+      }
+      void refreshRef.current();
+    });
+    return unsub;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     window.api.printerStatus().then((p) =>

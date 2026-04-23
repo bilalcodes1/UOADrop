@@ -70,6 +70,14 @@ export const api = {
     ipcRenderer.on('printer:status-update', handler);
     return () => ipcRenderer.removeListener('printer:status-update', handler);
   },
+
+  onRequestsChanged: (
+    cb: (ev: { reason: string; requestId?: string; payload?: PrintRequest; file?: RequestFile }) => void,
+  ): (() => void) => {
+    const handler = (_e: unknown, ev: unknown): void => cb(ev as any);
+    ipcRenderer.on('requests:changed', handler);
+    return () => ipcRenderer.removeListener('requests:changed', handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);
