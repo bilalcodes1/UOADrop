@@ -7,6 +7,7 @@ import type { PrinterStatus } from '@uoadrop/shared';
 import { PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
 import {
   addRequestFile,
+  deleteRequest,
   ensureLibrarianPin,
   listRequestFiles,
   listRequests,
@@ -57,6 +58,8 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('requests:files', async (_e, requestId: string) => ({
     items: listRequestFiles(requestId),
   }));
+
+  ipcMain.handle('requests:delete', async (_e, id: string) => deleteRequest(id));
 
   ipcMain.handle('requests:addFile', async (_e, requestId: string, filePath: string) => {
     const st = await stat(filePath);

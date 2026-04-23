@@ -19,6 +19,9 @@ export const api = {
   listRequestFiles: (requestId: string): Promise<{ items: RequestFile[] }> =>
     ipcRenderer.invoke('requests:files', requestId),
 
+  deleteRequest: (id: string): Promise<{ deletedFiles: number }> =>
+    ipcRenderer.invoke('requests:delete', id),
+
   addFileToRequest: (requestId: string, filePath: string): Promise<RequestFile> =>
     ipcRenderer.invoke('requests:addFile', requestId, filePath),
 

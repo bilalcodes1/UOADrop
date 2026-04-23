@@ -95,6 +95,21 @@ export function Dashboard(): JSX.Element {
     showToast(`الطلب ${req.ticket} أصبح جاهزاً — أُرسل الإشعار للطالب`);
   };
 
+  const handleDelete = async (req: PrintRequest): Promise<void> => {
+    const confirmed = window.confirm(
+      `حذف الطلب ${req.ticket} وكل ملفاته؟ لا يمكن التراجع.`,
+    );
+    if (!confirmed) return;
+    setBusy(req.id);
+    try {
+      await window.api.deleteRequest(req.id);
+      await refresh();
+      showToast(`تم حذف الطلب ${req.ticket}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const counts = {
     pending: requests.filter((r) => r.status === 'pending').length,
     printing: requests.filter((r) => r.status === 'printing').length,
@@ -171,6 +186,14 @@ export function Dashboard(): JSX.Element {
                 onClick={() => handleReady(req)}
               >
                 ✅ جاهز
+              </button>
+              <button
+                className="btn btn-delete"
+                disabled={busy === req.id}
+                onClick={() => handleDelete(req)}
+                title="حذف الطلب"
+              >
+                🗑️
               </button>
             </div>
           </article>

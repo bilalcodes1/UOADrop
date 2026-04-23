@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, unlinkSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { PrintRequest, RequestFile, RequestStatus } from '@uoadrop/shared';
@@ -379,6 +379,59 @@ export function addRequestFile(args: {
     sha256: args.sha256,
     magicByteVerified: args.magicByteVerified,
   };
+}
+
+export function deleteRequest(id: string): { deletedFiles: number } {
+  const d = getDb();
+  const files = listRequestFiles(id);
+  const tx = d.transaction(() => {
+    d.prepare('DELETE FROM request_files WHERE request_id = ?').run(id);
+    d.prepare('DELETE FROM print_requests WHERE id = ?').run(id);
+  });
+  tx();
+  // Best-effort disk cleanup (ignore errors)
+  for (const f of files) {
+    if (f.localPath) {
+      try {
+        unlinkSync(f.localPath);
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return { deletedFiles: files.length };
+}
+
+export function purgeOldPinAttempts(olderThanMs: number): number {
+  const d = getDb();
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  const info = d.prepare('DELETE FROM pin_attempts WHERE created_at < ?').run(cutoff);
+  return info.changes;
+}
+
+export function findAbandonedRequests(olderThanMs: number): string[] {
+  const d = getDb();
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  const rows = d
+    .prepare(
+      `SELECT id FROM print_requests r
+       WHERE status = 'pending'
+         AND created_at < ?
+         AND NOT EXISTS (SELECT 1 FROM request_files f WHERE f.request_id = r.id)`,
+    )
+    .all(cutoff) as Array<{ id: string }>;
+  return rows.map((r) => r.id);
+}
+
+export function findExpiredCompletedRequests(olderThanMs: number): string[] {
+  const d = getDb();
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  const rows = d
+    .prepare(
+      "SELECT id FROM print_requests WHERE status IN ('done','canceled') AND updated_at < ?",
+    )
+    .all(cutoff) as Array<{ id: string }>;
+  return rows.map((r) => r.id);
 }
 
 export function listRequestFiles(requestId: string): RequestFile[] {

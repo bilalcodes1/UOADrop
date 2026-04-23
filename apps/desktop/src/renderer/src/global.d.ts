@@ -18,6 +18,7 @@ declare global {
       listRequests: () => Promise<{ items: PrintRequest[] }>;
       setRequestStatus: (id: string, status: RequestStatus) => Promise<{ ok: true }>;
       listRequestFiles: (requestId: string) => Promise<{ items: RequestFile[] }>;
+      deleteRequest: (id: string) => Promise<{ deletedFiles: number }>;
       addFileToRequest: (requestId: string, filePath: string) => Promise<RequestFile>;
       openFile: (filePath: string) => Promise<{ ok: boolean; error?: string }>;
       printFile: (

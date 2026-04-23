@@ -19,15 +19,23 @@ import {
 import {
   addRequestFile,
   createRequest,
+  deleteRequest,
+  findAbandonedRequests,
+  findExpiredCompletedRequests,
   getDb,
   listRequests,
   listRequestFiles,
+  purgeOldPinAttempts,
   recentFailedPinAttempts,
   recordPinAttempt,
   seedIfEmpty,
   setRequestStatus,
   verifyStudentPinByTicket,
 } from './db';
+import {
+  ABANDONED_UPLOAD_TTL_HOURS,
+  COMPLETED_REQUEST_RETENTION_DAYS,
+} from '@uoadrop/shared';
 
 const DEFAULT_PORT = 3737;
 
@@ -393,7 +401,43 @@ export async function startLocalServer(): Promise<{ port: number }> {
 
   const port = Number(process.env.DESKTOP_PORT ?? DEFAULT_PORT);
   await server.listen({ port, host: '0.0.0.0' });
+
+  startCleanupTask();
+
   return { port };
+}
+
+function startCleanupTask(): void {
+  const runOnce = (): void => {
+    try {
+      const abandonedMs = ABANDONED_UPLOAD_TTL_HOURS * 60 * 60 * 1000;
+      const retainMs = COMPLETED_REQUEST_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+      let deleted = 0;
+      for (const id of findAbandonedRequests(abandonedMs)) {
+        deleteRequest(id);
+        deleted++;
+      }
+      for (const id of findExpiredCompletedRequests(retainMs)) {
+        deleteRequest(id);
+        deleted++;
+      }
+      const purgedAttempts = purgeOldPinAttempts(24 * 60 * 60 * 1000);
+      if (deleted > 0 || purgedAttempts > 0) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[UOADrop] cleanup: deleted ${deleted} requests, purged ${purgedAttempts} pin_attempts`,
+        );
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[UOADrop] cleanup error', err);
+    }
+  };
+
+  // Initial run shortly after startup, then hourly
+  setTimeout(runOnce, 10_000).unref?.();
+  setInterval(runOnce, 60 * 60 * 1000).unref?.();
 }
 
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
