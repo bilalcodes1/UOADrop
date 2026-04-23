@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import type { PrintRequest, RequestStatus } from '@uoadrop/shared';
+import type { PrintRequest, PrinterStatus, RequestStatus } from '@uoadrop/shared';
+
+const PRINTER_LABEL: Record<PrinterStatus, string> = {
+  ready: 'جاهزة',
+  printing: 'تطبع',
+  paused: 'متوقفة',
+  offline: 'غير متصلة',
+  error: 'خطأ',
+  'out-of-paper': 'نفاد ورق',
+  'out-of-toner': 'نفاد حبر',
+  'paper-jam': 'انحشار ورق',
+  unknown: 'غير معروف',
+};
 
 const STATUS_LABEL: Record<RequestStatus, string> = {
   pending: 'قيد الانتظار',
@@ -23,6 +35,10 @@ export function Dashboard(): JSX.Element {
   const [requests, setRequests] = useState<PrintRequest[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [printer, setPrinter] = useState<{
+    status: PrinterStatus;
+    printerName: string | null;
+  }>({ status: 'unknown', printerName: null });
 
   const showToast = (msg: string): void => {
     setToast(msg);
@@ -45,7 +61,21 @@ export function Dashboard(): JSX.Element {
   useEffect(() => {
     window.api.seed().then(() => refresh());
     const id = setInterval(() => refresh(), 3000);
-    return () => clearInterval(id);
+
+    window.api.printerStatus().then((p) =>
+      setPrinter({ status: p.status, printerName: p.printerName }),
+    );
+    const unsub = window.api.onPrinterStatusUpdate((p) => {
+      setPrinter({ status: p.status, printerName: p.printerName });
+      if (p.status === 'offline' || p.status === 'error') {
+        showToast(`تنبيه طابعة: ${PRINTER_LABEL[p.status]}`);
+      }
+    });
+
+    return () => {
+      clearInterval(id);
+      unsub();
+    };
   }, []);
 
   const handleView = async (req: PrintRequest): Promise<void> => {
@@ -122,6 +152,13 @@ export function Dashboard(): JSX.Element {
         <div>
           <h1>UOADrop</h1>
           <p className="subtitle">لوحة المكتبة</p>
+          <div className={`printer-indicator printer-${printer.status}`}>
+            <span className="dot" />
+            <span className="label">
+              الطابعة: {PRINTER_LABEL[printer.status]}
+              {printer.printerName ? ` • ${printer.printerName}` : ''}
+            </span>
+          </div>
         </div>
         <div className="stats">
           <div className="stat">

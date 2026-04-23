@@ -1,6 +1,21 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { PrinterStatus, PrintRequest, RequestFile, RequestStatus } from '@uoadrop/shared';
 
+export interface PrinterStatusPayload {
+  status: PrinterStatus;
+  printerName: string | null;
+  count?: number;
+}
+
+export interface PrinterEvent {
+  id: number;
+  event: string;
+  status: string;
+  printerName: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export const api = {
   unlock: (
     pin: string,
@@ -36,8 +51,17 @@ export const api = {
   chooseFile: (): Promise<{ canceled: boolean; filePaths: string[] }> =>
     ipcRenderer.invoke('file:choose'),
 
-  printerStatus: (): Promise<PrinterStatus> =>
+  printerStatus: (): Promise<PrinterStatusPayload> =>
     ipcRenderer.invoke('printer:status'),
+
+  printerEvents: (limit?: number): Promise<{ items: PrinterEvent[] }> =>
+    ipcRenderer.invoke('printer:events', limit),
+
+  onPrinterStatusUpdate: (cb: (payload: PrinterStatusPayload) => void): (() => void) => {
+    const handler = (_e: unknown, payload: PrinterStatusPayload): void => cb(payload);
+    ipcRenderer.on('printer:status-update', handler);
+    return () => ipcRenderer.removeListener('printer:status-update', handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

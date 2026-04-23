@@ -71,10 +71,75 @@ function initSchema(d: Database.Database): void {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS printer_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event TEXT NOT NULL,
+      status TEXT NOT NULL,
+      printer_name TEXT,
+      details_json TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_request_files_request_id ON request_files(request_id);
     CREATE INDEX IF NOT EXISTS idx_print_requests_status ON print_requests(status);
     CREATE INDEX IF NOT EXISTS idx_pin_attempts_scope_time ON pin_attempts(scope, created_at);
+    CREATE INDEX IF NOT EXISTS idx_printer_events_created_at ON printer_events(created_at);
   `);
+}
+
+export interface PrinterEventRow {
+  id: number;
+  event: string;
+  status: string;
+  printerName: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export function logPrinterEvent(args: {
+  event: string;
+  status: string;
+  printerName?: string | null;
+  details?: Record<string, unknown> | null;
+}): void {
+  const d = getDb();
+  d.prepare(
+    `INSERT INTO printer_events(event, status, printer_name, details_json, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(
+    args.event,
+    args.status,
+    args.printerName ?? null,
+    args.details ? JSON.stringify(args.details) : null,
+    new Date().toISOString(),
+  );
+}
+
+export function listPrinterEvents(limit = 50): PrinterEventRow[] {
+  const d = getDb();
+  const rows = d
+    .prepare(
+      `SELECT id, event, status, printer_name, details_json, created_at
+       FROM printer_events
+       ORDER BY id DESC
+       LIMIT ?`,
+    )
+    .all(limit) as Array<{
+    id: number;
+    event: string;
+    status: string;
+    printer_name: string | null;
+    details_json: string | null;
+    created_at: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    event: r.event,
+    status: r.status,
+    printerName: r.printer_name,
+    details: r.details_json ? (JSON.parse(r.details_json) as Record<string, unknown>) : null,
+    createdAt: r.created_at,
+  }));
 }
 
 function getSetting(key: string): string | null {

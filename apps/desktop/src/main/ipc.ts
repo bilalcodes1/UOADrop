@@ -9,6 +9,7 @@ import {
   addRequestFile,
   deleteRequest,
   ensureLibrarianPin,
+  listPrinterEvents,
   listRequestFiles,
   listRequests,
   recentFailedPinAttempts,
@@ -17,6 +18,7 @@ import {
   setRequestStatus,
   verifyLibrarianPin,
 } from './db';
+import { getCachedPrinterStatus } from './printer';
 
 const CHROMIUM_NATIVE_EXT = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp'];
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
@@ -130,12 +132,17 @@ export function registerIpcHandlers(): void {
   });
 
   // ─────────────────────────────────────────
-  // printer:status — placeholder (Phase 1.3: wire up real query)
+  // printer:status — cached from poller (Phase 1.9)
   // ─────────────────────────────────────────
-  ipcMain.handle('printer:status', async (): Promise<PrinterStatus> => {
-    // TODO: use node-printer or platform-specific query (wmic/lpstat)
-    return 'unknown';
-  });
+  ipcMain.handle(
+    'printer:status',
+    async (): Promise<{ status: PrinterStatus; printerName: string | null }> =>
+      getCachedPrinterStatus(),
+  );
+
+  ipcMain.handle('printer:events', async (_e, limit?: number) => ({
+    items: listPrinterEvents(typeof limit === 'number' ? limit : 50),
+  }));
 
   // ─────────────────────────────────────────
   // file:choose — open file picker (for testing)

@@ -25,7 +25,24 @@ declare global {
         filePath: string,
       ) => Promise<{ ok: boolean; error?: string | null; hint?: string }>;
       chooseFile: () => Promise<{ canceled: boolean; filePaths: string[] }>;
-      printerStatus: () => Promise<PrinterStatus>;
+      printerStatus: () => Promise<{
+        status: PrinterStatus;
+        printerName: string | null;
+        count?: number;
+      }>;
+      printerEvents: (limit?: number) => Promise<{
+        items: Array<{
+          id: number;
+          event: string;
+          status: string;
+          printerName: string | null;
+          details: Record<string, unknown> | null;
+          createdAt: string;
+        }>;
+      }>;
+      onPrinterStatusUpdate: (
+        cb: (payload: { status: PrinterStatus; printerName: string | null; count?: number }) => void,
+      ) => () => void;
     };
   }
 }

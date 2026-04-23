@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 import { registerIpcHandlers } from './ipc';
 import { startLocalServer } from './server';
+import { startPrinterPolling } from './printer';
 
 const isDev = !app.isPackaged;
 
@@ -71,6 +72,8 @@ app.whenReady().then(() => {
   startLocalServer().catch(() => {
     // Phase 1.3: surface error in UI via IPC + toast
   });
+
+  startPrinterPolling();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

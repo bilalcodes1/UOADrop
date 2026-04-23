@@ -192,6 +192,31 @@ body, html, #root {
 .btn-delete { flex: 0 0 auto; padding: 10px 12px; background: var(--surface); color: var(--danger); border-color: #fecaca; }
 .btn-delete:hover:not(:disabled) { background: #fef2f2; }
 
+/* Printer indicator */
+.printer-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.printer-indicator .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.18);
+}
+.printer-ready .dot    { background: var(--success); box-shadow: 0 0 0 3px rgba(22,163,74,.15); }
+.printer-printing .dot { background: var(--primary); box-shadow: 0 0 0 3px rgba(11,92,255,.15); }
+.printer-offline .dot  { background: #9ca3af; }
+.printer-error .dot,
+.printer-paper-jam .dot,
+.printer-out-of-paper .dot,
+.printer-out-of-toner .dot { background: var(--danger); box-shadow: 0 0 0 3px rgba(220,38,38,.15); }
+.printer-paused .dot   { background: var(--warning); box-shadow: 0 0 0 3px rgba(217,119,6,.15); }
+
 .toast {
   position: fixed;
   bottom: 24px;
