@@ -126,6 +126,19 @@ export function recordPinAttempt(scope: string, ok: boolean): void {
   );
 }
 
+export function verifyStudentPinByTicket(
+  ticket: string,
+  pin: string,
+): { ok: boolean; requestId: string | null; status: RequestStatus | null } {
+  const d = getDb();
+  const row = d
+    .prepare('SELECT id, pin_hash, status FROM print_requests WHERE ticket = ?')
+    .get(ticket) as { id: string; pin_hash: string; status: RequestStatus } | undefined;
+  if (!row) return { ok: false, requestId: null, status: null };
+  const ok = bcrypt.compareSync(pin, row.pin_hash);
+  return { ok, requestId: row.id, status: row.status };
+}
+
 export function recentFailedPinAttempts(scope: string, withinMs: number): number {
   const d = getDb();
   const since = new Date(Date.now() - withinMs).toISOString();

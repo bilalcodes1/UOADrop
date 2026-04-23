@@ -10,11 +10,24 @@ import {
   ALLOWED_MIME_TYPES,
   MAX_FILE_SIZE_MB,
   MAX_FILES_PER_REQUEST,
+  PIN_LOCKOUT_MINUTES,
+  PIN_MAX_ATTEMPTS,
   detectMagic,
   isAllowedExtension,
   isAllowedMime,
 } from '@uoadrop/shared';
-import { addRequestFile, createRequest, getDb, listRequests, listRequestFiles, seedIfEmpty, setRequestStatus } from './db';
+import {
+  addRequestFile,
+  createRequest,
+  getDb,
+  listRequests,
+  listRequestFiles,
+  recentFailedPinAttempts,
+  recordPinAttempt,
+  seedIfEmpty,
+  setRequestStatus,
+  verifyStudentPinByTicket,
+} from './db';
 
 const DEFAULT_PORT = 3737;
 
@@ -194,6 +207,53 @@ export async function startLocalServer(): Promise<{ port: number }> {
       });
 
       return reply.send(created);
+    },
+  );
+
+  server.post(
+    '/api/verify-pin',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (req: any, reply: any) => {
+      const body = (req.body ?? {}) as { ticket?: string; pin?: string };
+      const ticket = String(body.ticket ?? '').trim().toUpperCase().slice(0, 8);
+      const pin = String(body.pin ?? '').trim();
+
+      if (!ticket || !pin) {
+        return reply.code(400).send({ ok: false, error: 'missing ticket or pin' });
+      }
+
+      const scope = `student:${ticket}`;
+      const windowMs = PIN_LOCKOUT_MINUTES * 60 * 1000;
+      const failures = recentFailedPinAttempts(scope, windowMs);
+      if (failures >= PIN_MAX_ATTEMPTS) {
+        return reply.code(429).send({
+          ok: false,
+          locked: true,
+          remaining: 0,
+          lockoutMinutes: PIN_LOCKOUT_MINUTES,
+          hint: `تم تجميد التحقق لهذه التذكرة لمدة ${PIN_LOCKOUT_MINUTES} دقيقة`,
+        });
+      }
+
+      const res = verifyStudentPinByTicket(ticket, pin);
+      recordPinAttempt(scope, res.ok);
+      const remaining = Math.max(0, PIN_MAX_ATTEMPTS - (res.ok ? 0 : failures + 1));
+
+      if (!res.ok) {
+        return reply.code(401).send({
+          ok: false,
+          locked: false,
+          remaining,
+          hint: res.requestId ? 'PIN خاطئ' : 'التذكرة غير موجودة',
+        });
+      }
+
+      return {
+        ok: true,
+        remaining,
+        requestId: res.requestId,
+        status: res.status,
+      };
     },
   );
 
