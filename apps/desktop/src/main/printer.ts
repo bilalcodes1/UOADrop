@@ -31,8 +31,14 @@ async function queryPrintersOnce(): Promise<{
     const def = printers.find((p) => p.isDefault) ?? printers[0]!;
     // PrinterInfo.status is a number on Win/Linux and 0 on macOS; non-zero usually means a problem.
     const raw = (def as any).status as number | undefined;
+    // CUPS printer-state: 3=idle(ready), 4=processing, 5=stopped.
+    // Windows/Linux expose different bitflags; treat 0/undefined as ready.
     let mapped: PrinterStatus = 'ready';
-    if (typeof raw === 'number' && raw > 0) mapped = 'error';
+    if (typeof raw === 'number') {
+      if (raw === 4) mapped = 'printing';
+      else if (raw === 5) mapped = 'error';
+      // 3 / 0 / undefined → ready
+    }
     return {
       status: mapped,
       printerName: def.displayName ?? def.name ?? null,

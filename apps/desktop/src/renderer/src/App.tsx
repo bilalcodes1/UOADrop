@@ -4,7 +4,7 @@ import { LockScreen } from './components/LockScreen';
 import { IDLE_LOCK_MINUTES } from '@uoadrop/shared';
 
 export function App(): JSX.Element {
-  const [locked, setLocked] = useState(false);
+  const [locked, setLocked] = useState(true);
   const [lastActivity, setLastActivity] = useState(Date.now());
 
   // Track user activity

@@ -157,26 +157,36 @@ export function Dashboard(): JSX.Element {
 
   const handlePrint = async (req: PrintRequest): Promise<void> => {
     setBusy(req.id);
-    const res = await window.api.chooseFile();
-    if (res.canceled || res.filePaths.length === 0) {
+    const listing = await window.api.listRequestFiles(req.id);
+    if (listing.items.length === 0) {
+      showToast(`لا توجد ملفات مرفقة بالطلب ${req.ticket}`);
       setBusy(null);
       return;
     }
 
-    const chosen = res.filePaths[0]!;
-    await window.api.addFileToRequest(req.id, chosen);
-    const printRes = await window.api.printFile(chosen);
-    if (printRes.ok) {
+    let anyOk = false;
+    let lastHint: string | undefined;
+    let lastError: string | undefined;
+    for (const f of listing.items) {
+      if (!f.localPath) continue;
+      const printRes = await window.api.printFile(f.localPath);
+      if (printRes.ok) {
+        anyOk = true;
+        lastHint = printRes.hint ?? lastHint;
+      } else {
+        lastError = printRes.error ?? lastError;
+        lastHint = printRes.hint ?? lastHint;
+      }
+    }
+
+    if (anyOk) {
       await window.api.setRequestStatus(req.id, 'printing');
       updateStatus(req.id, 'printing');
-      showToast(printRes.hint ?? `بدأت طباعة ${req.ticket}`);
+      showToast(lastHint ?? `بدأت طباعة ${req.ticket}`);
+    } else if (lastError === 'NO_PRINTERS_CONFIGURED') {
+      showToast(lastHint ?? 'فشل الطباعة: لا توجد طابعات مُضافة للنظام');
     } else {
-      const hint = printRes.hint?.trim();
-      if (printRes.error === 'NO_PRINTERS_CONFIGURED') {
-        showToast(hint ?? 'فشل الطباعة: لا توجد طابعات مُضافة للنظام');
-      } else {
-        showToast(hint ? `فشل الطباعة: ${hint}` : `فشل الطباعة: ${printRes.error}`);
-      }
+      showToast(lastHint ? `فشل الطباعة: ${lastHint}` : `فشل الطباعة: ${lastError ?? 'unknown'}`);
     }
     setBusy(null);
   };
