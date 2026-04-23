@@ -93,11 +93,32 @@ export function Dashboard(): JSX.Element {
     return () => clearInterval(id);
   }, [filter, search, page]);
 
-  // Live updates via WebSocket
+  // Live updates via WebSocket (+ beep on new requests)
   useEffect(() => {
     let ws: WebSocket | null = null;
     let retry: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
+
+    const playBeep = (): void => {
+      try {
+        const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = 880;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+        osc.onended = () => ctx.close().catch(() => {});
+      } catch {
+        /* ignore audio errors */
+      }
+    };
 
     const connect = (): void => {
       try {
@@ -109,7 +130,15 @@ export function Dashboard(): JSX.Element {
       ws.onmessage = (msg) => {
         try {
           const data = JSON.parse(msg.data as string);
-          if (data?.type === 'requests:changed') void refresh();
+          if (data?.type === 'requests:changed') {
+            void refresh();
+            if (data.reason === 'created') {
+              playBeep();
+              showToast('📩 طلب جديد وصل');
+            } else if (data.reason === 'file-added') {
+              playBeep();
+            }
+          }
         } catch { /* ignore */ }
       };
       ws.onclose = () => {

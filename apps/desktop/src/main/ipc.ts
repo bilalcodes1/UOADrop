@@ -126,11 +126,18 @@ export function registerIpcHandlers(): void {
 
     if (CHROMIUM_NATIVE_EXT.includes(ext)) {
       const win = new BrowserWindow({ show: false, width: 1, height: 1 });
+      const cleanup = (): void => {
+        try {
+          if (!win.isDestroyed()) win.destroy();
+        } catch {
+          /* ignore */
+        }
+      };
       try {
         await win.loadFile(filePath);
         const printers = await win.webContents.getPrintersAsync();
         if (!printers || printers.length === 0) {
-          win.close();
+          cleanup();
           return {
             ok: false,
             error: NO_PRINTERS_ERROR,
@@ -139,13 +146,30 @@ export function registerIpcHandlers(): void {
         }
         await new Promise<void>((r) => setTimeout(r, 350));
         return await new Promise((resolve) => {
-          win.webContents.print({ silent: false }, (success, errorType) => {
-            win.close();
-            resolve({ ok: success, error: success ? null : errorType });
-          });
+          let settled = false;
+          const settle = (payload: { ok: boolean; error: string | null }): void => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(payload);
+          };
+          // macOS sometimes never fires the print callback on cancel — enforce a cap.
+          const timer = setTimeout(
+            () => settle({ ok: false, error: 'timeout' }),
+            60_000,
+          );
+          try {
+            win.webContents.print({ silent: false }, (success, errorType) => {
+              clearTimeout(timer);
+              settle({ ok: success, error: success ? null : errorType || 'canceled' });
+            });
+          } catch (err) {
+            clearTimeout(timer);
+            settle({ ok: false, error: String(err) });
+          }
         });
       } catch (err) {
-        win.close();
+        cleanup();
         return { ok: false, error: String(err) };
       }
     }
