@@ -71,7 +71,7 @@ export function Dashboard(): JSX.Element {
     );
   };
 
-  const refresh = async (): Promise<void> => {
+  const refresh = useCallback(async (): Promise<void> => {
     const statuses = filter === 'all' ? undefined : [filter];
     const res = await window.api.listRequestsPaged({
       statuses,
@@ -81,26 +81,26 @@ export function Dashboard(): JSX.Element {
     });
     setRequests(res.items);
     setTotal(res.total);
-  };
+  }, [filter, search, page]);
+
+  // Always-fresh ref so WS callbacks never hold a stale closure
+  const refreshRef = useRef(refresh);
+  useEffect(() => { refreshRef.current = refresh; }, [refresh]);
 
   useEffect(() => {
     setPage(0);
   }, [filter, search]);
 
   useEffect(() => {
-    void window.api.seed().then(() => refresh());
+    void window.api.seed().then(() => refreshRef.current());
   }, []);
 
   useEffect(() => {
     void refresh();
-    // Safety re-poll every 30s in case WS is down.
-    const id = setInterval(() => void refresh(), 30_000);
+    const id = setInterval(() => void refreshRef.current(), 30_000);
     return () => clearInterval(id);
   }, [filter, search, page]);
 
-  // Live updates via WebSocket.
-  // NOTE: native OS notification + system sound are emitted from the main
-  // process (see main/index.ts). Here we only refresh data and show a toast.
   useEffect(() => {
     let ws: WebSocket | null = null;
     let retry: ReturnType<typeof setTimeout> | null = null;
@@ -125,7 +125,6 @@ export function Dashboard(): JSX.Element {
               setTotal((t) => t + 1);
             }
             if (data.reason === 'file-added') {
-              // Instant file-count badge update — zero IPC round-trip
               if (data.requestId) {
                 setFileCounts((prev) => ({
                   ...prev,
@@ -134,7 +133,8 @@ export function Dashboard(): JSX.Element {
               }
               showToast('📩 ملف جديد — جاهز للطباعة');
             }
-            void refresh();
+            // Always call latest refresh via ref — never stale
+            void refreshRef.current();
           }
         } catch { /* ignore */ }
       };
