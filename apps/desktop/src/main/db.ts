@@ -3,6 +3,8 @@ import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { PrintRequest, RequestFile, RequestStatus } from '@uoadrop/shared';
+import { PIN_BCRYPT_ROUNDS, PIN_LENGTH } from '@uoadrop/shared';
+import bcrypt from 'bcryptjs';
 
 let db: Database.Database | null = null;
 
@@ -136,6 +138,78 @@ export function seedIfEmpty(): { seeded: boolean; count: number } {
 
   tx();
   return { seeded: true, count: rows.length };
+}
+
+function generateTicket(): string {
+  // Simple 4-char ticket: A-Z + 0-9
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function generatePin(): string {
+  let out = '';
+  for (let i = 0; i < PIN_LENGTH; i++) out += Math.floor(Math.random() * 10).toString();
+  return out;
+}
+
+export function createRequest(args: {
+  studentName?: string;
+  options: PrintRequest['options'];
+  totalPages: number;
+  priceIqd: number;
+}): { request: PrintRequest; pin: string } {
+  const d = getDb();
+  const now = new Date().toISOString();
+  const id = randomUUID();
+
+  // Ensure unique ticket (best-effort)
+  let ticket = generateTicket();
+  const exists = d.prepare('SELECT 1 FROM print_requests WHERE ticket = ? LIMIT 1');
+  for (let i = 0; i < 10; i++) {
+    if (!exists.get(ticket)) break;
+    ticket = generateTicket();
+  }
+
+  const pin = generatePin();
+  const pinHash = bcrypt.hashSync(pin, PIN_BCRYPT_ROUNDS);
+
+  const optionsJson = JSON.stringify(args.options);
+  const status: RequestStatus = 'pending';
+
+  d.prepare(
+    `INSERT INTO print_requests (
+      id, ticket, student_name, pin_hash, status, options_json,
+      total_pages, price_iqd, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    ticket,
+    args.studentName ?? null,
+    pinHash,
+    status,
+    optionsJson,
+    args.totalPages,
+    args.priceIqd,
+    now,
+    now,
+  );
+
+  const request: PrintRequest = {
+    id,
+    ticket,
+    studentName: args.studentName,
+    pinHash,
+    status,
+    options: args.options,
+    totalPages: args.totalPages,
+    priceIqd: args.priceIqd,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return { request, pin };
 }
 
 export function listRequests(): PrintRequest[] {
