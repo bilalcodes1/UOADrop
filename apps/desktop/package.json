@@ -14,15 +14,18 @@
   },
   "dependencies": {
     "@fastify/multipart": "^9.4.0",
+    "@fastify/rate-limit": "^10.3.0",
     "@uoadrop/db-schema": "workspace:*",
     "@uoadrop/shared": "workspace:*",
     "@uoadrop/ui": "workspace:*",
+    "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.10.0",
     "fastify": "^5.8.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",

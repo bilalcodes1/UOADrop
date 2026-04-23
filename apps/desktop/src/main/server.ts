@@ -1,9 +1,19 @@
 import Fastify from 'fastify';
 import multipart from '@fastify/multipart';
-import { mkdirSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
-import { basename, resolve } from 'node:path';
+import rateLimit from '@fastify/rate-limit';
+import { createWriteStream, mkdirSync } from 'node:fs';
+import { unlink } from 'node:fs/promises';
+import { basename, extname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import {
+  ALLOWED_EXTENSIONS,
+  ALLOWED_MIME_TYPES,
+  MAX_FILE_SIZE_MB,
+  MAX_FILES_PER_REQUEST,
+  detectMagic,
+  isAllowedExtension,
+  isAllowedMime,
+} from '@uoadrop/shared';
 import { addRequestFile, createRequest, getDb, listRequests, listRequestFiles, seedIfEmpty, setRequestStatus } from './db';
 
 const DEFAULT_PORT = 3737;
@@ -25,10 +35,22 @@ export async function startLocalServer(): Promise<{ port: number }> {
 
   const server = Fastify({
     logger: false,
-    bodyLimit: 50 * 1024 * 1024,
+    bodyLimit: (MAX_FILE_SIZE_MB + 1) * 1024 * 1024,
   });
 
-  await server.register(multipart);
+  await server.register(rateLimit, {
+    global: false,
+    timeWindow: '1 minute',
+    max: 60,
+  });
+
+  await server.register(multipart, {
+    limits: {
+      fileSize: MAX_FILE_SIZE_MB * 1024 * 1024,
+      files: 1, // one part per upload request
+      fieldSize: 1024 * 1024,
+    },
+  });
 
   server.get('/', async (_req, reply) => {
     reply.header('content-type', 'text/html; charset=utf-8');
@@ -141,33 +163,39 @@ export async function startLocalServer(): Promise<{ port: number }> {
 
   server.get('/requests', async () => ({ items: listRequests() }));
 
-  server.post('/api/requests', async (req: any, reply: any) => {
-    const body = req.body as any;
-    const studentName = (body?.studentName as string | undefined) ?? undefined;
-    const options = body?.options as any;
-    const totalPages = Number(body?.totalPages ?? 1);
+  server.post(
+    '/api/requests',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (req: any, reply: any) => {
+      const body = (req.body ?? {}) as any;
 
-    if (!options || !Number.isFinite(totalPages) || totalPages < 1) {
-      return reply.code(400).send({ ok: false, error: 'invalid body' });
-    }
+      const rawName = typeof body.studentName === 'string' ? body.studentName.trim() : '';
+      const studentName = rawName.length > 0 ? rawName.slice(0, 80) : undefined;
 
-    // Simple pricing (Phase 1.5+: central pricing rules)
-    const perPage = options.color ? 250 : 100;
-    const priceIqd = perPage * totalPages * (Number(options.copies ?? 1) || 1);
+      const options = body?.options ?? {};
+      const copies = clampInt(options.copies, 1, 10, 1);
+      const totalPages = clampInt(body.totalPages, 1, 500, 1);
+      const color = !!options.color;
+      const doubleSided = options.doubleSided === undefined ? true : !!options.doubleSided;
 
-    const created = createRequest({
-      studentName,
-      options: {
-        copies: Number(options.copies ?? 1) || 1,
-        color: !!options.color,
-        doubleSided: !!options.doubleSided,
-      },
-      totalPages,
-      priceIqd,
-    });
+      if (!Number.isFinite(totalPages) || totalPages < 1) {
+        return reply.code(400).send({ ok: false, error: 'invalid body' });
+      }
 
-    return reply.send(created);
-  });
+      // Simple pricing (Phase 1.5+: central pricing rules)
+      const perPage = color ? 250 : 100;
+      const priceIqd = perPage * totalPages * copies;
+
+      const created = createRequest({
+        studentName,
+        options: { copies, color, doubleSided },
+        totalPages,
+        priceIqd,
+      });
+
+      return reply.send(created);
+    },
+  );
 
   server.post('/requests/:id/status', async (req: any, reply: any) => {
     const { id } = req.params as { id: string };
@@ -177,35 +205,126 @@ export async function startLocalServer(): Promise<{ port: number }> {
     return { ok: true };
   });
 
-  // Upload file for existing request (Phase 1.4+: validate magic bytes & type)
-  server.post('/api/requests/:id/files', async (req: any, reply: any) => {
-    const { id } = req.params as { id: string };
+  // Upload file for existing request (streaming + magic-bytes + whitelist)
+  server.post(
+    '/api/requests/:id/files',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (req: any, reply: any) => {
+      const { id } = req.params as { id: string };
 
-    const part = await (req as any).file();
-    if (!part) return reply.code(400).send({ ok: false, error: 'missing file' });
+      // Enforce per-request file count
+      const existing = listRequestFiles(id);
+      if (existing.length >= MAX_FILES_PER_REQUEST) {
+        return reply.code(400).send({
+          ok: false,
+          error: 'TOO_MANY_FILES',
+          hint: `الحد الأقصى ${MAX_FILES_PER_REQUEST} ملفات للطلب الواحد`,
+        });
+      }
 
-    const filename = part.filename ?? 'upload.bin';
-    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const destPath = resolve(getUploadsDir(), `${Date.now()}-${safeName}`);
+      const part = await (req as any).file();
+      if (!part) return reply.code(400).send({ ok: false, error: 'missing file' });
 
-    // Dev-only: keep it simple by buffering whole file.
-    const buf: Buffer = await part.toBuffer();
-    const sha256 = createHash('sha256').update(buf).digest('hex');
+      const filename = part.filename ?? 'upload.bin';
+      const ext = extname(filename).toLowerCase();
+      const mime = part.mimetype ?? 'application/octet-stream';
 
-    await writeFile(destPath, buf);
+      if (!isAllowedExtension(ext, ALLOWED_EXTENSIONS as unknown as string[])) {
+        return reply.code(400).send({
+          ok: false,
+          error: 'EXT_NOT_ALLOWED',
+          hint: 'نوع الملف غير مسموح',
+        });
+      }
+      if (!isAllowedMime(mime, ALLOWED_MIME_TYPES as unknown as string[])) {
+        return reply.code(400).send({
+          ok: false,
+          error: 'MIME_NOT_ALLOWED',
+          hint: 'نوع MIME غير مسموح',
+        });
+      }
 
-    addRequestFile({
-      requestId: id,
-      localPath: destPath,
-      filename: basename(destPath),
-      mimeType: part.mimetype ?? 'application/octet-stream',
-      sizeBytes: buf.length,
-      sha256,
-      magicByteVerified: false,
-    });
+      const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const destPath = resolve(getUploadsDir(), `${Date.now()}-${safeName}`);
 
-    return { ok: true };
-  });
+      const hash = createHash('sha256');
+      const writer = createWriteStream(destPath);
+      const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
+      let bytes = 0;
+      const head: number[] = [];
+      let aborted: string | null = null;
+
+      try {
+        for await (const chunk of part.file as AsyncIterable<Buffer>) {
+          if (head.length < 8) {
+            for (let i = 0; i < chunk.length && head.length < 8; i++) {
+              head.push(chunk[i]!);
+            }
+          }
+          bytes += chunk.length;
+          if (bytes > maxBytes) {
+            aborted = 'TOO_LARGE';
+            break;
+          }
+          hash.update(chunk);
+          if (!writer.write(chunk)) {
+            await new Promise<void>((r) => writer.once('drain', () => r()));
+          }
+        }
+      } catch (err) {
+        aborted = aborted ?? 'STREAM_ERROR';
+      } finally {
+        await new Promise<void>((r) => writer.end(() => r()));
+      }
+
+      if ((part as any).file?.truncated) {
+        aborted = aborted ?? 'TOO_LARGE';
+      }
+
+      if (aborted) {
+        await unlink(destPath).catch(() => {});
+        return reply.code(400).send({
+          ok: false,
+          error: aborted,
+          hint: aborted === 'TOO_LARGE' ? `الحد الأقصى ${MAX_FILE_SIZE_MB}MB للملف` : 'خطأ أثناء الرفع',
+        });
+      }
+
+      const detected = detectMagic(Uint8Array.from(head));
+      const extToKind: Record<string, string> = {
+        '.pdf': 'pdf',
+        '.png': 'png',
+        '.jpg': 'jpg',
+        '.jpeg': 'jpg',
+        '.docx': 'docx',
+        '.pptx': 'docx', // OOXML generic
+        '.xlsx': 'docx', // OOXML generic
+      };
+      const expected = extToKind[ext];
+      const magicOk = expected ? detected === expected : false;
+
+      if (!magicOk) {
+        await unlink(destPath).catch(() => {});
+        return reply.code(400).send({
+          ok: false,
+          error: 'MAGIC_MISMATCH',
+          hint: 'محتوى الملف لا يطابق الامتداد',
+        });
+      }
+
+      addRequestFile({
+        requestId: id,
+        localPath: destPath,
+        filename: basename(destPath),
+        mimeType: mime,
+        sizeBytes: bytes,
+        sha256: hash.digest('hex'),
+        magicByteVerified: true,
+      });
+
+      return { ok: true };
+    },
+  );
 
   server.get('/requests/:id/files', async (req: any) => {
     const { id } = req.params as { id: string };
@@ -215,4 +334,10 @@ export async function startLocalServer(): Promise<{ port: number }> {
   const port = Number(process.env.DESKTOP_PORT ?? DEFAULT_PORT);
   await server.listen({ port, host: '0.0.0.0' });
   return { port };
+}
+
+function clampInt(v: unknown, min: number, max: number, fallback: number): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(n)));
 }
