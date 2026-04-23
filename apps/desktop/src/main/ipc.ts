@@ -20,6 +20,7 @@ import {
   verifyLibrarianPin,
 } from './db';
 import { getCachedPrinterStatus } from './printer';
+import { emit as emitAppEvent } from './events';
 
 const CHROMIUM_NATIVE_EXT = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp'];
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
@@ -73,21 +74,27 @@ export function registerIpcHandlers(): void {
         offset: args?.offset,
       }),
   );
-  ipcMain.handle('requests:setStatus', async (_e, id: string, status: string) =>
-    setRequestStatus(id, status as any),
-  );
+  ipcMain.handle('requests:setStatus', async (_e, id: string, status: string) => {
+    const res = setRequestStatus(id, status as any);
+    emitAppEvent({ type: 'requests:changed', reason: 'status', requestId: id });
+    return res;
+  });
   ipcMain.handle('requests:files', async (_e, requestId: string) => ({
     items: listRequestFiles(requestId),
   }));
 
-  ipcMain.handle('requests:delete', async (_e, id: string) => deleteRequest(id));
+  ipcMain.handle('requests:delete', async (_e, id: string) => {
+    const res = deleteRequest(id);
+    emitAppEvent({ type: 'requests:changed', reason: 'deleted', requestId: id });
+    return res;
+  });
 
   ipcMain.handle('requests:addFile', async (_e, requestId: string, filePath: string) => {
     const st = await stat(filePath);
     const buf = await (await import('node:fs/promises')).readFile(filePath);
     const sha256 = createHash('sha256').update(buf).digest('hex');
     const mimeType = 'application/octet-stream';
-    return addRequestFile({
+    const res = addRequestFile({
       requestId,
       localPath: filePath,
       filename: basename(filePath),
@@ -96,6 +103,8 @@ export function registerIpcHandlers(): void {
       sha256,
       magicByteVerified: false,
     });
+    emitAppEvent({ type: 'requests:changed', reason: 'file-added', requestId });
+    return res;
   });
 
   // ─────────────────────────────────────────

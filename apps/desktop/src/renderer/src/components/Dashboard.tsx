@@ -88,8 +88,43 @@ export function Dashboard(): JSX.Element {
 
   useEffect(() => {
     void refresh();
-    const id = setInterval(() => void refresh(), 3000);
+    // Safety re-poll every 30s in case WS is down.
+    const id = setInterval(() => void refresh(), 30_000);
     return () => clearInterval(id);
+  }, [filter, search, page]);
+
+  // Live updates via WebSocket
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+
+    const connect = (): void => {
+      try {
+        ws = new WebSocket(`ws://${window.location.hostname || 'localhost'}:3737/ws`);
+      } catch {
+        retry = setTimeout(connect, 3000);
+        return;
+      }
+      ws.onmessage = (msg) => {
+        try {
+          const data = JSON.parse(msg.data as string);
+          if (data?.type === 'requests:changed') void refresh();
+        } catch { /* ignore */ }
+      };
+      ws.onclose = () => {
+        if (closed) return;
+        retry = setTimeout(connect, 3000);
+      };
+      ws.onerror = () => ws?.close();
+    };
+    connect();
+
+    return () => {
+      closed = true;
+      if (retry) clearTimeout(retry);
+      ws?.close();
+    };
   }, [filter, search, page]);
 
   useEffect(() => {

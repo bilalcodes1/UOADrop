@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
+import websocket from '@fastify/websocket';
+import { emit, subscribe } from './events';
 import { createWriteStream, mkdirSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { basename, extname, resolve } from 'node:path';
@@ -65,6 +67,26 @@ export async function startLocalServer(): Promise<{ port: number }> {
     global: false,
     timeWindow: '1 minute',
     max: 60,
+  });
+
+  await server.register(websocket);
+
+  server.get('/ws', { websocket: true } as any, (conn: any) => {
+    const socket = (conn?.socket ?? conn) as { send: (m: string) => void; on: (ev: string, cb: () => void) => void };
+    const send = (obj: unknown): void => {
+      try { socket.send(JSON.stringify(obj)); } catch { /* ignore */ }
+    };
+    send({ type: 'hello', at: new Date().toISOString() });
+
+    const unsubReq = subscribe('requests:changed', (ev) => send(ev));
+    const unsubPr = subscribe('printer:changed', (ev) => send(ev));
+
+    const cleanup = (): void => {
+      unsubReq();
+      unsubPr();
+    };
+    socket.on('close', cleanup);
+    socket.on('error', cleanup);
   });
 
   await server.register(multipart, {
@@ -266,6 +288,7 @@ export async function startLocalServer(): Promise<{ port: number }> {
         priceIqd,
       });
 
+      emit({ type: 'requests:changed', reason: 'created', requestId: created.request.id });
       return reply.send(created);
     },
   );
@@ -322,6 +345,7 @@ export async function startLocalServer(): Promise<{ port: number }> {
     const body = req.body as { status?: string };
     if (!body?.status) return reply.code(400).send({ ok: false, error: 'missing status' });
     setRequestStatus(id, body.status as any);
+    emit({ type: 'requests:changed', reason: 'status', requestId: id });
     return { ok: true };
   });
 
@@ -442,6 +466,7 @@ export async function startLocalServer(): Promise<{ port: number }> {
         magicByteVerified: true,
       });
 
+      emit({ type: 'requests:changed', reason: 'file-added', requestId: id });
       return { ok: true };
     },
   );

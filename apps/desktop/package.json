@@ -15,6 +15,7 @@
   "dependencies": {
     "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^10.3.0",
+    "@fastify/websocket": "^11.2.0",
     "@uoadrop/db-schema": "workspace:*",
     "@uoadrop/shared": "workspace:*",
     "@uoadrop/ui": "workspace:*",
