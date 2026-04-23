@@ -3,6 +3,7 @@ import { extname } from 'node:path';
 import type { PrinterStatus } from '@uoadrop/shared';
 
 const CHROMIUM_NATIVE_EXT = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp'];
+const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
 
 export function registerIpcHandlers(): void {
   // ─────────────────────────────────────────
@@ -26,6 +27,15 @@ export function registerIpcHandlers(): void {
       const win = new BrowserWindow({ show: false, width: 1, height: 1 });
       try {
         await win.loadFile(filePath);
+        const printers = await win.webContents.getPrintersAsync();
+        if (!printers || printers.length === 0) {
+          win.close();
+          return {
+            ok: false,
+            error: NO_PRINTERS_ERROR,
+            hint: 'لا توجد طابعات مُضافة للنظام. أضف طابعة من إعدادات النظام ثم أعد المحاولة.',
+          };
+        }
         await new Promise<void>((r) => setTimeout(r, 350));
         return await new Promise((resolve) => {
           win.webContents.print({ silent: false }, (success, errorType) => {

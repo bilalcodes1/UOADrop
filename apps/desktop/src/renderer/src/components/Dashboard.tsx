@@ -97,7 +97,12 @@ export function Dashboard(): JSX.Element {
       updateStatus(req.id, 'printing');
       showToast(printRes.hint ?? `بدأت طباعة ${req.ticket}`);
     } else {
-      showToast(`فشل الطباعة: ${printRes.error}`);
+      const hint = printRes.hint?.trim();
+      if (printRes.error === 'NO_PRINTERS_CONFIGURED') {
+        showToast(hint ?? 'فشل الطباعة: لا توجد طابعات مُضافة للنظام');
+      } else {
+        showToast(hint ? `فشل الطباعة: ${hint}` : `فشل الطباعة: ${printRes.error}`);
+      }
     }
     setBusy(null);
   };
