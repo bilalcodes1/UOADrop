@@ -159,6 +159,15 @@ export function Dashboard(): JSX.Element {
               {printer.printerName ? ` • ${printer.printerName}` : ''}
             </span>
           </div>
+          <div style={{ marginTop: 8 }}>
+            <button
+              className="btn"
+              style={{ padding: '6px 12px', fontSize: 13 }}
+              onClick={() => window.open('http://localhost:3737/wall-sign', '_blank')}
+            >
+              🧾 طباعة ملصق الحائط (QR)
+            </button>
+          </div>
         </div>
         <div className="stats">
           <div className="stat">

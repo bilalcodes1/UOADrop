@@ -5,6 +5,8 @@ import { createWriteStream, mkdirSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { basename, extname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { networkInterfaces } from 'node:os';
+import QRCode from 'qrcode';
 import {
   ALLOWED_EXTENSIONS,
   ALLOWED_MIME_TYPES,
@@ -181,6 +183,56 @@ export async function startLocalServer(): Promise<{ port: number }> {
   });
 
   server.get('/health', async () => ({ ok: true }));
+
+  const currentPort = Number(process.env.DESKTOP_PORT ?? DEFAULT_PORT);
+
+  server.get('/qr', async (req: any, reply: any) => {
+    const url =
+      (req.query?.url as string | undefined) ?? defaultUploadUrl(currentPort);
+    const png = await QRCode.toBuffer(url, { width: 512, margin: 1 });
+    reply.header('content-type', 'image/png');
+    return png;
+  });
+
+  server.get('/wall-sign', async (_req: any, reply: any) => {
+    const url = defaultUploadUrl(currentPort);
+    const dataUrl = await QRCode.toDataURL(url, { width: 420, margin: 1 });
+    reply.header('content-type', 'text/html; charset=utf-8');
+    return [
+      '<!doctype html>',
+      '<html lang="ar" dir="rtl"><head>',
+      '<meta charset="utf-8"/>',
+      '<meta name="viewport" content="width=device-width, initial-scale=1"/>',
+      '<title>UOADrop — ملصق الحائط</title>',
+      '<style>',
+      '@page { size: A4; margin: 20mm; }',
+      'body{font-family:-apple-system,Segoe UI,Tahoma,sans-serif;color:#1a2332;margin:0;padding:20mm;text-align:center}',
+      '.sign{max-width:540px;margin:0 auto;border:1px solid #e1e5eb;border-radius:16px;padding:28px}',
+      'h1{color:#0b5cff;font-size:28px;margin:0 0 6px}',
+      '.sub{color:#64748b;margin:0 0 16px}',
+      '.qr{margin:16px auto;display:inline-block;background:#fff;padding:10px;border-radius:12px;border:1px solid #e1e5eb}',
+      '.qr img{display:block;width:300px;height:300px}',
+      '.steps{text-align:right;margin:14px auto 0;max-width:520px;font-size:14px;line-height:1.9}',
+      '.url{font-family:SFMono-Regular,Menlo,monospace;background:#f4f6f9;padding:6px 10px;border-radius:8px;display:inline-block}',
+      '.actions{margin-top:12px}',
+      '@media print { .actions{display:none} }',
+      '</style></head><body>',
+      '<div class="sign">',
+      '<h1>UOADrop</h1>',
+      '<p class="sub">ارفع ملفات الطباعة بسرعة عبر واي فاي المكتبة</p>',
+      '<div class="qr"><img alt="QR" src="' + dataUrl + '"/></div>',
+      '<p>أو افتح: <span class="url">' + url + '</span></p>',
+      '<ol class="steps">',
+      '<li>اتصل بشبكة الواي فاي: <b>UOADrop-Library</b></li>',
+      '<li>امسح QR أو افتح الرابط أعلاه بالمتصفح</li>',
+      '<li>املأ الفورم وارفع الملفات</li>',
+      '<li>احفظ <b>التذكرة</b> و <b>PIN</b> للاستلام</li>',
+      '</ol>',
+      '<div class="actions"><button onclick="window.print()" style="padding:10px 16px;border-radius:10px;border:0;background:#0b5cff;color:#fff;font-weight:700">طباعة</button></div>',
+      '</div>',
+      '</body></html>',
+    ].join('\n');
+  });
 
   server.get('/requests', async () => ({ items: listRequests() }));
 
@@ -399,12 +451,11 @@ export async function startLocalServer(): Promise<{ port: number }> {
     return { items: listRequestFiles(id) };
   });
 
-  const port = Number(process.env.DESKTOP_PORT ?? DEFAULT_PORT);
-  await server.listen({ port, host: '0.0.0.0' });
+  await server.listen({ port: currentPort, host: '0.0.0.0' });
 
   startCleanupTask();
 
-  return { port };
+  return { port: currentPort };
 }
 
 function startCleanupTask(): void {
@@ -444,4 +495,19 @@ function clampInt(v: unknown, min: number, max: number, fallback: number): numbe
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(n)));
+}
+
+function firstLanIpv4(): string | null {
+  const ifs = networkInterfaces();
+  for (const name of Object.keys(ifs)) {
+    for (const addr of ifs[name] ?? []) {
+      if (addr.family === 'IPv4' && !addr.internal) return addr.address;
+    }
+  }
+  return null;
+}
+
+function defaultUploadUrl(port: number): string {
+  const ip = firstLanIpv4() ?? 'localhost';
+  return `http://${ip}:${port}/`;
 }
