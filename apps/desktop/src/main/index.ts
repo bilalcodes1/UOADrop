@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 import { registerIpcHandlers } from './ipc';
+import { startLocalServer } from './server';
 
 const isDev = !app.isPackaged;
 
@@ -66,6 +67,10 @@ app.on('second-instance', () => {
 app.whenReady().then(() => {
   registerIpcHandlers();
   createMainWindow();
+
+  startLocalServer().catch(() => {
+    // Phase 1.3: surface error in UI via IPC + toast
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

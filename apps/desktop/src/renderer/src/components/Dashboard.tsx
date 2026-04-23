@@ -1,45 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PrintRequest, RequestStatus } from '@uoadrop/shared';
-
-// Mock data (Phase 1.3 will replace with SQLite query)
-const MOCK_REQUESTS: PrintRequest[] = [
-  {
-    id: 'req-001',
-    ticket: 'A7K9',
-    studentName: 'ملاك أحمد',
-    pinHash: '$2b$12$mock',
-    status: 'pending',
-    options: { copies: 2, color: false, doubleSided: true },
-    totalPages: 14,
-    priceIqd: 2800,
-    createdAt: new Date(Date.now() - 3 * 60_000).toISOString(),
-    updatedAt: new Date(Date.now() - 3 * 60_000).toISOString(),
-  },
-  {
-    id: 'req-002',
-    ticket: 'B3M1',
-    studentName: 'بلال علي',
-    pinHash: '$2b$12$mock',
-    status: 'printing',
-    options: { copies: 1, color: true, doubleSided: false },
-    totalPages: 8,
-    priceIqd: 2000,
-    createdAt: new Date(Date.now() - 8 * 60_000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 60_000).toISOString(),
-  },
-  {
-    id: 'req-003',
-    ticket: 'C9F4',
-    studentName: 'سارة محمد',
-    pinHash: '$2b$12$mock',
-    status: 'ready',
-    options: { copies: 3, color: false, doubleSided: true },
-    totalPages: 22,
-    priceIqd: 6600,
-    createdAt: new Date(Date.now() - 15 * 60_000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 60_000).toISOString(),
-  },
-];
 
 const STATUS_LABEL: Record<RequestStatus, string> = {
   pending: 'قيد الانتظار',
@@ -60,7 +20,7 @@ const STATUS_COLOR: Record<RequestStatus, string> = {
 };
 
 export function Dashboard(): JSX.Element {
-  const [requests, setRequests] = useState<PrintRequest[]>(MOCK_REQUESTS);
+  const [requests, setRequests] = useState<PrintRequest[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -77,23 +37,45 @@ export function Dashboard(): JSX.Element {
     );
   };
 
+  const refresh = async (): Promise<void> => {
+    const res = await window.api.listRequests();
+    setRequests(res.items);
+  };
+
+  useEffect(() => {
+    window.api.seed().then(() => refresh());
+    const id = setInterval(() => refresh(), 3000);
+    return () => clearInterval(id);
+  }, []);
+
   const handleView = async (req: PrintRequest): Promise<void> => {
     setBusy(req.id);
-    // Phase 1.3: fetch real file path from DB
-    showToast(`[mock] عرض ملفات الطلب ${req.ticket}`);
+    const res = await window.api.listRequestFiles(req.id);
+    if (res.items.length === 0) {
+      showToast(`لا توجد ملفات مرتبطة بالطلب ${req.ticket} بعد`);
+      setBusy(null);
+      return;
+    }
+    for (const f of res.items) {
+      if (f.localPath) await window.api.openFile(f.localPath);
+    }
+    showToast(`تم فتح ملفات الطلب ${req.ticket}`);
     setBusy(null);
   };
 
   const handlePrint = async (req: PrintRequest): Promise<void> => {
     setBusy(req.id);
-    // Phase 1.3: pick actual file path from DB
     const res = await window.api.chooseFile();
     if (res.canceled || res.filePaths.length === 0) {
       setBusy(null);
       return;
     }
-    const printRes = await window.api.printFile(res.filePaths[0]!);
+
+    const chosen = res.filePaths[0]!;
+    await window.api.addFileToRequest(req.id, chosen);
+    const printRes = await window.api.printFile(chosen);
     if (printRes.ok) {
+      await window.api.setRequestStatus(req.id, 'printing');
       updateStatus(req.id, 'printing');
       showToast(printRes.hint ?? `بدأت طباعة ${req.ticket}`);
     } else {
@@ -108,6 +90,7 @@ export function Dashboard(): JSX.Element {
   };
 
   const handleReady = (req: PrintRequest): void => {
+    window.api.setRequestStatus(req.id, 'ready').then(() => refresh());
     updateStatus(req.id, 'ready');
     showToast(`الطلب ${req.ticket} أصبح جاهزاً — أُرسل الإشعار للطالب`);
   };

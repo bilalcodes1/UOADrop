@@ -1,11 +1,43 @@
 import { ipcMain, BrowserWindow, shell, dialog } from 'electron';
 import { extname } from 'node:path';
+import { basename } from 'node:path';
+import { stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import type { PrinterStatus } from '@uoadrop/shared';
+import { addRequestFile, listRequestFiles, listRequests, seedIfEmpty, setRequestStatus } from './db';
 
 const CHROMIUM_NATIVE_EXT = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp'];
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
 
 export function registerIpcHandlers(): void {
+  // Ensure DB has initial rows (dev)
+  seedIfEmpty();
+
+  ipcMain.handle('requests:seed', async () => seedIfEmpty());
+  ipcMain.handle('requests:list', async () => ({ items: listRequests() }));
+  ipcMain.handle('requests:setStatus', async (_e, id: string, status: string) =>
+    setRequestStatus(id, status as any),
+  );
+  ipcMain.handle('requests:files', async (_e, requestId: string) => ({
+    items: listRequestFiles(requestId),
+  }));
+
+  ipcMain.handle('requests:addFile', async (_e, requestId: string, filePath: string) => {
+    const st = await stat(filePath);
+    const buf = await (await import('node:fs/promises')).readFile(filePath);
+    const sha256 = createHash('sha256').update(buf).digest('hex');
+    const mimeType = 'application/octet-stream';
+    return addRequestFile({
+      requestId,
+      localPath: filePath,
+      filename: basename(filePath),
+      mimeType,
+      sizeBytes: st.size,
+      sha256,
+      magicByteVerified: false,
+    });
+  });
+
   // ─────────────────────────────────────────
   // file:open — open file with OS default app
   // ─────────────────────────────────────────

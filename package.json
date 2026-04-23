@@ -23,6 +23,6 @@
     "@types/node": "^22.10.2"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["electron", "esbuild"]
+    "onlyBuiltDependencies": ["electron", "esbuild", "better-sqlite3"]
   }
 }

@@ -1,0 +1,256 @@
+import Database from 'better-sqlite3';
+import { mkdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import type { PrintRequest, RequestFile, RequestStatus } from '@uoadrop/shared';
+
+let db: Database.Database | null = null;
+
+function getDbPath(): string {
+  // Dev-only (Option A): relative path in repo
+  const configured = process.env.DESKTOP_DB_PATH;
+  return resolve(process.cwd(), configured ?? './data/uoadrop.db');
+}
+
+export function getDb(): Database.Database {
+  if (db) return db;
+
+  const dbPath = getDbPath();
+  mkdirSync(dirname(dbPath), { recursive: true });
+
+  db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
+  db.pragma('busy_timeout = 5000');
+  db.pragma('foreign_keys = ON');
+
+  initSchema(db);
+  return db;
+}
+
+function initSchema(d: Database.Database): void {
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS print_requests (
+      id TEXT PRIMARY KEY,
+      ticket TEXT NOT NULL UNIQUE,
+      student_name TEXT,
+      pin_hash TEXT NOT NULL,
+      status TEXT NOT NULL,
+      options_json TEXT NOT NULL,
+      total_pages INTEGER NOT NULL,
+      price_iqd INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS request_files (
+      id TEXT PRIMARY KEY,
+      request_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      local_path TEXT NOT NULL,
+      sha256 TEXT NOT NULL,
+      magic_byte_verified INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (request_id) REFERENCES print_requests(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_request_files_request_id ON request_files(request_id);
+    CREATE INDEX IF NOT EXISTS idx_print_requests_status ON print_requests(status);
+  `);
+}
+
+export function seedIfEmpty(): { seeded: boolean; count: number } {
+  const d = getDb();
+  const count = d.prepare('SELECT COUNT(1) as c FROM print_requests').get() as { c: number };
+  if (count.c > 0) return { seeded: false, count: count.c };
+
+  const now = new Date().toISOString();
+
+  const insertReq = d.prepare(`
+    INSERT INTO print_requests (
+      id, ticket, student_name, pin_hash, status, options_json,
+      total_pages, price_iqd, created_at, updated_at
+    ) VALUES (
+      @id, @ticket, @student_name, @pin_hash, @status, @options_json,
+      @total_pages, @price_iqd, @created_at, @updated_at
+    )
+  `);
+
+  const rows: Array<Omit<PrintRequest, 'options'> & { options_json: string }> = [
+    {
+      id: 'req-001',
+      ticket: 'A7K9',
+      studentName: 'ملاك أحمد',
+      pinHash: '$2b$12$seed',
+      status: 'pending',
+      options_json: JSON.stringify({ copies: 2, color: false, doubleSided: true }),
+      totalPages: 14,
+      priceIqd: 2800,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'req-002',
+      ticket: 'B3M1',
+      studentName: 'بلال علي',
+      pinHash: '$2b$12$seed',
+      status: 'printing',
+      options_json: JSON.stringify({ copies: 1, color: true, doubleSided: false }),
+      totalPages: 8,
+      priceIqd: 2000,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'req-003',
+      ticket: 'C9F4',
+      studentName: 'سارة محمد',
+      pinHash: '$2b$12$seed',
+      status: 'ready',
+      options_json: JSON.stringify({ copies: 3, color: false, doubleSided: true }),
+      totalPages: 22,
+      priceIqd: 6600,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+
+  const tx = d.transaction(() => {
+    for (const r of rows) {
+      insertReq.run({
+        id: r.id,
+        ticket: r.ticket,
+        student_name: r.studentName ?? null,
+        pin_hash: r.pinHash,
+        status: r.status,
+        options_json: r.options_json,
+        total_pages: r.totalPages,
+        price_iqd: r.priceIqd,
+        created_at: r.createdAt,
+        updated_at: r.updatedAt,
+      });
+    }
+  });
+
+  tx();
+  return { seeded: true, count: rows.length };
+}
+
+export function listRequests(): PrintRequest[] {
+  const d = getDb();
+  const rows = d
+    .prepare(
+      `SELECT id, ticket, student_name, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
+       FROM print_requests
+       ORDER BY datetime(created_at) DESC`,
+    )
+    .all() as Array<{
+    id: string;
+    ticket: string;
+    student_name: string | null;
+    pin_hash: string;
+    status: RequestStatus;
+    options_json: string;
+    total_pages: number;
+    price_iqd: number;
+    created_at: string;
+    updated_at: string;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    ticket: r.ticket,
+    studentName: r.student_name ?? undefined,
+    pinHash: r.pin_hash,
+    status: r.status,
+    options: JSON.parse(r.options_json) as PrintRequest['options'],
+    totalPages: r.total_pages,
+    priceIqd: r.price_iqd,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
+}
+
+export function setRequestStatus(id: string, status: RequestStatus): { ok: true } {
+  const d = getDb();
+  const now = new Date().toISOString();
+  d.prepare('UPDATE print_requests SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
+  return { ok: true };
+}
+
+export function addRequestFile(args: {
+  requestId: string;
+  localPath: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  magicByteVerified: boolean;
+}): RequestFile {
+  const d = getDb();
+  const now = new Date().toISOString();
+  const id = randomUUID();
+
+  d.prepare(
+    `INSERT INTO request_files (
+      id, request_id, filename, mime_type, size_bytes, local_path, sha256, magic_byte_verified, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    args.requestId,
+    args.filename,
+    args.mimeType,
+    args.sizeBytes,
+    args.localPath,
+    args.sha256,
+    args.magicByteVerified ? 1 : 0,
+    now,
+  );
+
+  return {
+    id,
+    requestId: args.requestId,
+    filename: args.filename,
+    mimeType: args.mimeType,
+    sizeBytes: args.sizeBytes,
+    storagePath: '',
+    localPath: args.localPath,
+    sha256: args.sha256,
+    magicByteVerified: args.magicByteVerified,
+  };
+}
+
+export function listRequestFiles(requestId: string): RequestFile[] {
+  const d = getDb();
+  const rows = d
+    .prepare(
+      `SELECT id, request_id, filename, mime_type, size_bytes, local_path, sha256, magic_byte_verified
+       FROM request_files
+       WHERE request_id = ?
+       ORDER BY datetime(created_at) ASC`,
+    )
+    .all(requestId) as Array<{
+    id: string;
+    request_id: string;
+    filename: string;
+    mime_type: string;
+    size_bytes: number;
+    local_path: string;
+    sha256: string;
+    magic_byte_verified: number;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    requestId: r.request_id,
+    filename: r.filename,
+    mimeType: r.mime_type,
+    sizeBytes: r.size_bytes,
+    storagePath: '',
+    localPath: r.local_path,
+    sha256: r.sha256,
+    magicByteVerified: !!r.magic_byte_verified,
+  }));
+}
