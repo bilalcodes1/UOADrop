@@ -151,7 +151,7 @@ export function Dashboard(): JSX.Element {
       if (retry) clearTimeout(retry);
       ws?.close();
     };
-  }, [filter, search, page]);
+  }, []); // single persistent connection — refreshRef handles stale closure
 
   useEffect(() => {
     window.api.printerStatus().then((p) =>
