@@ -362,6 +362,71 @@ export function createRequest(args: {
   return { request, pin };
 }
 
+export function listRequestsPaged(args: {
+  statuses?: RequestStatus[];
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): { items: PrintRequest[]; total: number } {
+  const d = getDb();
+  const where: string[] = [];
+  const params: any[] = [];
+
+  if (args.statuses && args.statuses.length > 0) {
+    where.push(`status IN (${args.statuses.map(() => '?').join(',')})`);
+    params.push(...args.statuses);
+  }
+  if (args.search && args.search.trim().length > 0) {
+    where.push('(ticket LIKE ? OR COALESCE(student_name,"") LIKE ?)');
+    const like = `%${args.search.trim()}%`;
+    params.push(like, like);
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const limit = Math.max(1, Math.min(200, args.limit ?? 50));
+  const offset = Math.max(0, args.offset ?? 0);
+
+  const totalRow = d
+    .prepare(`SELECT COUNT(1) as c FROM print_requests ${whereSql}`)
+    .get(...params) as { c: number };
+
+  const rows = d
+    .prepare(
+      `SELECT id, ticket, student_name, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
+       FROM print_requests
+       ${whereSql}
+       ORDER BY datetime(created_at) DESC
+       LIMIT ? OFFSET ?`,
+    )
+    .all(...params, limit, offset) as Array<{
+    id: string;
+    ticket: string;
+    student_name: string | null;
+    pin_hash: string;
+    status: RequestStatus;
+    options_json: string;
+    total_pages: number;
+    price_iqd: number;
+    created_at: string;
+    updated_at: string;
+  }>;
+
+  const items: PrintRequest[] = rows.map((r) => ({
+    id: r.id,
+    ticket: r.ticket,
+    studentName: r.student_name ?? undefined,
+    pinHash: r.pin_hash,
+    status: r.status,
+    options: JSON.parse(r.options_json) as PrintRequest['options'],
+    totalPages: r.total_pages,
+    priceIqd: r.price_iqd,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
+
+  return { items, total: totalRow.c };
+}
+
 export function listRequests(): PrintRequest[] {
   const d = getDb();
   const rows = d

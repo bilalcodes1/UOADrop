@@ -217,6 +217,56 @@ body, html, #root {
 .printer-out-of-toner .dot { background: var(--danger); box-shadow: 0 0 0 3px rgba(220,38,38,.15); }
 .printer-paused .dot   { background: var(--warning); box-shadow: 0 0 0 3px rgba(217,119,6,.15); }
 
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 32px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.chip:hover { background: var(--bg); }
+.chip-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.search {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  min-width: 240px;
+  font-family: inherit;
+}
+.search:focus { outline: none; border-color: var(--primary); }
+
+/* Pager */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.pager-info { font-size: 13px; color: var(--text-muted); }
+
 .toast {
   position: fixed;
   bottom: 24px;

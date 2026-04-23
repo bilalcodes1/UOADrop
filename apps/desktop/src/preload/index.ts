@@ -28,6 +28,14 @@ export const api = {
   listRequests: (): Promise<{ items: PrintRequest[] }> =>
     ipcRenderer.invoke('requests:list'),
 
+  listRequestsPaged: (args: {
+    statuses?: RequestStatus[];
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ items: PrintRequest[]; total: number }> =>
+    ipcRenderer.invoke('requests:listPaged', args),
+
   setRequestStatus: (id: string, status: RequestStatus): Promise<{ ok: true }> =>
     ipcRenderer.invoke('requests:setStatus', id, status),
 

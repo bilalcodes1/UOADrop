@@ -31,10 +31,23 @@ const STATUS_COLOR: Record<RequestStatus, string> = {
   blocked: 'badge-blocked',
 };
 
+const PAGE_SIZE = 24;
+const STATUS_FILTERS: Array<{ key: 'all' | RequestStatus; label: string }> = [
+  { key: 'all', label: 'الكل' },
+  { key: 'pending', label: 'قيد الانتظار' },
+  { key: 'printing', label: 'يطبع' },
+  { key: 'ready', label: 'جاهز' },
+  { key: 'done', label: 'تم التسليم' },
+];
+
 export function Dashboard(): JSX.Element {
   const [requests, setRequests] = useState<PrintRequest[]>([]);
+  const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | RequestStatus>('all');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
   const [printer, setPrinter] = useState<{
     status: PrinterStatus;
     printerName: string | null;
@@ -54,14 +67,32 @@ export function Dashboard(): JSX.Element {
   };
 
   const refresh = async (): Promise<void> => {
-    const res = await window.api.listRequests();
+    const statuses = filter === 'all' ? undefined : [filter];
+    const res = await window.api.listRequestsPaged({
+      statuses,
+      search: search.trim() || undefined,
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE,
+    });
     setRequests(res.items);
+    setTotal(res.total);
   };
 
   useEffect(() => {
-    window.api.seed().then(() => refresh());
-    const id = setInterval(() => refresh(), 3000);
+    setPage(0);
+  }, [filter, search]);
 
+  useEffect(() => {
+    void window.api.seed().then(() => refresh());
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    const id = setInterval(() => void refresh(), 3000);
+    return () => clearInterval(id);
+  }, [filter, search, page]);
+
+  useEffect(() => {
     window.api.printerStatus().then((p) =>
       setPrinter({ status: p.status, printerName: p.printerName }),
     );
@@ -71,11 +102,7 @@ export function Dashboard(): JSX.Element {
         showToast(`تنبيه طابعة: ${PRINTER_LABEL[p.status]}`);
       }
     });
-
-    return () => {
-      clearInterval(id);
-      unsub();
-    };
+    return () => unsub();
   }, []);
 
   const handleView = async (req: PrintRequest): Promise<void> => {
@@ -185,9 +212,29 @@ export function Dashboard(): JSX.Element {
         </div>
       </header>
 
+      <div className="toolbar">
+        <div className="filters">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              className={`chip ${filter === f.key ? 'chip-active' : ''}`}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <input
+          className="search"
+          placeholder="بحث بالتذكرة أو الاسم..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
       <main className="list">
         {requests.length === 0 && (
-          <div className="empty">لا توجد طلبات حالياً</div>
+          <div className="empty">لا توجد طلبات مطابقة</div>
         )}
         {requests.map((req) => (
           <article key={req.id} className="request-card">
@@ -245,6 +292,28 @@ export function Dashboard(): JSX.Element {
           </article>
         ))}
       </main>
+
+      {total > PAGE_SIZE && (
+        <div className="pager">
+          <button
+            className="btn"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            السابق
+          </button>
+          <span className="pager-info">
+            صفحة {page + 1} من {Math.max(1, Math.ceil(total / PAGE_SIZE))} • الإجمالي {total}
+          </span>
+          <button
+            className="btn"
+            disabled={(page + 1) * PAGE_SIZE >= total}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            التالي
+          </button>
+        </div>
+      )}
 
       {toast && <div className="toast">{toast}</div>}
     </div>

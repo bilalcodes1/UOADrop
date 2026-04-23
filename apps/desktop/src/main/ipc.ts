@@ -12,6 +12,7 @@ import {
   listPrinterEvents,
   listRequestFiles,
   listRequests,
+  listRequestsPaged,
   recentFailedPinAttempts,
   recordPinAttempt,
   seedIfEmpty,
@@ -54,6 +55,24 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('requests:seed', async () => seedIfEmpty());
   ipcMain.handle('requests:list', async () => ({ items: listRequests() }));
+  ipcMain.handle(
+    'requests:listPaged',
+    async (
+      _e,
+      args: {
+        statuses?: string[];
+        search?: string;
+        limit?: number;
+        offset?: number;
+      },
+    ) =>
+      listRequestsPaged({
+        statuses: args?.statuses as any,
+        search: args?.search,
+        limit: args?.limit,
+        offset: args?.offset,
+      }),
+  );
   ipcMain.handle('requests:setStatus', async (_e, id: string, status: string) =>
     setRequestStatus(id, status as any),
   );
