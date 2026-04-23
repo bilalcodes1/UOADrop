@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import logoUniversity from './icons/logo-university.png';
+import logoCs from './icons/logo-cs.png';
 import type { PrintRequest, PrinterStatus, RequestStatus } from '@uoadrop/shared';
 
 const PRINTER_LABEL: Record<PrinterStatus, string> = {
@@ -268,9 +270,10 @@ export function Dashboard(): JSX.Element {
   return (
     <div className="dashboard">
       <header className="header">
-        <div>
+        <img src={logoUniversity} alt="جامعة الانبار" style={{ height: 52, objectFit: 'contain' }} />
+        <div style={{ textAlign: 'center' }}>
           <h1>UOADrop</h1>
-          <p className="subtitle">لوحة المكتبة</p>
+          <p className="subtitle">لوحة المكتبة — كلية علوم الحاسوب</p>
           <div className={`printer-indicator printer-${printer.status}`}>
             <span className="dot" />
             <span className="label">
@@ -288,19 +291,22 @@ export function Dashboard(): JSX.Element {
             </button>
           </div>
         </div>
-        <div className="stats">
-          <div className="stat">
-            <span className="stat-num">{counts.pending}</span>
-            <span className="stat-label">قيد الانتظار</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div className="stats">
+            <div className="stat">
+              <span className="stat-num">{counts.pending}</span>
+              <span className="stat-label">قيد الانتظار</span>
+            </div>
+            <div className="stat">
+              <span className="stat-num">{counts.printing}</span>
+              <span className="stat-label">يطبع</span>
+            </div>
+            <div className="stat">
+              <span className="stat-num">{counts.ready}</span>
+              <span className="stat-label">جاهز</span>
+            </div>
           </div>
-          <div className="stat">
-            <span className="stat-num">{counts.printing}</span>
-            <span className="stat-label">يطبع</span>
-          </div>
-          <div className="stat">
-            <span className="stat-num">{counts.ready}</span>
-            <span className="stat-label">جاهز</span>
-          </div>
+          <img src={logoCs} alt="كلية علوم الحاسوب" style={{ height: 52, objectFit: 'contain' }} />
         </div>
       </header>
 

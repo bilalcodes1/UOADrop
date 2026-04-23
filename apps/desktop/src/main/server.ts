@@ -110,6 +110,25 @@ export async function startLocalServer(): Promise<{ port: number }> {
 
   server.get('/health', async () => ({ ok: true }));
 
+  // ── Logos (served to student page) ──
+  for (const name of ['logo-university.png', 'logo-cs.png']) {
+    const candidates = [
+      resolve(process.cwd(), 'apps/desktop/resources', name),
+      resolve(process.cwd(), 'resources', name),
+      resolve(__dirname, '../../resources', name),
+      resolve(__dirname, '../resources', name),
+    ];
+    const found = candidates.find((p) => existsSync(p));
+    if (found) {
+      const buf = readFileSync(found);
+      server.get(`/${name}`, async (_req: any, reply: any) => {
+        reply.header('content-type', 'image/png');
+        reply.header('cache-control', 'public, max-age=86400');
+        return buf;
+      });
+    }
+  }
+
   const currentPort = Number(process.env.DESKTOP_PORT ?? DEFAULT_PORT);
 
   server.get('/qr', async (req: any, reply: any) => {
