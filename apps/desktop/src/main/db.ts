@@ -58,9 +58,81 @@ function initSchema(d: Database.Database): void {
       FOREIGN KEY (request_id) REFERENCES print_requests(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS pin_attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scope TEXT NOT NULL,
+      ok INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_request_files_request_id ON request_files(request_id);
     CREATE INDEX IF NOT EXISTS idx_print_requests_status ON print_requests(status);
+    CREATE INDEX IF NOT EXISTS idx_pin_attempts_scope_time ON pin_attempts(scope, created_at);
   `);
+}
+
+function getSetting(key: string): string | null {
+  const d = getDb();
+  const row = d.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+function setSetting(key: string, value: string): void {
+  const d = getDb();
+  const now = new Date().toISOString();
+  d.prepare(
+    `INSERT INTO settings(key, value, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`,
+  ).run(key, value, now);
+}
+
+const LIBRARIAN_PIN_KEY = 'librarian_pin_hash';
+
+export function ensureLibrarianPin(): { generatedPin: string | null } {
+  // If env override is set, trust it and mirror into settings.
+  const envHash = process.env.LIBRARIAN_PIN_HASH;
+  if (envHash && envHash.length > 0) {
+    setSetting(LIBRARIAN_PIN_KEY, envHash);
+    return { generatedPin: null };
+  }
+
+  const existing = getSetting(LIBRARIAN_PIN_KEY);
+  if (existing) return { generatedPin: null };
+
+  const pin = generatePin();
+  const hash = bcrypt.hashSync(pin, PIN_BCRYPT_ROUNDS);
+  setSetting(LIBRARIAN_PIN_KEY, hash);
+  return { generatedPin: pin };
+}
+
+export function verifyLibrarianPin(pin: string): { ok: boolean } {
+  const hash = getSetting(LIBRARIAN_PIN_KEY);
+  if (!hash) return { ok: false };
+  return { ok: bcrypt.compareSync(pin, hash) };
+}
+
+export function recordPinAttempt(scope: string, ok: boolean): void {
+  const d = getDb();
+  d.prepare('INSERT INTO pin_attempts(scope, ok, created_at) VALUES (?, ?, ?)').run(
+    scope,
+    ok ? 1 : 0,
+    new Date().toISOString(),
+  );
+}
+
+export function recentFailedPinAttempts(scope: string, withinMs: number): number {
+  const d = getDb();
+  const since = new Date(Date.now() - withinMs).toISOString();
+  const row = d
+    .prepare('SELECT COUNT(1) as c FROM pin_attempts WHERE scope = ? AND ok = 0 AND created_at >= ?')
+    .get(scope, since) as { c: number };
+  return row.c;
 }
 
 export function seedIfEmpty(): { seeded: boolean; count: number } {

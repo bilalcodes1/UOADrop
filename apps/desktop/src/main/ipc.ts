@@ -4,7 +4,18 @@ import { basename } from 'node:path';
 import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import type { PrinterStatus } from '@uoadrop/shared';
-import { addRequestFile, listRequestFiles, listRequests, seedIfEmpty, setRequestStatus } from './db';
+import { PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
+import {
+  addRequestFile,
+  ensureLibrarianPin,
+  listRequestFiles,
+  listRequests,
+  recentFailedPinAttempts,
+  recordPinAttempt,
+  seedIfEmpty,
+  setRequestStatus,
+  verifyLibrarianPin,
+} from './db';
 
 const CHROMIUM_NATIVE_EXT = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp'];
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
@@ -12,6 +23,31 @@ const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
 export function registerIpcHandlers(): void {
   // Ensure DB has initial rows (dev)
   seedIfEmpty();
+
+  // Ensure librarian PIN exists; log generated PIN for dev only
+  const { generatedPin } = ensureLibrarianPin();
+  if (generatedPin) {
+    // eslint-disable-next-line no-console
+    console.log(`[UOADrop] Generated librarian PIN (dev): ${generatedPin}`);
+  }
+
+  ipcMain.handle('security:unlock', async (_e, pin: string) => {
+    const scope = 'librarian';
+    const windowMs = PIN_LOCKOUT_MINUTES * 60 * 1000;
+    const failures = recentFailedPinAttempts(scope, windowMs);
+    if (failures >= PIN_MAX_ATTEMPTS) {
+      return {
+        ok: false,
+        locked: true,
+        remaining: 0,
+        lockoutMinutes: PIN_LOCKOUT_MINUTES,
+      };
+    }
+    const res = verifyLibrarianPin(String(pin ?? ''));
+    recordPinAttempt(scope, res.ok);
+    const remaining = Math.max(0, PIN_MAX_ATTEMPTS - (res.ok ? 0 : failures + 1));
+    return { ok: res.ok, locked: false, remaining };
+  });
 
   ipcMain.handle('requests:seed', async () => seedIfEmpty());
   ipcMain.handle('requests:list', async () => ({ items: listRequests() }));

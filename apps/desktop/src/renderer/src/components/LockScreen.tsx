@@ -4,22 +4,38 @@ interface Props {
   onUnlock: () => void;
 }
 
-// Phase 1.3: replace with bcrypt-hashed PIN check against local settings table.
-const TEMP_PIN = '1234';
-
 export function LockScreen({ onUnlock }: Props): JSX.Element {
   const [pin, setPin] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [locked, setLocked] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent): void => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (pin === TEMP_PIN) {
-      setError(false);
+    if (busy || locked) return;
+
+    setBusy(true);
+    try {
+      const res = await window.api.unlock(pin);
+      if (res.ok) {
+        setError(null);
+        setPin('');
+        onUnlock();
+        return;
+      }
+      if (res.locked) {
+        setLocked(true);
+        setError(`تم تجميد المحاولات لمدة ${res.lockoutMinutes ?? 30} دقيقة`);
+      } else {
+        setError('PIN خاطئ');
+        setRemaining(res.remaining);
+      }
       setPin('');
-      onUnlock();
-    } else {
-      setError(true);
-      setPin('');
+    } catch (err) {
+      setError('فشل التحقق');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -38,17 +54,29 @@ export function LockScreen({ onUnlock }: Props): JSX.Element {
             value={pin}
             onChange={(e) => {
               setPin(e.target.value);
-              setError(false);
+              setError(null);
             }}
             placeholder="••••"
             className={error ? 'input error' : 'input'}
+            disabled={locked || busy}
           />
-          <button type="submit" className="btn btn-unlock" disabled={pin.length === 0}>
-            فتح
+          <button
+            type="submit"
+            className="btn btn-unlock"
+            disabled={pin.length === 0 || locked || busy}
+          >
+            {busy ? '...' : 'فتح'}
           </button>
         </form>
-        {error && <p className="error-msg">PIN خاطئ</p>}
-        <p className="dev-hint">[dev] PIN مؤقت: <code>1234</code></p>
+        {error && <p className="error-msg">{error}</p>}
+        {remaining !== null && !locked && (
+          <p className="dev-hint">محاولات متبقية: <code>{remaining}</code></p>
+        )}
+        <p className="dev-hint">
+          [dev] عند أول تشغيل تم توليد PIN عشوائي وطبعه في terminal. اضبط
+          <code> LIBRARIAN_PIN_HASH </code>
+          في البيئة لتجاوزه.
+        </p>
       </div>
     </div>
   );

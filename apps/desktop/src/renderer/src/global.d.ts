@@ -11,6 +11,9 @@ import type {
 declare global {
   interface Window {
     api: {
+      unlock: (
+        pin: string,
+      ) => Promise<{ ok: boolean; locked: boolean; remaining: number; lockoutMinutes?: number }>;
       seed: () => Promise<{ seeded: boolean; count: number }>;
       listRequests: () => Promise<{ items: PrintRequest[] }>;
       setRequestStatus: (id: string, status: RequestStatus) => Promise<{ ok: true }>;

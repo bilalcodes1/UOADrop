@@ -2,6 +2,11 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { PrinterStatus, PrintRequest, RequestFile, RequestStatus } from '@uoadrop/shared';
 
 export const api = {
+  unlock: (
+    pin: string,
+  ): Promise<{ ok: boolean; locked: boolean; remaining: number; lockoutMinutes?: number }> =>
+    ipcRenderer.invoke('security:unlock', pin),
+
   seed: (): Promise<{ seeded: boolean; count: number }> =>
     ipcRenderer.invoke('requests:seed'),
 
