@@ -21,87 +21,83 @@
 
 ---
 
-## Phase 1 — MVP Offline 🚧
+## Phase 1 — MVP Offline ✅ (مكتمل ~98%)
 
-**المدة المتوقعة**: 5-7 أيام.
-**الهدف**: ملاك تقدر ترفع ملف، سعد يشوفه ويطبعه. بدون online.
+**الحالة**: مكتمل عملياً. المتبقي فقط اختبار يدوي مع موبايل حقيقي.
 
-### 1.1 — Monorepo Setup (نصف يوم)
-- [ ] `pnpm-workspace.yaml` + `turbo.json` + `package.json` في الجذر
-- [ ] إنشاء `apps/web`, `apps/desktop`, `packages/shared`, `packages/db-schema`, `packages/ui`
-- [ ] TypeScript config موحّد (`tsconfig.base.json`)
-- [ ] ESLint + Prettier + Husky pre-commit hooks
-- [ ] `.gitignore` شامل
-- [ ] إنشاء GitHub repo + initial commit
-- [ ] **R6**: إضافة `@electron/rebuild` + `postinstall` script لبناء `better-sqlite3` للـ Electron ABI
-  ```json
-  "scripts": {
-    "postinstall": "electron-rebuild -f -w better-sqlite3"
-  }
-  ```
-  بدونه: `better-sqlite3` يبني لـ Node ABI ويفشل في Electron.
+### 1.1 — Monorepo Setup ✅
+- [x] `pnpm-workspace.yaml` + `turbo.json` + `package.json`
+- [x] `apps/web`, `apps/desktop`, `packages/shared`, `packages/db-schema`, `packages/ui`
+- [x] TypeScript config موحّد (`tsconfig.base.json`)
+- [x] ESLint + Prettier + Husky pre-commit hooks
+- [x] `.gitignore` + GitHub repo + initial commit
+- [x] `@electron/rebuild` + `postinstall` لبناء `better-sqlite3` لـ Electron ABI
 
-### 1.2 — Shared Package (نصف يوم)
-- [ ] `packages/shared/src/schemas.ts` — Zod schemas (PrintRequest, StudentForm, FileUpload)
-- [ ] `packages/shared/src/constants.ts` — DEPARTMENTS, STAGES, PAPER_SIZES, FILE_WHITELIST
-- [ ] `packages/shared/src/types.ts` — types مشتقة من schemas
-- [ ] Export كل شي من `index.ts`
+### 1.2 — Shared Package ✅
+- [x] Zod schemas (PrintRequest, StudentForm, FileUpload)
+- [x] Constants (DEPARTMENTS, STAGES, PAPER_SIZES, FILE_WHITELIST)
+- [x] Types + exports من `index.ts`
 
-### 1.3 — DB Schema (يوم)
-- [ ] `packages/db-schema/src/schema.ts` — Drizzle tables (SQLite variant + PG variant)
-- [ ] `drizzle.config.ts` — للـ SQLite محلي + Postgres Supabase
-- [ ] Migrations folder: `packages/db-schema/migrations/`
-- [ ] Scripts في `package.json`: `db:generate`, `db:push`
+### 1.3 — DB Schema ✅
+- [x] Drizzle schema (SQLite variant)
+- [x] `drizzle.config.ts`
+- [x] Migrations folder
 
-### 1.4 — Electron Shell (يوم)
-- [ ] `apps/desktop/main/index.ts` — BrowserWindow + loadURL للـ Next.js
-- [ ] `apps/desktop/preload/index.ts` — IPC bridge
-- [ ] `apps/desktop/main/ip-check.ts` — يتحقق من IP = 192.168.0.100
-- [ ] `apps/desktop/main/sleep-guard.ts` — يمنع Sleep (powerSaveBlocker)
-- [ ] `apps/desktop/main/auto-start.ts` — يضيف للـ login items
-- [ ] Electron dev mode يشتغل مع Next.js dev server
+### 1.4 — Electron Shell ✅
+- [x] `main/index.ts` مع BrowserWindow + security hardening
+- [x] `preload/index.ts` — IPC bridge مع whitelist
+- [x] Single-instance lock
+- [x] Window-open handler + navigation guard
 
-### 1.5 — Fastify Server داخل Electron (يوم ونصف)
-- [ ] `apps/desktop/main/server.ts` — Fastify يبدأ على port 3000
-- [ ] `apps/desktop/main/db.ts` — better-sqlite3 + Drizzle + WAL mode
-- [ ] `POST /api/upload` — tus.io endpoint
-- [ ] `POST /api/requests` — إنشاء طلب جديد
-- [ ] `GET /api/requests` — قائمة الطلبات (للـ dashboard)
-- [ ] `PATCH /api/requests/:id` — تحديث status
-- [ ] WebSocket endpoint للتحديث اللحظي
+### 1.5 — Fastify Server داخل Electron ✅
+- [x] Fastify على port 3737 + WebSocket
+- [x] better-sqlite3 + WAL mode
+- [x] `POST /api/requests`, `POST /api/requests/:id/files`
+- [x] `GET /api/requests` مع pagination + filter + search
+- [x] `PATCH /api/requests/:id/status`
+- [x] WebSocket `/ws` للتحديث اللحظي
+- [x] Magic-byte verification + SHA-256 dedup
 
-### 1.6 — صفحة رفع الطالب `/u` (يوم)
-- [ ] `apps/web/app/u/page.tsx` — نموذج الرفع
-- [ ] React Hook Form + Zod validation
-- [ ] Dropzone للملفات + preview
-- [ ] tus-js-client للرفع المقاوم للانقطاع
-- [ ] progress bar + نسبة مئوية
-- [ ] صفحة تأكيد مع رقم التذكرة
+### 1.6 — صفحة رفع الطالب `/` ✅
+- [x] HTML standalone في `apps/desktop/resources/student.html`
+- [x] Drag & drop + file list + حالات (pending/uploading/done/error)
+- [x] Progress bar لكل ملف عبر XHR
+- [x] Auto-retry مع exponential backoff
+- [x] صفحة نجاح بتذكرة + PIN + أزرار نسخ
+- [x] RTL + responsive
 
-### 1.6.5 — Cleanup cron للـ tus abandoned uploads (Z6)
-- [ ] `apps/desktop/main/cleanup.ts` — يحذف ملفات upload أقدم من 24 ساعة غير مكتملة
-- [ ] يشتغل يومياً عبر `setInterval` + عند app startup
+### 1.6.5 — Cleanup cron للملفات المهجورة ✅
+- [x] `cleanup.ts` — حذف طلبات `abandoned` > 24 ساعة
+- [x] Runs on startup + daily interval
 
-### 1.7 — Dashboard سعد (يوم)
-- [ ] `apps/web/app/dashboard/page.tsx` — قائمة الطلبات
-- [ ] WebSocket للتحديث اللحظي + صوت تنبيه
-- [ ] تفاصيل الطلب (metadata فقط، بلا preview داخلي)
-- [ ] الأزرار placeholders (الربط الفعلي في Phase 3)
-- [ ] Filter بالـ status + تاريخ + Pagination 50/صفحة (C12)
-- [ ] **Lock screen overlay (Z5)** — يظهر بعد 15 دقيقة idle + re-enter password (D6)
+### 1.7 — Dashboard المكتبة ✅
+- [x] React + Vite renderer
+- [x] WebSocket للتحديث اللحظي + **native OS Notification** (نظام) عند وصول طلب/ملف
+- [x] Counters (قيد الانتظار / يطبع / جاهز)
+- [x] Filters (الكل/pending/printing/ready/done) + search + pagination
+- [x] **Lock screen** — يبدأ مقفل + يقفل بعد 15 دقيقة idle + PIN + قفل 30 دقيقة بعد 5 محاولات فاشلة
+- [x] الأزرار: عرض / طباعة / جاهز / حذف
 
-### 1.8 — QR Generator (نصف يوم)
-- [ ] `apps/desktop/main/qr.ts` — توليد QR عبر `qrcode`
-- [ ] صفحة Settings في dashboard → Print Wall Signs
-- [ ] PDF جاهز للطباعة (A4) بتصميم حائط المكتبة
+### 1.8 — QR Generator + ملصق الحائط ✅
+- [x] `qr.ts` — توليد QR عبر `qrcode`
+- [x] `/wall-sign` route في Fastify — A4 HTML جاهز للطباعة
+- [x] زر 🧾 "طباعة ملصق الحائط" في Dashboard
 
-### 1.9 — Polish + اختبار يدوي (نصف يوم)
-- [ ] اختبار مع iOS + Android حقيقي
-- [ ] تجربة رفع ملفات مختلفة الأحجام
-- [ ] تجربة انقطاع شبكة أثناء الرفع
-- [ ] تصحيح أي مشاكل
+### 1.9 — Printer integration ✅
+- [x] **Root-cause fix**: `shell.openPath` بدل `webContents.print` (يحل تعلق الـ callback على macOS)
+- [x] Printer status polling + cache + WS broadcast
+- [x] CUPS state mapping (3=idle, 4=printing, 5=error)
 
-**مخرجات Phase 1**: ملاك تقدر تستخدم النظام بالكامل. سعد عنده لوحة شغّالة. بدون online.
+### 1.10 — Notifications ✅
+- [x] **Native OS Notification** (macOS/Windows/Linux) مع system sound عند طلب جديد أو ملف جديد
+- [x] In-app toast "📩 طلب جديد وصل"
+
+### 1.11 — Polish + اختبار يدوي 🟡
+- [x] typecheck + build نظيفين (0 errors)
+- [x] ESLint/Prettier
+- [ ] اختبار مع iOS + Android حقيقي (يحتاج جهاز سعد على شبكة حقيقية)
+
+**مخرجات Phase 1**: ملاك تقدر تستخدم النظام بالكامل. سعد عنده لوحة شغّالة مع إشعارات نظام. بدون online.
 
 ---
 
