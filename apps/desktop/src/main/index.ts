@@ -1,8 +1,9 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, Notification, shell } from 'electron';
 import { join } from 'node:path';
 import { registerIpcHandlers } from './ipc';
 import { startLocalServer } from './server';
 import { startPrinterPolling } from './printer';
+import { subscribe as subscribeBus, type AppEvent } from './events';
 
 const isDev = !app.isPackaged;
 
@@ -74,6 +75,39 @@ app.whenReady().then(() => {
   });
 
   startPrinterPolling();
+
+  // Native OS notifications on new requests / new uploaded files.
+  // Uses system default notification sound (macOS, Windows, Linux).
+  subscribeBus('requests:changed', (ev: AppEvent) => {
+    if (ev.type !== 'requests:changed') return;
+    if (!Notification.isSupported()) return;
+    let title: string | null = null;
+    let body = '';
+    if (ev.reason === 'created') {
+      title = 'UOADrop — طلب جديد';
+      body = 'تم استلام طلب طباعة جديد. افتح اللوحة لعرض التفاصيل.';
+    } else if (ev.reason === 'file-added') {
+      title = 'UOADrop — ملف جديد';
+      body = 'تم رفع ملف إضافي لطلب موجود.';
+    }
+    if (!title) return;
+    try {
+      const n = new Notification({
+        title,
+        body,
+        silent: false, // play system default sound
+      });
+      n.on('click', () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.focus();
+        }
+      });
+      n.show();
+    } catch {
+      /* ignore notification errors */
+    }
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

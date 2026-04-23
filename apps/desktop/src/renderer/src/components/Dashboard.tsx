@@ -93,39 +93,13 @@ export function Dashboard(): JSX.Element {
     return () => clearInterval(id);
   }, [filter, search, page]);
 
-  // Live updates via WebSocket (+ beep on new requests)
+  // Live updates via WebSocket.
+  // NOTE: native OS notification + system sound are emitted from the main
+  // process (see main/index.ts). Here we only refresh data and show a toast.
   useEffect(() => {
     let ws: WebSocket | null = null;
     let retry: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
-
-    const playBeep = async (): Promise<void> => {
-      try {
-        const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (!Ctx) return;
-        const ctx: AudioContext = (playBeep as any)._ctx ?? new Ctx();
-        (playBeep as any)._ctx = ctx;
-        if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
-        // Two-tone chime: 880 Hz then 660 Hz.
-        const now = ctx.currentTime;
-        const tone = (freq: number, start: number, dur: number): void => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.0001, now + start);
-          gain.gain.exponentialRampToValueAtTime(0.28, now + start + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
-          osc.connect(gain).connect(ctx.destination);
-          osc.start(now + start);
-          osc.stop(now + start + dur + 0.05);
-        };
-        tone(880, 0, 0.18);
-        tone(660, 0.2, 0.28);
-      } catch {
-        /* ignore audio errors */
-      }
-    };
 
     const connect = (): void => {
       try {
@@ -139,12 +113,7 @@ export function Dashboard(): JSX.Element {
           const data = JSON.parse(msg.data as string);
           if (data?.type === 'requests:changed') {
             void refresh();
-            if (data.reason === 'created') {
-              playBeep();
-              showToast('📩 طلب جديد وصل');
-            } else if (data.reason === 'file-added') {
-              playBeep();
-            }
+            if (data.reason === 'created') showToast('📩 طلب جديد وصل');
           }
         } catch { /* ignore */ }
       };
