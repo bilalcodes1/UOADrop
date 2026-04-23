@@ -368,18 +368,18 @@ export async function startLocalServer(): Promise<{ port: number }> {
         return { ok: true, dedup: true };
       }
 
-      addRequestFile({
+      const savedFile = addRequestFile({
         requestId: id,
         localPath: destPath,
-        filename: basename(destPath),
+        filename: filename,
         mimeType: mime,
         sizeBytes: bytes,
         sha256: sha256Hex,
         magicByteVerified: true,
       });
 
-      emit({ type: 'requests:changed', reason: 'file-added', requestId: id });
-      return { ok: true };
+      emit({ type: 'requests:changed', reason: 'file-added', requestId: id, file: savedFile });
+      return { ok: true, file: savedFile };
     },
   );
 

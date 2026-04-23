@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PrintRequest, PrinterStatus, RequestStatus } from '@uoadrop/shared';
 
 const PRINTER_LABEL: Record<PrinterStatus, string> = {
@@ -44,6 +44,7 @@ export function Dashboard(): JSX.Element {
   const [requests, setRequests] = useState<PrintRequest[]>([]);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | RequestStatus>('all');
   const [search, setSearch] = useState('');
@@ -52,11 +53,15 @@ export function Dashboard(): JSX.Element {
     status: PrinterStatus;
     printerName: string | null;
   }>({ status: 'unknown', printerName: null });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [fileCounts, setFileCounts] = useState<Record<string, number>>({});
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showToast = (msg: string): void => {
+  const showToast = useCallback((msg: string): void => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const updateStatus = (id: string, status: RequestStatus): void => {
     setRequests((prev) =>
@@ -113,7 +118,6 @@ export function Dashboard(): JSX.Element {
           const data = JSON.parse(msg.data as string);
           if (data?.type === 'requests:changed') {
             if (data.reason === 'created' && data.payload) {
-              // Silently prepend the new card the moment request is created
               setRequests((prev) => {
                 if (prev.some((r: { id: string }) => r.id === data.payload.id)) return prev;
                 return [data.payload, ...prev];
@@ -121,10 +125,15 @@ export function Dashboard(): JSX.Element {
               setTotal((t) => t + 1);
             }
             if (data.reason === 'file-added') {
-              // Sound fired in main process; show toast here in sync with refresh
+              // Instant file-count badge update — zero IPC round-trip
+              if (data.requestId) {
+                setFileCounts((prev) => ({
+                  ...prev,
+                  [data.requestId as string]: (prev[data.requestId as string] ?? 0) + 1,
+                }));
+              }
               showToast('📩 ملف جديد — جاهز للطباعة');
             }
-            // Refresh on every event to keep data consistent
             void refresh();
           }
         } catch { /* ignore */ }
@@ -231,6 +240,55 @@ export function Dashboard(): JSX.Element {
     }
   };
 
+  const toggleSelect = (id: string): void => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = requests.length > 0 && requests.every((r) => selectedIds.has(r.id));
+  const toggleSelectAll = (): void => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(requests.map((r) => r.id)));
+  };
+
+  const handleBulkPrint = async (): Promise<void> => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    for (const id of ids) {
+      const req = requests.find((r) => r.id === id);
+      if (!req || req.status === 'done' || req.status === 'canceled') continue;
+      await handlePrint(req);
+    }
+    setBulkBusy(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkReady = (): void => {
+    for (const id of selectedIds) {
+      const req = requests.find((r) => r.id === id);
+      if (req && req.status === 'printing') handleReady(req);
+    }
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = async (): Promise<void> => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    if (!window.confirm(`حذف ${ids.length} طلبات؟ لا يمكن التراجع.`)) return;
+    setBulkBusy(true);
+    for (const id of ids) {
+      await window.api.deleteRequest(id).catch(() => {});
+    }
+    await refresh();
+    showToast(`تم حذف ${ids.length} طلبات`);
+    setBulkBusy(false);
+    setSelectedIds(new Set());
+  };
+
   const counts = {
     pending: requests.filter((r) => r.status === 'pending').length,
     printing: requests.filter((r) => r.status === 'printing').length,
@@ -278,6 +336,14 @@ export function Dashboard(): JSX.Element {
 
       <div className="toolbar">
         <div className="filters">
+          <label className="select-all-label" title="تحديد الكل">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleSelectAll}
+              disabled={requests.length === 0}
+            />
+          </label>
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.key}
@@ -296,17 +362,47 @@ export function Dashboard(): JSX.Element {
         />
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="bulk-bar">
+          <span className="bulk-count">{selectedIds.size} محدد</span>
+          <button className="btn btn-print" disabled={bulkBusy} onClick={() => void handleBulkPrint()}>
+            🖨️ طباعة الكل
+          </button>
+          <button className="btn btn-ready" disabled={bulkBusy} onClick={handleBulkReady}>
+            ✅ جاهز الكل
+          </button>
+          <button className="btn btn-delete" disabled={bulkBusy} onClick={() => void handleBulkDelete()}>
+            🗑️ حذف الكل
+          </button>
+          <button className="btn" onClick={() => setSelectedIds(new Set())}>إلغاء</button>
+        </div>
+      )}
+
       <main className="list">
         {requests.length === 0 && (
           <div className="empty">لا توجد طلبات مطابقة</div>
         )}
         {requests.map((req) => (
-          <article key={req.id} className="request-card">
+          <article
+            key={req.id}
+            className={`request-card ${selectedIds.has(req.id) ? 'card-selected' : ''}`}
+            onClick={() => toggleSelect(req.id)}
+          >
             <div className="card-top">
+              <label className="card-checkbox" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(req.id)}
+                  onChange={() => toggleSelect(req.id)}
+                />
+              </label>
               <div className="ticket">#{req.ticket}</div>
               <span className={`badge ${STATUS_COLOR[req.status]}`}>
                 {STATUS_LABEL[req.status]}
               </span>
+              {(fileCounts[req.id] ?? 0) > 0 && (
+                <span className="file-badge">📎 {fileCounts[req.id]}</span>
+              )}
             </div>
             <div className="card-body">
               <div className="student">{req.studentName ?? '— غير معروف —'}</div>
@@ -322,7 +418,7 @@ export function Dashboard(): JSX.Element {
                 <span className="price">{req.priceIqd.toLocaleString('ar-IQ')} د.ع</span>
               </div>
             </div>
-            <div className="card-actions">
+            <div className="card-actions" onClick={(e) => e.stopPropagation()}>
               <button
                 className="btn btn-view"
                 disabled={busy === req.id}
@@ -338,7 +434,7 @@ export function Dashboard(): JSX.Element {
                   req.status === 'canceled' ||
                   req.status === 'blocked'
                 }
-                onClick={() => handlePrint(req)}
+                onClick={() => void handlePrint(req)}
                 title={req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}
               >
                 🖨️ {req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}
@@ -353,7 +449,7 @@ export function Dashboard(): JSX.Element {
               <button
                 className="btn btn-delete"
                 disabled={busy === req.id}
-                onClick={() => handleDelete(req)}
+                onClick={() => void handleDelete(req)}
                 title="حذف الطلب"
               >
                 🗑️

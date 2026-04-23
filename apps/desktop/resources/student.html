@@ -340,33 +340,39 @@
         });
       }
 
+      async function uploadOneWithRetry(item) {
+        item.status = 'uploading';
+        item.progress = 0;
+        render();
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            await uploadOne(item);
+            item.status = 'done';
+            item.progress = 100;
+            render();
+            return;
+          } catch (err) {
+            if (attempt >= maxAttempts) {
+              item.status = 'error';
+              item.error = (err && err.message) || 'failed';
+              render();
+              return;
+            }
+            await new Promise(r => setTimeout(r, 400 * attempt));
+          }
+        }
+      }
+
       async function runQueue() {
         if (running || !currentRequestId) return;
         running = true;
-        for (const item of queue) {
-          if (item.status !== 'pending') continue;
-          item.status = 'uploading';
-          item.progress = 0;
-          render();
-          let attempts = 0;
-          const maxAttempts = 3;
-          while (true) {
-            attempts++;
-            try {
-              await uploadOne(item);
-              item.status = 'done';
-              item.progress = 100;
-              break;
-            } catch (err) {
-              if (attempts >= maxAttempts) {
-                item.status = 'error';
-                item.error = (err && err.message) || 'failed';
-                break;
-              }
-              await new Promise(r => setTimeout(r, 800 * attempts));
-            }
-          }
-          render();
+        const pending = queue.filter(item => item.status === 'pending');
+        const CONCURRENCY = 3;
+        // Upload in parallel batches of CONCURRENCY
+        for (let i = 0; i < pending.length; i += CONCURRENCY) {
+          const batch = pending.slice(i, i + CONCURRENCY);
+          await Promise.all(batch.map(item => uploadOneWithRetry(item)));
         }
         running = false;
       }

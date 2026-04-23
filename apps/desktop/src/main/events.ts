@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events';
-import type { PrintRequest } from '@uoadrop/shared';
+import type { PrintRequest, RequestFile } from '@uoadrop/shared';
 
 export type AppEvent =
-  | { type: 'requests:changed'; reason: string; requestId?: string; payload?: PrintRequest }
+  | { type: 'requests:changed'; reason: string; requestId?: string; payload?: PrintRequest; file?: RequestFile }
   | { type: 'printer:changed'; status: string };
 
 export const bus = new EventEmitter();
