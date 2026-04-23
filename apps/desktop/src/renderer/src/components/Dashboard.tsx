@@ -99,22 +99,29 @@ export function Dashboard(): JSX.Element {
     let retry: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
 
-    const playBeep = (): void => {
+    const playBeep = async (): Promise<void> => {
       try {
         const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
         if (!Ctx) return;
-        const ctx = new Ctx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = 880;
-        osc.type = 'sine';
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-        osc.onended = () => ctx.close().catch(() => {});
+        const ctx: AudioContext = (playBeep as any)._ctx ?? new Ctx();
+        (playBeep as any)._ctx = ctx;
+        if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
+        // Two-tone chime: 880 Hz then 660 Hz.
+        const now = ctx.currentTime;
+        const tone = (freq: number, start: number, dur: number): void => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, now + start);
+          gain.gain.exponentialRampToValueAtTime(0.28, now + start + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(now + start);
+          osc.stop(now + start + dur + 0.05);
+        };
+        tone(880, 0, 0.18);
+        tone(660, 0.2, 0.28);
       } catch {
         /* ignore audio errors */
       }
@@ -205,6 +212,8 @@ export function Dashboard(): JSX.Element {
       } else {
         lastError = printRes.error ?? lastError;
         lastHint = printRes.hint ?? lastHint;
+        // User cancelled — do not open further dialogs for remaining files.
+        if (printRes.error === 'canceled' || printRes.error === 'cancelled') break;
       }
     }
 
