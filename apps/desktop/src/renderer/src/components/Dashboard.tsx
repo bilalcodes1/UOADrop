@@ -113,15 +113,18 @@ export function Dashboard(): JSX.Element {
           const data = JSON.parse(msg.data as string);
           if (data?.type === 'requests:changed') {
             if (data.reason === 'created' && data.payload) {
-              // Instant prepend — no round-trip needed
+              // Silently prepend the new card the moment request is created
               setRequests((prev) => {
-                if (prev.some((r) => r.id === data.payload.id)) return prev;
+                if (prev.some((r: { id: string }) => r.id === data.payload.id)) return prev;
                 return [data.payload, ...prev];
               });
               setTotal((t) => t + 1);
-              showToast('📩 طلب جديد وصل');
             }
-            // Always do a background refresh to stay in sync
+            if (data.reason === 'file-added') {
+              // Sound fired in main process; show toast here in sync with refresh
+              showToast('📩 ملف جديد — جاهز للطباعة');
+            }
+            // Refresh on every event to keep data consistent
             void refresh();
           }
         } catch { /* ignore */ }

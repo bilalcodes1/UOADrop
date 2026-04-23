@@ -120,12 +120,9 @@ app.whenReady().then(() => {
     if (!Notification.isSupported()) return;
     let title: string | null = null;
     let body = '';
-    if (ev.reason === 'created') {
-      title = 'UOADrop — طلب جديد';
-      body = 'تم استلام طلب طباعة جديد. افتح اللوحة لعرض التفاصيل.';
-    } else if (ev.reason === 'file-added') {
+    if (ev.reason === 'file-added') {
       title = 'UOADrop — ملف جديد';
-      body = 'تم رفع ملف إضافي لطلب موجود.';
+      body = 'تم استلام ملف جديد — افتح اللوحة للطباعة.';
     }
     if (!title) return;
     // Play system sound via OS CLI (reliable on unsigned dev builds).
