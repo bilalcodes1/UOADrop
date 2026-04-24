@@ -158,7 +158,8 @@ export default function UploadPage() {
       for (let i = 0; i < files.length; i++) {
         setCurrentFile(i + 1);
         const entry = files[i]!;
-        const storagePath = `${req.id}/${Date.now()}-${entry.file.name}`;
+        const safeName = entry.file.name.replace(/\s+/g, '_').replace(/[^\w.\-]/g, '_');
+        const storagePath = `${req.id}/${Date.now()}-${safeName}`;
 
         const { error: uploadErr } = await supabase.storage
           .from('print-files')
