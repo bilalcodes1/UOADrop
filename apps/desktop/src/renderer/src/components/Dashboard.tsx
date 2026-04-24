@@ -462,12 +462,14 @@ export function Dashboard(): JSX.Element {
 
   // ── Supabase Realtime — online requests ──
   useEffect(() => {
+    console.log('[Supabase] URL:', import.meta.env.VITE_SUPABASE_URL ?? 'MISSING');
     const channel = supabase
       .channel('online-requests')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'print_requests' },
         (payload) => {
+          console.log('[Realtime] INSERT received:', payload.new);
           const row = payload.new as SupabaseRequestRow;
           if (row.source !== 'online') return;
           setOnlineQueue((prev) => {
@@ -477,7 +479,9 @@ export function Dashboard(): JSX.Element {
           showToast(`طلب أونلاين جديد — ${row.ticket}`);
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('[Realtime] status:', status, err ?? '');
+      });
     return () => { void supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

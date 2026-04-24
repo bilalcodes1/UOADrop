@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Notification, shell } from 'electron';
+import { app, BrowserWindow, Notification, shell, session } from 'electron';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -104,6 +104,26 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(() => {
+  // Allow Supabase HTTPS + Realtime WebSocket connections
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders };
+    // Remove any existing CSP headers (case-insensitive)
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === 'content-security-policy') {
+        delete headers[key];
+      }
+    }
+    headers['Content-Security-Policy'] = [
+      "default-src 'self'; " +
+      "connect-src 'self' https://ypyqdvpzwvqkbdkiamqz.supabase.co wss://ypyqdvpzwvqkbdkiamqz.supabase.co ws://localhost:* http://localhost:*; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: blob:; " +
+      "font-src 'self' data:;",
+    ];
+    callback({ responseHeaders: headers });
+  });
+
   registerIpcHandlers();
   createMainWindow();
 
