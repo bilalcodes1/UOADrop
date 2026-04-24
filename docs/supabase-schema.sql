@@ -115,6 +115,10 @@ CREATE POLICY "anon read print-files"
   USING (bucket_id = 'print-files');
 
 -- ── Realtime ─────────────────────────────────────────────────────
+-- مطلوب لإرسال البيانات الكاملة مع كل تغيير
+ALTER TABLE print_requests REPLICA IDENTITY FULL;
+ALTER TABLE request_files  REPLICA IDENTITY FULL;
+
 -- فعّل Realtime على الجدولين من:
 -- Supabase Dashboard → Database → Replication → print_requests ✓ + request_files ✓
 

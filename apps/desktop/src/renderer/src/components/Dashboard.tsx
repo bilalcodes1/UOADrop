@@ -466,9 +466,10 @@ export function Dashboard(): JSX.Element {
       .channel('online-requests')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'print_requests', filter: 'source=eq.online' },
+        { event: 'INSERT', schema: 'public', table: 'print_requests' },
         (payload) => {
           const row = payload.new as SupabaseRequestRow;
+          if (row.source !== 'online') return;
           setOnlineQueue((prev) => {
             if (prev.some((r) => r.id === row.id)) return prev;
             return [row, ...prev];
