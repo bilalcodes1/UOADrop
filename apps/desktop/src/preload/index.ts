@@ -62,6 +62,9 @@ export const api = {
   chooseFile: (): Promise<{ canceled: boolean; filePaths: string[] }> =>
     ipcRenderer.invoke('file:choose'),
 
+  downloadOnlineFile: (url: string, filename: string): Promise<string> =>
+    ipcRenderer.invoke('online:downloadFile', url, filename),
+
   printerStatus: (): Promise<PrinterStatusPayload> =>
     ipcRenderer.invoke('printer:status'),
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase, type SupabaseRequestRow } from '@/lib/supabase';
+import { supabase, type SupabaseRequestRow, type OnlineEntry, type SupabaseFileRow } from '../lib/supabase';
 import uoadropLogo from './icons/uoadrop-logo.png';
 import universityOfAnbarLogo from './icons/university-of-anbar.svg';
 import csCollegeLogo from './icons/cs-college.svg';
@@ -378,7 +378,7 @@ export function Dashboard(): JSX.Element {
   const [filesPanel, setFilesPanel] = useState<{ request: PrintRequest; files: RequestFile[] } | null>(null);
   const [fileOptionDrafts, setFileOptionDrafts] = useState<Record<string, FileOptionDraft>>({});
   const [fileOptionBusy, setFileOptionBusy] = useState<string | null>(null);
-  const [onlineQueue, setOnlineQueue] = useState<SupabaseRequestRow[]>([]);
+  const [onlineQueue, setOnlineQueue] = useState<OnlineEntry[]>([]);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTokenRef = useRef(0);
 
@@ -460,7 +460,30 @@ export function Dashboard(): JSX.Element {
     return () => clearInterval(id);
   }, [filter, search, page]);
 
-  // ── Supabase catch-up: fetch + auto-delete pending online requests on startup ──
+  // ── Helper: download files + produce OnlineEntry ──
+  const processOnlineRequest = useCallback(async (row: SupabaseRequestRow): Promise<OnlineEntry> => {
+    const { data: files } = await supabase
+      .from('request_files')
+      .select('*')
+      .eq('request_id', row.id);
+
+    const localFiles: OnlineEntry['localFiles'] = [];
+    for (const f of (files ?? []) as SupabaseFileRow[]) {
+      const { data: urlData } = await supabase.storage
+        .from('print-files')
+        .createSignedUrl(f.storage_path, 60 * 60 * 24 * 7);
+      if (urlData?.signedUrl) {
+        try {
+          const localPath = await window.api.downloadOnlineFile(urlData.signedUrl, f.filename);
+          localFiles.push({ filename: f.filename, localPath, copies: f.copies, color: f.color });
+        } catch { /* skip failed file */ }
+      }
+    }
+    await supabase.from('print_requests').delete().eq('id', row.id);
+    return { ...row, localFiles };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Supabase catch-up: fetch + download + auto-delete on startup ──
   useEffect(() => {
     supabase
       .from('print_requests')
@@ -470,40 +493,38 @@ export function Dashboard(): JSX.Element {
       .order('created_at', { ascending: false })
       .then(async ({ data }) => {
         if (!data || data.length === 0) return;
-        setOnlineQueue(data as SupabaseRequestRow[]);
-        showToast(`${data.length} طلب أونلاين جديد`);
-        // Auto-delete from Supabase — desktop has received them
-        const ids = data.map((r) => r.id);
-        await supabase.from('print_requests').delete().in('id', ids);
+        showToast(`${data.length} طلب أونلاين جديد — جارٍ التحميل...`);
+        const entries = await Promise.all((data as SupabaseRequestRow[]).map(processOnlineRequest));
+        setOnlineQueue(entries);
+        showToast(`${entries.length} طلب أونلاين جاهز للطباعة`);
       });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [processOnlineRequest]);
 
   // ── Supabase Realtime — online requests ──
   useEffect(() => {
-    console.log('[Supabase] URL:', import.meta.env.VITE_SUPABASE_URL ?? 'MISSING');
     const channel = supabase
       .channel('online-requests')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'print_requests' },
         async (payload) => {
-          console.log('[Realtime] INSERT received:', payload.new);
           const row = payload.new as SupabaseRequestRow;
           if (row.source !== 'online') return;
+          if (onlineQueue.some((r) => r.id === row.id)) return;
+          showToast(`طلب أونلاين جديد — ${row.ticket} — جارٍ التحميل...`);
+          const entry = await processOnlineRequest(row);
           setOnlineQueue((prev) => {
-            if (prev.some((r) => r.id === row.id)) return prev;
-            return [row, ...prev];
+            if (prev.some((r) => r.id === entry.id)) return prev;
+            return [entry, ...prev];
           });
-          showToast(`طلب أونلاين جديد — ${row.ticket}`);
-          // Auto-delete from Supabase — desktop has received it
-          await supabase.from('print_requests').delete().eq('id', row.id);
+          showToast(`طلب ${entry.ticket} جاهز للطباعة`);
         },
       )
       .subscribe((status, err) => {
         console.log('[Realtime] status:', status, err ?? '');
       });
     return () => { void supabase.removeChannel(channel); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [processOnlineRequest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Real-time updates via direct Electron IPC (zero network hop) ──
   useEffect(() => {
@@ -936,21 +957,35 @@ export function Dashboard(): JSX.Element {
             </button>
           </div>
           <ul className="online-queue-list">
-            {onlineQueue.map((row) => (
-              <li key={row.id} className="online-queue-item">
-                <span className="online-queue-ticket">{row.ticket}</span>
-                <span className="online-queue-name">{row.student_name ?? 'طالب'}</span>
+            {onlineQueue.map((entry) => (
+              <li key={entry.id} className="online-queue-item">
+                <span className="online-queue-ticket">{entry.ticket}</span>
+                <span className="online-queue-name">{entry.student_name ?? 'طالب'}</span>
                 <span className="online-queue-time">
-                  {new Date(row.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(entry.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <a
-                  className="online-queue-link"
-                  href={`https://ypyqdvpzwvqkbdkiamqz.supabase.co/dashboard/project/ypyqdvpzwvqkbdkiamqz/editor`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Supabase ↗
-                </a>
+                <div className="online-queue-files">
+                  {entry.localFiles.map((f) => (
+                    <span key={f.localPath} className="online-queue-file">
+                      <span className="online-queue-filename">{f.filename}</span>
+                      <button
+                        className="online-queue-btn"
+                        onClick={() => void window.api.openFile(f.localPath)}
+                      >فتح</button>
+                      <button
+                        className="online-queue-btn online-queue-btn--print"
+                        onClick={() => void window.api.printFile(f.localPath)}
+                      >طباعة</button>
+                    </span>
+                  ))}
+                  {entry.localFiles.length === 0 && (
+                    <span className="online-queue-no-files">لا توجد ملفات</span>
+                  )}
+                </div>
+                <button
+                  className="online-queue-dismiss"
+                  onClick={() => setOnlineQueue((prev) => prev.filter((r) => r.id !== entry.id))}
+                >✕</button>
               </li>
             ))}
           </ul>

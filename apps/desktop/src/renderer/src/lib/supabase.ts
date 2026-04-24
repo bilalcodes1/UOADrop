@@ -21,3 +21,21 @@ export type SupabaseRequestRow = {
   printed_at: string | null;
   picked_up_at: string | null;
 };
+
+export type SupabaseFileRow = {
+  id: string;
+  request_id: string;
+  filename: string;
+  mime_type: string | null;
+  size_bytes: number;
+  storage_path: string;
+  copies: number;
+  color: boolean;
+  double_sided: boolean;
+  pages_per_sheet: number;
+  page_range: string | null;
+};
+
+export type OnlineEntry = SupabaseRequestRow & {
+  localFiles: Array<{ filename: string; localPath: string; copies: number; color: boolean }>;
+};

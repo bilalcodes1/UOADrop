@@ -1,6 +1,6 @@
-import { ipcMain, BrowserWindow, shell, dialog } from 'electron';
-import { basename } from 'node:path';
-import { stat } from 'node:fs/promises';
+import { ipcMain, BrowserWindow, shell, dialog, app } from 'electron';
+import { basename, join } from 'node:path';
+import { stat, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import type { PrinterStatus } from '@uoadrop/shared';
 import { PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
@@ -169,6 +169,21 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('printer:events', async (_e, limit?: number) => ({
     items: listPrinterEvents(typeof limit === 'number' ? limit : 50),
   }));
+
+  // ─────────────────────────────────────────
+  // online:downloadFile — download a Supabase signed URL to local temp dir
+  // ─────────────────────────────────────────
+  ipcMain.handle('online:downloadFile', async (_e, url: string, filename: string): Promise<string> => {
+    const tmpDir = join(app.getPath('temp'), 'uoadrop-online');
+    await mkdir(tmpDir, { recursive: true });
+    const safe = filename.replace(/\s+/g, '_').replace(/[^\w.\-]/g, '_');
+    const dest = join(tmpDir, `${Date.now()}-${safe}`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+    const buffer = await res.arrayBuffer();
+    await writeFile(dest, Buffer.from(buffer));
+    return dest;
+  });
 
   // ─────────────────────────────────────────
   // file:choose — open file picker (for testing)
