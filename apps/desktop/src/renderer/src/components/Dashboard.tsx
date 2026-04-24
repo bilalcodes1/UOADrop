@@ -460,6 +460,24 @@ export function Dashboard(): JSX.Element {
     return () => clearInterval(id);
   }, [filter, search, page]);
 
+  // ── Supabase catch-up: fetch missed online requests on startup ──
+  useEffect(() => {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    supabase
+      .from('print_requests')
+      .select('*')
+      .eq('source', 'online')
+      .eq('status', 'pending')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setOnlineQueue(data as SupabaseRequestRow[]);
+          showToast(`${data.length} طلب أونلاين من آخر 24 ساعة`);
+        }
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Supabase Realtime — online requests ──
   useEffect(() => {
     console.log('[Supabase] URL:', import.meta.env.VITE_SUPABASE_URL ?? 'MISSING');
