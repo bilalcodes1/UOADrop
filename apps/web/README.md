@@ -1,14 +1,14 @@
 # @uoadrop/web
 
-Next.js App Router — student-facing web app.
+Planned online web application for future phases.
 
 ## Status: Placeholder (Phase 2+)
 
 Will contain:
 
-- Upload page (tus.io resumable uploads → Supabase Storage)
-- Request tracking (Realtime subscription)
-- PIN verification on pickup QR link
-- Telegram linking flow
+- Online upload page for requests outside the library network
+- Request tracking and pickup flow for cloud-backed requests
+- PIN verification and Telegram linking flow
+- Supabase-backed APIs and storage integration
 
 Scaffold with `pnpm create next-app` when Phase 2 begins.

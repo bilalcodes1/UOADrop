@@ -22,6 +22,7 @@ export type PrintRequest = {
   studentName?: string;
   studentEmail?: string;
   telegramChatId?: string;
+  pickupPin?: string;
   pinHash: string;       // bcrypt hash
   status: RequestStatus;
   options: PrintOptions;
@@ -40,6 +41,7 @@ export type RequestFile = {
   mimeType: string;
   sizeBytes: number;
   pages?: number;
+  options: PrintOptions;
   storagePath: string;   // Supabase Storage key
   localPath?: string;    // downloaded local cache
   sha256: string;

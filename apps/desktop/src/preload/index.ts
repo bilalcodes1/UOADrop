@@ -22,9 +22,6 @@ export const api = {
   ): Promise<{ ok: boolean; locked: boolean; remaining: number; lockoutMinutes?: number }> =>
     ipcRenderer.invoke('security:unlock', pin),
 
-  seed: (): Promise<{ seeded: boolean; count: number }> =>
-    ipcRenderer.invoke('requests:seed'),
-
   listRequests: (): Promise<{ items: PrintRequest[] }> =>
     ipcRenderer.invoke('requests:list'),
 
@@ -39,8 +36,14 @@ export const api = {
   setRequestStatus: (id: string, status: RequestStatus): Promise<{ ok: true }> =>
     ipcRenderer.invoke('requests:setStatus', id, status),
 
+  setRequestPrice: (id: string, priceIqd: number): Promise<{ ok: true }> =>
+    ipcRenderer.invoke('requests:setPrice', id, priceIqd),
+
   listRequestFiles: (requestId: string): Promise<{ items: RequestFile[] }> =>
     ipcRenderer.invoke('requests:files', requestId),
+
+  setRequestFileOptions: (fileId: string, options: RequestFile['options']): Promise<{ ok: true }> =>
+    ipcRenderer.invoke('requests:setFileOptions', fileId, options),
 
   deleteRequest: (id: string): Promise<{ deletedFiles: number }> =>
     ipcRenderer.invoke('requests:delete', id),

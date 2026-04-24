@@ -2,7 +2,7 @@
 
 # UOADrop 📎
 
-نظام نقل ملفات الطباعة بين الطلاب وصاحب المكتبة في جامعة عراقية — يعمل **أونلاين وأوفلاين** بواجهة ويب بسيطة بدون الحاجة لتنصيب أي تطبيق على جهاز الطالب.
+نظام إدارة طلبات الطباعة داخل المكتبة الجامعية. النسخة الحالية تعمل كـ **Desktop-first offline app**: الطالب يفتح صفحة رفع من المتصفح داخل شبكة المكتبة، بينما أمين المكتبة يدير الطلبات من تطبيق Electron محلي.
 
 ---
 
@@ -14,13 +14,24 @@
 
 ## الحل
 
-صفحة رفع ذكية تُفتح من أي متصفح:
-- **أوفلاين** (داخل المكتبة): يمسح الطالب QR على الحائط → يتصل بـ Wi-Fi المكتبة → يرفع ملفاته مباشرة للابتوب صاحب المكتبة.
-- **أونلاين** (من أي مكان): يدخل الموقع → يرفع ملفاته → تصل فوراً لصاحب المكتبة عبر الإنترنت.
+الحل الحالي يتكون من جزئين مترابطين:
 
-كلتا الطريقتين تعبّيان نفس النموذج (الاسم الثلاثي، القسم، المرحلة، عدد النسخ، ملوّن/أبيض، إلخ) ويصلان لنفس **لوحة موحّدة** عند صاحب المكتبة.
+- **صفحة رفع للطالب** تعمل من أي متصفح على نفس الشبكة المحلية.
+- **Dashboard للمكتبة** داخل تطبيق Electron لإدارة الطلبات والملفات والطباعة.
 
-**بلال** يتلقى **إشعارات تلقائية**: Telegram لحظة بلحظة (استلام → طباعة → جاهز)، و Email واحد فقط عند جاهزية الطلب. (ملاك ما تحتاج — تنتظر عند الطاولة).
+المزايا المنفّذة حالياً:
+
+- رفع عدة ملفات ضمن نفس الطلب.
+- حفظ اسم الطالب والإعدادات الافتراضية محلياً لتسهيل الاستخدام المتكرر.
+- **إعدادات طباعة مستقلة لكل ملف** داخل الطلب نفسه.
+- عرض **رقم التذكرة** و**رمز الاستلام** مباشرة بعد الإرسال.
+- حساب تلقائي لعدد الصفحات لملفات `PDF` و `PPTX` والصور (`JPG/PNG`).
+- تحديث لحظي في الدشبورد عند وصول ملف جديد.
+- إمكانية مراجعة ملفات الطلب وتعديل إعدادات كل ملف من الدشبورد.
+- إدخال السعر يدوياً من أمين المكتبة قبل تحويل الطلب إلى `ready`.
+- تبويب **معلومات المشروع** داخل الدشبورد مع بطاقات المطور والجهة الأكاديمية وروابط الصفحات الرسمية.
+- قسم **عن UOADrop** داخل صفحة الطالب مع شعارات الجامعة والكلية وبطاقات الاعتمادات الأكاديمية.
+- خدمة الشعارات وملفات الواجهة من الخادم المحلي نفسه لضمان عملها على الراوتر وداخل الشبكة المحلية بدون إنترنت.
 
 ---
 
@@ -30,32 +41,27 @@
 |---|---|---|
 | 👨‍💼 **سعد** | صاحب المكتبة | لابتوب Mac + راوتر + طابعة |
 | 👩‍🎓 **ملاك** | طالبة Offline | داخل المكتبة — Wi-Fi محلي |
-| 👨‍🎓 **بلال** | طالب Online | خارج المكتبة — إنترنت عادي |
+| 👨‍🎓 **بلال** | طالب | يرسل طلبه من صفحة الرفع المحلية في النسخة الحالية |
 
 ---
 
 ## المعمارية المختصرة
 
 ```
-                    📱 الطالب (ملاك/بلال)
-                   ┌────────┴────────┐
-                   │                 │
-              [Offline]          [Online]
-                   │                 │
-           ┌───────▼─────┐   ┌───────▼─────┐
-           │  Wi-Fi      │   │  Internet   │
-           │  المكتبة     │   │             │
-           └───────┬─────┘   └───────┬─────┘
-                   │                 │
-           ┌───────▼─────┐   ┌───────▼─────┐
-           │  لابتوب سعد  │   │  Supabase   │
-           │  SQLite     │◄──┤  Postgres   │
-           │  Fastify    │   │  Storage    │
-           └───────┬─────┘   └───────┬─────┘
-                   └────────┬────────┘
-                            ▼
-                   💻 Dashboard سعد
-                   (قائمة طلبات موحّدة)
+                 📱 جهاز الطالب
+                       │
+                 متصفح داخل الشبكة
+                       │
+              http://<LAN-IP>:3737/
+                       │
+              ┌────────▼────────┐
+              │ Electron Desktop │
+              │  Fastify Server  │
+              │  SQLite Database │
+              └────────┬────────┘
+                       │
+                React Dashboard
+                 لأمين المكتبة
 ```
 
 ---
@@ -65,14 +71,15 @@
 | الطبقة | التقنية |
 |--------|---------|
 | Language | **TypeScript** (everywhere) |
-| Web UI | **Next.js 14** (App Router) + Tailwind + shadcn/ui |
+| Student Page | **Standalone HTML/CSS/JS** داخل `apps/desktop/resources/student.html` |
+| Dashboard UI | **React + Vite** داخل Electron renderer |
 | Desktop | **Electron** (Windows أساسي + Mac) |
 | Local Server | **Fastify** + **better-sqlite3** |
-| Cloud | **Supabase** (Postgres + Storage + Realtime) |
-| ORM | **Drizzle** (موحّد على SQLite و Postgres) |
-| File Upload | **tus.io** (resumable) |
+| Local Assets | شعارات وملفات `resources/` تُخدم محلياً من Fastify وتُضمّن مع نسخة التطبيق |
+| Page Counting | **pdf-lib** + تحليل PPTX محلي + الصور = صفحة واحدة |
+| Cloud / Web | **مؤجل لمرحلة لاحقة** |
 | Monorepo | **pnpm workspaces** + **Turborepo** |
-| Notifications | **Resend** (Email) + **Telegram Bot API** |
+| Notifications | **Electron Notification API** + صوت النظام |
 
 ---
 
@@ -98,8 +105,8 @@
 
 ```bash
 pnpm install      # تثبيت dependencies لكل الـ workspaces
-pnpm typecheck    # فحص TypeScript
-pnpm dev          # تشغيل dev servers (بعد Phase 1.2)
+pnpm --filter @uoadrop/desktop dev     # تشغيل التطبيق الحالي
+pnpm --filter @uoadrop/desktop build   # بناء نسخة الإنتاج للتطبيق الحالي
 ```
 
 ### هيكل الـ Monorepo
@@ -107,12 +114,10 @@ pnpm dev          # تشغيل dev servers (بعد Phase 1.2)
 ```
 UOADrop/
 ├── apps/
-│   ├── web/         # Next.js — واجهة الطالب (Phase 2)
-│   └── desktop/     # Electron — لوحة سعد (Phase 1.2)
+│   ├── web/         # Placeholder للـ online phase لاحقاً
+│   └── desktop/     # Electron + Fastify + SQLite + React dashboard
 ├── packages/
-│   ├── shared/      # types + constants + zod schemas
-│   ├── db-schema/   # Drizzle schema (Postgres + SQLite)
-│   └── ui/          # React components مشتركة
+│   └── shared/      # types + constants + validation helpers
 ├── docs/            # التوثيق الكامل
 ├── pnpm-workspace.yaml
 └── turbo.json
@@ -122,14 +127,27 @@ UOADrop/
 
 ## الحالة الحالية
 
-✅ **Phase 0** — Documentation (مكتملة)
-🚧 **Phase 1.1** — Monorepo scaffold (الحالية)
-- [ ] Phase 1.2: Electron app + dashboard
-- [ ] Phase 1.3: Local SQLite + Fastify server
-- [ ] Phase 1: MVP Offline كامل
-- [ ] Phase 2: Online integration
-- [ ] Phase 3: Print & polish
-- [ ] Phase 4: Production release
+✅ **Phase 1 — Desktop Offline MVP** يعمل فعلياً
+
+المنفّذ حالياً:
+
+- [x] Electron app + React dashboard
+- [x] Fastify server محلي على المنفذ `3737`
+- [x] SQLite + migrations محلية
+- [x] صفحة رفع للطالب من المتصفح
+- [x] pickup PIN ظاهر في صفحة الطالب والدشبورد
+- [x] حساب عدد الصفحات للأنواع المدعومة
+- [x] **إعدادات مستقلة لكل ملف** في صفحة الرفع والدشبورد
+- [x] واجهة معلومات مشروع منفصلة في الدشبورد عبر تبويب `معلومات المشروع`
+- [x] شعارات وهوية بصرية محلية تعمل عبر `http://<LAN-IP>:3737/` بدون الاعتماد على CDN أو إنترنت خارجي
+- [x] قسم معلومات أكاديمية داخل صفحة الطالب والدشبورد يتضمن العميد ورئيس القسم والمشرفات وروابطهم الرسمية
+
+المؤجل:
+
+- [ ] Online integration
+- [ ] Cloud sync / Supabase flow
+- [ ] Telegram / Email notifications
+- [ ] Production installer + update flow
 
 شوف [`docs/ROADMAP.md`](docs/ROADMAP.md) للتفاصيل.
 

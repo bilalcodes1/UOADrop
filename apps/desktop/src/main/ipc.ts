@@ -14,7 +14,8 @@ import {
   listRequestsPaged,
   recentFailedPinAttempts,
   recordPinAttempt,
-  seedIfEmpty,
+  setRequestFileOptions,
+  setRequestPrice,
   setRequestStatus,
   verifyLibrarianPin,
 } from './db';
@@ -24,9 +25,6 @@ import { emit as emitAppEvent } from './events';
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
 
 export function registerIpcHandlers(): void {
-  // Ensure DB has initial rows (dev)
-  seedIfEmpty();
-
   // Ensure librarian PIN exists; log generated PIN for dev only
   const { generatedPin } = ensureLibrarianPin();
   if (generatedPin) {
@@ -51,8 +49,6 @@ export function registerIpcHandlers(): void {
     const remaining = Math.max(0, PIN_MAX_ATTEMPTS - (res.ok ? 0 : failures + 1));
     return { ok: res.ok, locked: false, remaining };
   });
-
-  ipcMain.handle('requests:seed', async () => seedIfEmpty());
   ipcMain.handle('requests:list', async () => ({ items: listRequests() }));
   ipcMain.handle(
     'requests:listPaged',
@@ -77,9 +73,19 @@ export function registerIpcHandlers(): void {
     emitAppEvent({ type: 'requests:changed', reason: 'status', requestId: id });
     return res;
   });
+  ipcMain.handle('requests:setPrice', async (_e, id: string, priceIqd: number) => {
+    const res = setRequestPrice(id, priceIqd);
+    emitAppEvent({ type: 'requests:changed', reason: 'price', requestId: id });
+    return res;
+  });
   ipcMain.handle('requests:files', async (_e, requestId: string) => ({
     items: listRequestFiles(requestId),
   }));
+
+  ipcMain.handle('requests:setFileOptions', async (_e, fileId: string, options: unknown) => {
+    const res = setRequestFileOptions(fileId, (options ?? {}) as any);
+    return res;
+  });
 
   ipcMain.handle('requests:delete', async (_e, id: string) => {
     const res = deleteRequest(id);

@@ -1,303 +1,224 @@
 <div dir="rtl">
 
-# قرارات المنتج النهائية
+# قرارات المنتج الحالية
 
-هذا المستند يوثّق كل قرارات المنتج (Product Decisions) المتّخذة بعد مراجعة الفجوات في [`GAPS.md`](./GAPS.md).
-
----
-
-## 🔴 القرارات الحرجة (من المستخدم)
-
-| # | الموضوع | القرار |
-|---|---------|--------|
-| G1 | **التسعير** | سعد يدخل السعر يدوياً عند التسليم — لا حاسبة تلقائية |
-| G2 | **التحقق من المستلم** | **Online فقط** (R1): PIN 4 أرقام، يظهر في صفحة التأكيد **وفي رسالة Telegram الأولى** (R2). Offline: سعد يتحقّق بصرياً من الاسم لأن ملاك أمامه |
-| G3 | **خارج ساعات الدوام** | الطلب يُقبل ويُجدول تلقائياً لصباح اليوم التالي |
-| G4 | **الطابعة معطّلة** | حالة `blocked` + إشعار تلقائي للطالب مع سبب |
-| G5 | **PDF محمي بكلمة سر** | **يصل كما هو** (لا فحص) — سعد يكتشف عند الطباعة |
-| G6 | **ساعات الذروة** | Queue مرتّب + مؤشر "أنت رقم X من Y" في صفحة الطالب |
-| G7 | **المحتوى الحساس** | النظام **غير مسؤول** — مجرد أداة طباعة، لا TOS ولا مراقبة |
-| G8 | **بديل سعد** | حساب واحد فقط في MVP |
+هذا المستند يصف **القرارات المعتمدة في التطبيق الموجود حالياً**، وليس التصوّر القديم أو المراحل المؤجلة.
 
 ---
 
-## 🎯 قرارات التبسيط النهائية (مُحكمة)
+## 1. قرارات المنتج الأساسية
 
-هذه القرارات اتُخذت بعد النقد الهندسي — تحافظ على البساطة القصوى.
-
-### D1. لا معالجة ملفات نهائياً
-- ❌ لا LibreOffice (DOCX→PDF).
-- ❌ لا HEIC→JPG conversion.
-- ❌ لا PDF validation (رفض المحمي).
-- ❌ لا page counting تلقائي.
-- ✅ **الملف يصل كما هو**. سعد يتعامل معه بأدواته.
-
-### D2. تطبيق Desktop واحد فقط
-- Electron shell واحد، بلا mini-apps أو خدمات خارجية.
-- داخله: Next.js Dashboard + Fastify + SQLite.
-- حجم متوقّع: **~85MB**.
-
-### D3. ثلاثة أزرار في Dashboard
-| الزر | الوظيفة | Implementation |
-|-----|---------|----------------|
-| 👁️ **عرض** | يفتح الملف بالتطبيق الافتراضي | `shell.openPath(filePath)` |
-| 🖨️ **طباعة** | يفتح Dialog الطباعة الأصلي | PDF/صور → `webContents.print({silent:false})` (+ `did-finish-load` wait). DOCX/PPTX → `shell.openPath` + تنبيه Ctrl+P/Cmd+P (C1+C2) |
-| ✅ **جهز** | يحدّث status=done + يرسل إشعار + يطلب السعر | update DB + notify + modal للـ price |
-
-### D4. طباعة Cross-Platform (مُحدّث بـ C1)
-| نوع الملف | Windows | Mac | الملاحظة |
-|-----------|---------|-----|----------|
-| PDF | Dialog Chromium الأصلي | Dialog Chromium الأصلي | تلقائي |
-| صور | Dialog Chromium الأصلي | Dialog Chromium الأصلي | تلقائي |
-| DOCX | Word يفتح + تنبيه للضغط Ctrl+P | Word/Pages + Cmd+P | يدوي الخطوة الأخيرة |
-| PPTX | PowerPoint + Ctrl+P | PowerPoint + Cmd+P | يدوي الخطوة الأخيرة |
-
-> **لماذا ليس `rundll32 print` للـ DOCX؟** يطبع صامتاً على الطابعة الافتراضية بدون dialog → تضيع إعدادات الطالب (نسخ، لون، وجهين). الحل الموحّد أوضح وأأمن.
-
-### D5. الأنظمة المدعومة
-- **Windows 10/11** — الجهاز الأساسي لسعد.
-- **macOS 12+** — دعم ثانوي.
-- Office أو Pages مُنصَح به للـ DOCX/PPTX.
-
-### تأثير على Schema
-- ❌ حذف `pages` من `request_files` (لن يُحسب تلقائياً).
-- ✅ سعد يدخل عدد الصفحات بصرياً لو احتاج للحساب.
+| # | الموضوع | القرار الحالي |
+|---|---------|----------------|
+| P1 | **نطاق التطبيق الحالي** | النسخة الحالية **Desktop-first Offline**: صفحة رفع محلية + Dashboard داخل Electron |
+| P2 | **التسعير** | السعر يُدخل يدوياً من أمين المكتبة قبل تحويل الطلب إلى `ready` |
+| P3 | **رمز الاستلام** | كل طلب محلي يحصل على `pickupPin` ظاهر في صفحة النجاح وفي الدشبورد |
+| P4 | **عدد الصفحات** | يُحسب تلقائياً فقط للأنواع المدعومة، ويظل `0` للأنواع التي لا يمكن حسابها محلياً بدقة |
+| P5 | **إعدادات الطباعة** | الإعدادات العامة في النموذج هي **افتراضيات**، لكن الإعدادات الفعلية تُخزَّن **لكل ملف** |
+| P6 | **إدارة الملفات من الدشبورد** | أمين المكتبة يرى ملفات الطلب داخل drawer ويستطيع تعديل إعدادات كل ملف بشكل مستقل |
+| P7 | **الإشعارات الحالية** | المتاح حالياً إشعارات نظام محلية داخل Electron فقط عند وصول طلب/ملف |
+| P8 | **معلومات المشروع والهوية البصرية** | معلومات المطور والجهة الأكاديمية تُعرض داخل تبويب مستقل في الدشبورد وقسم مستقل في صفحة الطالب مع شعارات وروابط رسمية |
+| P9 | **الأصول المحلية** | الشعارات و`student.html` تُخدَم من Fastify المحلي نفسه لضمان العمل عبر الراوتر وداخل الشبكة المحلية بدون اعتماد على CDN |
 
 ---
 
-## 🟡 القرارات التلقائية (توصيات مُتبنّاة)
+## 2. نموذج الاستخدام الحالي
 
-| # | الموضوع | القرار |
-|---|---------|--------|
-| H1 | **ساعات الدوام** | 8ص - 4م، مغلق الجمعة. قابل للتعديل من Settings |
-| H2 | **الأقسام** | قائمة أولية 10 + زر "غير ذلك" — تتوسّع بالاستخدام |
-| H3 | **الطابعة** | كل الخيارات متاحة، سعد يعطّل غير المدعوم من Settings |
-| H4 | **Metadata بعد 7 أيام** | نحفظ (ticket, name, department, pages, price) للإحصاء، نحذف الملف فقط |
-| H5 | **اللغة** | عربي فقط في MVP |
-| H6 | **الدفع** | سجل يومي بسيط في Dashboard سعد (كم طلب × كم دينار) |
-| H7 | **الاختبار** | Unit + Integration + 1 E2E Playwright |
-| H8 | **Error Tracking** | Sentry free tier |
-| H9 | **الخط العربي** | Cairo **self-hosted** في `apps/web/public/fonts/` (X8) — يعمل offline أيضاً. Google Fonts تفشل في شبكة `UOA-Print` المعزولة → fallback قبيح |
-| H10 | **Scheduled Pickup** | حقل اختياري "الوقت المفضل" + تذكير Telegram قبل ساعة |
-| ~~H11~~ | ~~تحويل الملفات~~ | ❌ **محذوف** — لا تحويل (راجع D1) |
+### الطالب
+
+1. يفتح صفحة الرفع المحلية من المتصفح.
+2. يدخل الاسم ويستفيد من حفظه محلياً في الاستخدامات اللاحقة.
+3. يحدد إعدادات افتراضية للنسخ واللون والوجهين.
+4. يضيف عدة ملفات.
+5. يعدّل إعدادات أي ملف يحتاج شيئاً مختلفاً.
+6. يرسل الطلب.
+7. يحصل على:
+   - رقم التذكرة
+   - رمز الاستلام
+   - شاشة متابعة لحالة الطلب
+8. يستطيع فتح قسم **عن UOADrop** لرؤية الجهة الأكاديمية والاعتمادات الرسمية.
+
+### أمين المكتبة
+
+1. يرى الطلب في Dashboard.
+2. يستطيع التنقل بين تبويب **الطلبات** وتبويب **معلومات المشروع**.
+3. يفتح drawer الملفات لمراجعة ملفات الطلب.
+4. يراجع أو يعدّل إعدادات كل ملف.
+5. يفتح الملف أو يطبعه عبر التطبيق الافتراضي للنظام.
+6. يدخل السعر يدوياً.
+7. يحرّك الحالة بين `pending` و `printing` و `ready` و `done` عند الحاجة.
 
 ---
 
-## Schema إضافات على `print_requests`
+## 3. قرارات التنفيذ التقنية
 
-الحقول الجديدة الناتجة من القرارات أعلاه:
+### D1. التطبيق الحالي محلي بالكامل
+
+- Electron هو نقطة التشغيل الأساسية.
+- Fastify مضمّن داخل التطبيق ويخدم صفحة الطالب محلياً.
+- Fastify نفسه يخدم أيضاً شعارات وهوية الواجهة من مجلد `resources/`.
+- SQLite هي قاعدة البيانات المعتمدة حالياً.
+- `apps/web` ما زال placeholder للمراحل القادمة.
+
+### D2. صفحة الطالب ليست React حالياً
+
+- صفحة الطالب الحالية موجودة في `apps/desktop/resources/student.html`.
+- هي صفحة standalone HTML/CSS/JS.
+- هذا القرار يقلل التعقيد ويجعل صفحة الرفع تعمل مباشرة من الخادم المحلي بدون طبقة build إضافية.
+- القسم التعريفي داخل الصفحة جزء من نفس الملف ويُحمّل محلياً مع الشعارات والبطاقات الأكاديمية.
+
+### D3. Dashboard مبني بـ React + Vite داخل Electron
+
+- الواجهة الإدارية الحالية هي React renderer.
+- التفاعل مع النظام المحلي يتم عبر preload + IPC.
+- التحديثات الحية تصل عبر IPC وWebSocket محلي.
+- تبويب `معلومات المشروع` جزء من الـ renderer نفسه وليس صفحة منفصلة.
+
+### D6. العمل عبر LAN هو المسار الرسمي الحالي
+
+- الخادم المحلي يربط على `0.0.0.0` ليكون متاحاً لأجهزة الشبكة المحلية.
+- الرابط الأساسي المعتمد هو `http://<LAN-IP>:3737/`.
+- الروابط الرسمية للأكاديميين قد تحتاج إنترنت عند فتحها، لكن الواجهة نفسها لا تعتمد على إنترنت لكي تظهر أو تعمل.
+
+### D4. الطباعة تتم عبر التطبيق الافتراضي للنظام
+
+- `file:print` يفتح الملف عبر `shell.openPath`.
+- المستخدم يطبع من التطبيق الافتراضي عبر `Ctrl+P` أو `Cmd+P`.
+- هذا هو المسار المعتمد لكل الأنواع في التطبيق الحالي لأنه الأكثر استقراراً عبر الأنظمة.
+
+### D5. لا تحويل للملفات
+
+- لا تحويل `DOCX → PDF`.
+- لا معالجة Office خارج التطبيق الافتراضي.
+- الملف يُحفظ كما هو ويُفتح كما هو.
+
+---
+
+## 4. عدّ الصفحات
+
+القرار الحالي هو **عدّ جزئي ودقيق فقط عندما يكون ممكناً محلياً**:
+
+| النوع | السلوك الحالي |
+|------|----------------|
+| `PDF` | عدد الصفحات الفعلي عبر `pdf-lib` |
+| `PPTX` | عدد الشرائح ويُعامل كعدد صفحات |
+| `JPG/JPEG/PNG` | صفحة واحدة لكل صورة |
+| `DOCX/XLSX` | لا يُحسب تلقائياً حالياً (`0`) |
+
+كما يوجد backfill عند بدء التشغيل لإكمال عدّ الصفحات للملفات القديمة المدعومة إذا كانت مخزنة محلياً.
+
+---
+
+## 5. إعدادات الطباعة
+
+### الإعدادات المدعومة حالياً
 
 ```ts
-pickupPin:     text('pickup_pin').notNull(),          // G2 — 4 أرقام
-queuePosition: integer('queue_position'),             // G6 — ترتيب في الطابور
-scheduledFor:  integer('scheduled_for',{ mode:'timestamp' }), // G3 + H10
-status:        text('status').notNull().default('pending'),
-// pending | printing | done | blocked | canceled       // G4 + G6
-blockReason:   text('block_reason'),                  // G4
-price:         integer('price'),                      // G1 — IQD، يدخله سعد
-paid:          integer('paid',{ mode:'boolean' }).default(false),  // H6
+type PrintOptions = {
+  copies: number;
+  color: boolean;
+  doubleSided: boolean;
+  pagesPerSheet?: 1 | 2 | 4;
+  pageRange?: string;
+};
 ```
+
+### القرار الحالي
+
+- `print_requests.options` تمثل **الإعدادات الافتراضية للطلب**.
+- `request_files.options` تمثل **الإعدادات الفعلية لكل ملف**.
+- إذا كان الملف قديماً ولا يملك `options_json`، يستخدم التطبيق إعدادات الطلب كـ fallback.
+
+### سبب القرار
+
+الطالب قد يرفع عدة ملفات داخل طلب واحد، لكن كل ملف قد يحتاج:
+
+- عدد نسخ مختلف
+- لون مختلف
+- وجه واحد أو وجهين بشكل مستقل
+
+لذلك لم تعد الإعدادات على مستوى الطلب فقط كافية.
 
 ---
 
-## Schema جديد: `daily_revenue` (H6)
+## 6. حالة الطلب (Status Model)
 
-```sql
-CREATE TABLE daily_revenue (
-  date          DATE PRIMARY KEY,
-  total_orders  INT NOT NULL DEFAULT 0,
-  total_iqd     INT NOT NULL DEFAULT 0
-);
+الحالات المعتمدة حالياً:
+
+```text
+pending  → الطلب أُنشئ ووصل للمكتبة
+printing → بدأ التنفيذ أو الطباعة
+ready    → أصبح جاهزاً للاستلام
+done     → تم التسليم
+canceled → تم إلغاؤه
+blocked  → يحتاج مراجعة أو متوقف لسبب ما
 ```
 
-يُحدَّث تلقائياً عند كل `status = 'done'` بقيمة `price`.
+### ملاحظات عملية
+
+- التحويل إلى `ready` يتطلب إدخال السعر أولاً في الواجهة الحالية.
+- `pickupPin` يبقى ظاهراً في البطاقة ليسهّل الاستلام.
 
 ---
 
-## Schema جديد: `settings` (H1 + H3)
+## 7. قاعدة البيانات الحالية
 
-```sql
-CREATE TABLE settings (
-  key    TEXT PRIMARY KEY,
-  value  TEXT NOT NULL
-);
+### `print_requests`
 
--- افتراضيات
-INSERT INTO settings VALUES
-  ('working_hours',     '{"open":"08:00","close":"16:00","closed_days":["Friday"]}'),
-  ('printer_duplex',    'true'),
-  ('printer_color',     'true'),
-  ('max_file_size_mb',  '50'),
-  ('max_request_mb',    '200');
-```
+الحقول المهمة المستخدمة حالياً:
 
----
+- `id`
+- `ticket`
+- `student_name`
+- `pickup_pin`
+- `pin_hash`
+- `status`
+- `options_json`
+- `total_pages`
+- `price_iqd`
+- `created_at`
+- `updated_at`
 
-## منطق الأحداث والحالات (Status Flow)
+### `request_files`
 
-```
-                    ┌─────────────┐
-                    │  pending    │ ← الحالة الافتراضية بعد الرفع
-                    └──────┬──────┘
-                           │
-                  ┌────────┼────────┐
-                  │        │        │
-                  ▼        ▼        ▼
-            ┌─────────┐ ┌─────────┐ ┌──────────┐
-            │printing │ │canceled │ │ blocked  │ (طابعة/ورق/...)
-            └────┬────┘ └─────────┘ └─────┬────┘
-                 │                        │
-                 ▼                        │
-            ┌─────────┐                   │
-            │  done   │ ← (+price + paid) │
-            └─────────┘                   │
-                 ▲                        │
-                 └────────────────────────┘
-                    (بعد حل المشكلة)
-```
+الحقول المهمة المستخدمة حالياً:
+
+- `id`
+- `request_id`
+- `filename`
+- `mime_type`
+- `size_bytes`
+- `local_path`
+- `sha256`
+- `magic_byte_verified`
+- `pages`
+- `options_json`
+- `created_at`
 
 ---
 
-## آلية توليد الـ PIN (G2 + C5 + R1/R2/R3 hardened)
+## 8. الأمان والاعتمادية المعتمدان الآن
 
-**Online فقط** — Offline: `pickup_pin_hash = NULL` (R1).
-
-```ts
-// على Node (Electron/Fastify): التوليد + حفظ hash
-import { randomInt } from 'node:crypto';
-import bcrypt from 'bcryptjs'; // pure JS — يعمل على Node + Deno
-
-function generatePin(): string {
-  return randomInt(1000, 10000).toString(); // 1000..9999
-}
-
-if (source === 'online') {
-  const pin = generatePin();
-  const pinHash = await bcrypt.hash(pin, 10);
-  // 1) نحفظ pinHash في DB
-  // 2) نعرض pin للطالب في صفحة التأكيد
-  // 3) نرسله في رسالة Telegram "Received" الأولى (R2) — الطالب يحفظها في المحادثة
-}
-```
-
-**على Supabase Edge Function (Deno)** — R3:
-```ts
-// supabase/functions/get-request/index.ts
-import bcrypt from "npm:bcryptjs@2.4.3"; // عبر Deno npm: — R3
-const ok = await bcrypt.compare(input, row.pickup_pin_hash);
-// بديل native: Deno.subtle + PBKDF2 — أسرع لكن يحتاج rewrite للـ hash format
-```
-
-**Rate limit مخزّن** (R5): 3 محاولات/دقيقة/ticket في جدول `pin_attempts` مع `(ticket_no, attempted_at)` — ليس in-memory حتى يصمد restart.
-
-**لماذا bcrypt؟** PIN 4 أرقام ضعيف (10³ احتمال). لو تسرّب backup plaintext → كل PINs مكشوفة. bcrypt + rate limit = دفاع متعدد الطبقات.
+- قفل single-instance للتطبيق.
+- `contextIsolation: true` و `sandbox: true` و `nodeIntegration: false`.
+- whitelist للامتدادات والـ MIME.
+- فحص `magic bytes` للملفات المدعومة.
+- `pickupPin` الظاهر منفصل عن `pinHash` المشفر.
+- DB migrations وقت التشغيل بدل اعتماد migrations خارجية.
+- polling لحالة الطابعة + حفظ أحداث الطابعة محلياً.
 
 ---
 
-## آلية Queue Position (G6 + C10 hardened)
+## 9. ما ليس جزءاً من التطبيق الحالي
 
-```ts
-// تصحيح C10: تجاهل الطلبات المُجدولة للمستقبل (scheduledFor > now)
-const now = new Date();
-const position = await db
-  .select({ count: count() })
-  .from(printRequests)
-  .where(and(
-    eq(status, 'pending'),
-    lt(createdAt, currentRequest.createdAt),
-    or(isNull(scheduledFor), lte(scheduledFor, now)) // فقط الجاهزة الآن
-  ));
-```
+هذه البنود **مؤجلة** وليست جزءاً من التنفيذ الحالي:
 
-**التحديث الحي**: Supabase Realtime subscription على `print_requests` يدفع تحديث للطالب لما يتقدم طلب آخر — لا يحتاج polling.
+- Supabase workflow الكامل
+- Telegram / Email notifications
+- online request tracking خارج الشبكة المحلية
+- Vercel deployment
+- ربط cloud ودمج المصادر داخل قائمة واحدة
 
-```ts
-// apps/web/app/s/[ticket]/page.tsx
-supabase.channel('queue')
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'print_requests' },
-     () => refetchPosition())
-  .subscribe();
-```
-
----
-
-## منطق خارج الدوام (G3)
-
-```ts
-// عند رفع طلب
-const now = new Date();
-const { open, close, closed_days } = getWorkingHours();
-
-const isOpen = 
-  !closed_days.includes(weekday(now)) &&
-  hour(now) >= open &&
-  hour(now) < close;
-
-if (!isOpen) {
-  request.scheduledFor = nextWorkingMorning();
-  request.status = 'pending';  // يبقى pending، سعد يشوفه الصبح
-  notifyStudent(
-    `تم استلام طلبك. المكتبة مغلقة حالياً — سيتم التجهيز صباح ${formatDate(request.scheduledFor)}`
-  );
-}
-```
-
----
-
-## ~~رفض PDF المحمي~~ (محذوف — D1)
-
-> بعد قرار D1 (لا معالجة ملفات)، لم نعد نفحص PDF عند الرفع. الملف يصل كما هو، وسعد يكتشف أي مشكلة عند الطباعة.
-
----
-
-## 🔒 D6. Idle Lock للـ Dashboard (C17 + R4 hardened)
-
-Dashboard سعد يقفل تلقائياً بعد **15 دقيقة دون نشاط داخل نافذة UOADrop** (ليس idle على مستوى النظام — R4).
-
-```ts
-// apps/desktop/main/idle-lock.ts — منظور التطبيق، لا النظام
-let lastActivity = Date.now();
-const IDLE_MS = 15 * 60 * 1000;
-
-function resetIdle() { lastActivity = Date.now(); }
-
-// نشاط داخل النافذة فقط
-mainWindow.webContents.on('before-input-event', resetIdle); // طباعة أزرار + ماوس
-mainWindow.on('focus', resetIdle);                          // أعاد التركيز على UOADrop
-
-setInterval(() => {
-  if (Date.now() - lastActivity >= IDLE_MS) {
-    mainWindow.webContents.send('lock');
-  }
-}, 60_000);
-```
-
-> **لماذا ليس `powerMonitor.getSystemIdleTime()`؟** يقيس idle على مستوى النظام — لو زميل سعد يستخدم Chrome على نفس اللابتوب، النظام ليس idle → Dashboard لا يقفل → الزميل ينقر على UOADrop ويقرأ PINs.
-
-**السبب**: سعد يترك اللابتوب مفتوحاً لدقائق → زميل/متطفل يعدل الأسعار، يحذف طلبات، يقرأ PINs.
-
----
-
-## 🔒 D7. Telegram Link Token (C3)
-
-بدل إرسال `ticket_no` في `/start` → نرسل **token عشوائي 16 بايت** (مخزّن في جدول `telegram_link_tokens`) ينتهي بعد 24 ساعة.
-
-**السبب**: `ticket_no` شكل `B-0077` sequential وسهل التخمين → مهاجم يرسل `/start B-0077` ويستلم إشعارات بلال. token عشوائي يمنع الاختطاف.
-
----
-
-## 🛡️ D8. File Validation بطبقتين (C7)
-
-1. **الامتداد** (client + server).
-2. **Magic bytes** عبر `file-type` npm — يقرأ أول 4KB من الملف للتأكد من النوع الحقيقي.
-
-```ts
-import { fileTypeFromBuffer } from 'file-type';
-const head = await readFirst4KB(filePath);
-const type = await fileTypeFromBuffer(head);
-if (!ALLOWED_MIMES.includes(type?.mime ?? '')) reject();
-```
-
-**السبب**: `evil.exe` → rename → `report.pdf` → يمر whitelist الامتداد فقط. Magic bytes يكشف.
+المرجع لهذه البنود هو `ROADMAP.md`، وليس هذا الملف.
 
 </div>

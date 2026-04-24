@@ -8,6 +8,69 @@ import bcrypt from 'bcryptjs';
 
 let db: Database.Database | null = null;
 
+function clampInt(v: unknown, min: number, max: number, fallback: number): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(n)));
+}
+
+function normalizePrintOptions(
+  source?: Partial<PrintRequest['options']> | null,
+  fallback?: Partial<PrintRequest['options']> | null,
+): PrintRequest['options'] {
+  const merged = { ...(fallback ?? {}), ...(source ?? {}) };
+  const pagesPerSheet = merged.pagesPerSheet === 1 || merged.pagesPerSheet === 2 || merged.pagesPerSheet === 4
+    ? merged.pagesPerSheet
+    : undefined;
+  const pageRange = typeof merged.pageRange === 'string' && merged.pageRange.trim().length > 0
+    ? merged.pageRange.trim().slice(0, 120)
+    : undefined;
+  return {
+    copies: clampInt(merged.copies, 1, 10, 1),
+    color: !!merged.color,
+    doubleSided: merged.doubleSided === undefined ? true : !!merged.doubleSided,
+    ...(pagesPerSheet ? { pagesPerSheet } : {}),
+    ...(pageRange ? { pageRange } : {}),
+  };
+}
+
+function parsePrintOptionsJson(raw?: string | null): Partial<PrintRequest['options']> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as Partial<PrintRequest['options']>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function getRequestFilesColumnNames(d: Database.Database): string[] {
+  const rows = d.prepare(`PRAGMA table_info(request_files)`).all() as Array<{ name: string }>;
+  return rows.map((row) => row.name);
+}
+
+function ensureRequestFilesPagesColumn(d: Database.Database): void {
+  const columns = getRequestFilesColumnNames(d);
+  if (!columns.includes('pages')) {
+    d.exec(`ALTER TABLE request_files ADD COLUMN pages INTEGER NOT NULL DEFAULT 0`);
+  }
+}
+
+function ensureRequestFilesOptionsColumn(d: Database.Database): void {
+  const columns = getRequestFilesColumnNames(d);
+  if (!columns.includes('options_json')) {
+    d.exec(`ALTER TABLE request_files ADD COLUMN options_json TEXT`);
+  }
+}
+
+function ensurePrintRequestsPickupPinColumn(d: Database.Database): void {
+  const rows = d.prepare(`PRAGMA table_info(print_requests)`).all() as Array<{ name: string }>;
+  const columns = rows.map((row) => row.name);
+  if (!columns.includes('pickup_pin')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN pickup_pin TEXT`);
+  }
+}
+
 function getDbPath(): string {
   // Dev-only (Option A): relative path in repo
   const configured = process.env.DESKTOP_DB_PATH;
@@ -54,6 +117,7 @@ function initSchema(d: Database.Database): void {
       local_path TEXT NOT NULL,
       sha256 TEXT NOT NULL,
       magic_byte_verified INTEGER NOT NULL DEFAULT 0,
+      options_json TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY (request_id) REFERENCES print_requests(id) ON DELETE CASCADE
     );
@@ -85,6 +149,10 @@ function initSchema(d: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_pin_attempts_scope_time ON pin_attempts(scope, created_at);
     CREATE INDEX IF NOT EXISTS idx_printer_events_created_at ON printer_events(created_at);
   `);
+
+  ensureRequestFilesPagesColumn(d);
+  ensureRequestFilesOptionsColumn(d);
+  ensurePrintRequestsPickupPinColumn(d);
 }
 
 export interface PrinterEventRow {
@@ -213,81 +281,10 @@ export function recentFailedPinAttempts(scope: string, withinMs: number): number
   return row.c;
 }
 
-export function seedIfEmpty(): { seeded: boolean; count: number } {
+export function purgeLegacySeedData(): { deleted: number } {
   const d = getDb();
-  const count = d.prepare('SELECT COUNT(1) as c FROM print_requests').get() as { c: number };
-  if (count.c > 0) return { seeded: false, count: count.c };
-
-  const now = new Date().toISOString();
-
-  const insertReq = d.prepare(`
-    INSERT INTO print_requests (
-      id, ticket, student_name, pin_hash, status, options_json,
-      total_pages, price_iqd, created_at, updated_at
-    ) VALUES (
-      @id, @ticket, @student_name, @pin_hash, @status, @options_json,
-      @total_pages, @price_iqd, @created_at, @updated_at
-    )
-  `);
-
-  const rows: Array<Omit<PrintRequest, 'options'> & { options_json: string }> = [
-    {
-      id: 'req-001',
-      ticket: 'A7K9',
-      studentName: 'ملاك أحمد',
-      pinHash: '$2b$12$seed',
-      status: 'pending',
-      options_json: JSON.stringify({ copies: 2, color: false, doubleSided: true }),
-      totalPages: 14,
-      priceIqd: 2800,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: 'req-002',
-      ticket: 'B3M1',
-      studentName: 'بلال علي',
-      pinHash: '$2b$12$seed',
-      status: 'printing',
-      options_json: JSON.stringify({ copies: 1, color: true, doubleSided: false }),
-      totalPages: 8,
-      priceIqd: 2000,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: 'req-003',
-      ticket: 'C9F4',
-      studentName: 'سارة محمد',
-      pinHash: '$2b$12$seed',
-      status: 'ready',
-      options_json: JSON.stringify({ copies: 3, color: false, doubleSided: true }),
-      totalPages: 22,
-      priceIqd: 6600,
-      createdAt: now,
-      updatedAt: now,
-    },
-  ];
-
-  const tx = d.transaction(() => {
-    for (const r of rows) {
-      insertReq.run({
-        id: r.id,
-        ticket: r.ticket,
-        student_name: r.studentName ?? null,
-        pin_hash: r.pinHash,
-        status: r.status,
-        options_json: r.options_json,
-        total_pages: r.totalPages,
-        price_iqd: r.priceIqd,
-        created_at: r.createdAt,
-        updated_at: r.updatedAt,
-      });
-    }
-  });
-
-  tx();
-  return { seeded: true, count: rows.length };
+  const info = d.prepare("DELETE FROM print_requests WHERE pin_hash = '$2b$12$seed'").run();
+  return { deleted: info.changes };
 }
 
 function generateTicket(): string {
@@ -305,7 +302,7 @@ function generatePin(): string {
 }
 
 export function createRequest(args: {
-  studentName?: string;
+  studentName: string;
   options: PrintRequest['options'];
   totalPages: number;
   priceIqd: number;
@@ -325,18 +322,20 @@ export function createRequest(args: {
   const pin = generatePin();
   const pinHash = bcrypt.hashSync(pin, PIN_BCRYPT_ROUNDS);
 
-  const optionsJson = JSON.stringify(args.options);
+  const normalizedOptions = normalizePrintOptions(args.options);
+  const optionsJson = JSON.stringify(normalizedOptions);
   const status: RequestStatus = 'pending';
 
   d.prepare(
     `INSERT INTO print_requests (
-      id, ticket, student_name, pin_hash, status, options_json,
+      id, ticket, student_name, pickup_pin, pin_hash, status, options_json,
       total_pages, price_iqd, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     ticket,
     args.studentName ?? null,
+    pin,
     pinHash,
     status,
     optionsJson,
@@ -350,9 +349,10 @@ export function createRequest(args: {
     id,
     ticket,
     studentName: args.studentName,
+    pickupPin: pin,
     pinHash,
     status,
-    options: args.options,
+    options: normalizedOptions,
     totalPages: args.totalPages,
     priceIqd: args.priceIqd,
     createdAt: now,
@@ -402,7 +402,7 @@ export function listRequestsPaged(args: {
 
   const rows = d
     .prepare(
-      `SELECT id, ticket, student_name, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
+      `SELECT id, ticket, student_name, pickup_pin, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
        FROM print_requests
        ${whereSql}
        ORDER BY datetime(created_at) DESC
@@ -412,6 +412,7 @@ export function listRequestsPaged(args: {
     id: string;
     ticket: string;
     student_name: string | null;
+    pickup_pin: string | null;
     pin_hash: string;
     status: RequestStatus;
     options_json: string;
@@ -425,9 +426,10 @@ export function listRequestsPaged(args: {
     id: r.id,
     ticket: r.ticket,
     studentName: r.student_name ?? undefined,
+    pickupPin: r.pickup_pin ?? undefined,
     pinHash: r.pin_hash,
     status: r.status,
-    options: JSON.parse(r.options_json) as PrintRequest['options'],
+    options: normalizePrintOptions(parsePrintOptionsJson(r.options_json)),
     totalPages: r.total_pages,
     priceIqd: r.price_iqd,
     createdAt: r.created_at,
@@ -441,7 +443,7 @@ export function listRequests(): PrintRequest[] {
   const d = getDb();
   const rows = d
     .prepare(
-      `SELECT id, ticket, student_name, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
+      `SELECT id, ticket, student_name, pickup_pin, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
        FROM print_requests
        ORDER BY datetime(created_at) DESC`,
     )
@@ -449,6 +451,7 @@ export function listRequests(): PrintRequest[] {
     id: string;
     ticket: string;
     student_name: string | null;
+    pickup_pin: string | null;
     pin_hash: string;
     status: RequestStatus;
     options_json: string;
@@ -462,9 +465,10 @@ export function listRequests(): PrintRequest[] {
     id: r.id,
     ticket: r.ticket,
     studentName: r.student_name ?? undefined,
+    pickupPin: r.pickup_pin ?? undefined,
     pinHash: r.pin_hash,
     status: r.status,
-    options: JSON.parse(r.options_json) as PrintRequest['options'],
+    options: normalizePrintOptions(parsePrintOptionsJson(r.options_json)),
     totalPages: r.total_pages,
     priceIqd: r.price_iqd,
     createdAt: r.created_at,
@@ -472,10 +476,65 @@ export function listRequests(): PrintRequest[] {
   }));
 }
 
+export function getRequestById(id: string): PrintRequest | null {
+  const d = getDb();
+  const row = d
+    .prepare(
+      `SELECT id, ticket, student_name, pickup_pin, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
+       FROM print_requests
+       WHERE id = ?
+       LIMIT 1`,
+    )
+    .get(id) as {
+    id: string;
+    ticket: string;
+    student_name: string | null;
+    pickup_pin: string | null;
+    pin_hash: string;
+    status: RequestStatus;
+    options_json: string;
+    total_pages: number;
+    price_iqd: number;
+    created_at: string;
+    updated_at: string;
+  } | undefined;
+
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    ticket: row.ticket,
+    studentName: row.student_name ?? undefined,
+    pickupPin: row.pickup_pin ?? undefined,
+    pinHash: row.pin_hash,
+    status: row.status,
+    options: normalizePrintOptions(parsePrintOptionsJson(row.options_json)),
+    totalPages: row.total_pages,
+    priceIqd: row.price_iqd,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function getRequestDefaultOptions(requestId: string): PrintRequest['options'] {
+  const d = getDb();
+  const row = d
+    .prepare('SELECT options_json FROM print_requests WHERE id = ? LIMIT 1')
+    .get(requestId) as { options_json: string } | undefined;
+  return normalizePrintOptions(parsePrintOptionsJson(row?.options_json));
+}
+
 export function setRequestStatus(id: string, status: RequestStatus): { ok: true } {
   const d = getDb();
   const now = new Date().toISOString();
   d.prepare('UPDATE print_requests SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
+  return { ok: true };
+}
+
+export function setRequestPrice(id: string, priceIqd: number): { ok: true } {
+  const d = getDb();
+  const now = new Date().toISOString();
+  d.prepare('UPDATE print_requests SET price_iqd = ?, updated_at = ? WHERE id = ?').run(priceIqd, now, id);
   return { ok: true };
 }
 
@@ -487,15 +546,19 @@ export function addRequestFile(args: {
   sizeBytes: number;
   sha256: string;
   magicByteVerified: boolean;
+  pages?: number;
+  options?: Partial<PrintRequest['options']>;
 }): RequestFile {
   const d = getDb();
   const now = new Date().toISOString();
   const id = randomUUID();
+  const pages = args.pages ?? 0;
+  const options = normalizePrintOptions(args.options, getRequestDefaultOptions(args.requestId));
 
   d.prepare(
     `INSERT INTO request_files (
-      id, request_id, filename, mime_type, size_bytes, local_path, sha256, magic_byte_verified, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      id, request_id, filename, mime_type, size_bytes, local_path, sha256, magic_byte_verified, pages, options_json, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     args.requestId,
@@ -505,6 +568,8 @@ export function addRequestFile(args: {
     args.localPath,
     args.sha256,
     args.magicByteVerified ? 1 : 0,
+    pages,
+    JSON.stringify(options),
     now,
   );
 
@@ -514,11 +579,81 @@ export function addRequestFile(args: {
     filename: args.filename,
     mimeType: args.mimeType,
     sizeBytes: args.sizeBytes,
+    pages,
+    options,
     storagePath: '',
     localPath: args.localPath,
     sha256: args.sha256,
     magicByteVerified: args.magicByteVerified,
   };
+}
+
+export function setRequestFileOptions(id: string, options: Partial<PrintRequest['options']>): { ok: true } {
+  const d = getDb();
+  const row = d
+    .prepare(
+      `SELECT f.request_id, f.options_json, r.options_json as request_options_json
+       FROM request_files f
+       JOIN print_requests r ON r.id = f.request_id
+       WHERE f.id = ?
+       LIMIT 1`,
+    )
+    .get(id) as { request_id: string; options_json: string | null; request_options_json: string | null } | undefined;
+  if (!row) return { ok: true };
+  const nextOptions = normalizePrintOptions(
+    options,
+    parsePrintOptionsJson(row.options_json ?? row.request_options_json),
+  );
+  d.prepare('UPDATE request_files SET options_json = ? WHERE id = ?').run(JSON.stringify(nextOptions), id);
+  return { ok: true };
+}
+
+export function recalcRequestPages(requestId: string): number {
+  const d = getDb();
+  const row = d
+    .prepare('SELECT COALESCE(SUM(pages), 0) as total FROM request_files WHERE request_id = ?')
+    .get(requestId) as { total: number };
+  const total = row.total;
+  d.prepare('UPDATE print_requests SET total_pages = ?, updated_at = ? WHERE id = ?')
+    .run(total, new Date().toISOString(), requestId);
+  return total;
+}
+
+export function listStoredFilesForPageRecount(): Array<{
+  id: string;
+  requestId: string;
+  filename: string;
+  localPath: string;
+  pages: number;
+}> {
+  const d = getDb();
+  const rows = d
+    .prepare(
+      `SELECT id, request_id, filename, local_path, COALESCE(pages, 0) as pages
+       FROM request_files
+       ORDER BY datetime(created_at) ASC`,
+    )
+    .all() as Array<{
+    id: string;
+    request_id: string;
+    filename: string;
+    local_path: string;
+    pages: number;
+  }>;
+
+  return rows.map((row) => ({
+    id: row.id,
+    requestId: row.request_id,
+    filename: row.filename,
+    localPath: row.local_path,
+    pages: row.pages ?? 0,
+  }));
+}
+
+export function setRequestFilePages(id: string, pages: number): { ok: true } {
+  const d = getDb();
+  d.prepare('UPDATE request_files SET pages = ? WHERE id = ?').run(pages, id);
+  return { ok: true };
 }
 
 export function deleteRequest(id: string): { deletedFiles: number } {
@@ -574,14 +709,27 @@ export function findExpiredCompletedRequests(olderThanMs: number): string[] {
   return rows.map((r) => r.id);
 }
 
+export function findExpiredReadyRequests(olderThanMs: number): string[] {
+  const d = getDb();
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  const rows = d
+    .prepare(
+      "SELECT id FROM print_requests WHERE status = 'ready' AND updated_at < ?",
+    )
+    .all(cutoff) as Array<{ id: string }>;
+  return rows.map((r) => r.id);
+}
+
 export function listRequestFiles(requestId: string): RequestFile[] {
   const d = getDb();
   const rows = d
     .prepare(
-      `SELECT id, request_id, filename, mime_type, size_bytes, local_path, sha256, magic_byte_verified
-       FROM request_files
-       WHERE request_id = ?
-       ORDER BY datetime(created_at) ASC`,
+      `SELECT f.id, f.request_id, f.filename, f.mime_type, f.size_bytes, f.local_path, f.sha256,
+              f.magic_byte_verified, f.pages, f.options_json, r.options_json as request_options_json
+       FROM request_files f
+       JOIN print_requests r ON r.id = f.request_id
+       WHERE f.request_id = ?
+       ORDER BY datetime(f.created_at) ASC`,
     )
     .all(requestId) as Array<{
     id: string;
@@ -592,6 +740,9 @@ export function listRequestFiles(requestId: string): RequestFile[] {
     local_path: string;
     sha256: string;
     magic_byte_verified: number;
+    pages: number;
+    options_json: string | null;
+    request_options_json: string | null;
   }>;
 
   return rows.map((r) => ({
@@ -600,6 +751,11 @@ export function listRequestFiles(requestId: string): RequestFile[] {
     filename: r.filename,
     mimeType: r.mime_type,
     sizeBytes: r.size_bytes,
+    pages: r.pages ?? 0,
+    options: normalizePrintOptions(
+      parsePrintOptionsJson(r.options_json),
+      parsePrintOptionsJson(r.request_options_json),
+    ),
     storagePath: '',
     localPath: r.local_path,
     sha256: r.sha256,

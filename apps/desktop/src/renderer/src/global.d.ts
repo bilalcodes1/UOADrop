@@ -14,7 +14,6 @@ declare global {
       unlock: (
         pin: string,
       ) => Promise<{ ok: boolean; locked: boolean; remaining: number; lockoutMinutes?: number }>;
-      seed: () => Promise<{ seeded: boolean; count: number }>;
       listRequests: () => Promise<{ items: PrintRequest[] }>;
       listRequestsPaged: (args: {
         statuses?: RequestStatus[];
@@ -23,7 +22,9 @@ declare global {
         offset?: number;
       }) => Promise<{ items: PrintRequest[]; total: number }>;
       setRequestStatus: (id: string, status: RequestStatus) => Promise<{ ok: true }>;
+      setRequestPrice: (id: string, priceIqd: number) => Promise<{ ok: true }>;
       listRequestFiles: (requestId: string) => Promise<{ items: RequestFile[] }>;
+      setRequestFileOptions: (fileId: string, options: RequestFile['options']) => Promise<{ ok: true }>;
       deleteRequest: (id: string) => Promise<{ deletedFiles: number }>;
       addFileToRequest: (requestId: string, filePath: string) => Promise<RequestFile>;
       openFile: (filePath: string) => Promise<{ ok: boolean; error?: string }>;

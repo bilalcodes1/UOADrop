@@ -23,7 +23,7 @@
 
 ## Phase 1 — MVP Offline ✅ (مكتمل ~98%)
 
-**الحالة**: مكتمل عملياً. المتبقي فقط اختبار يدوي مع موبايل حقيقي.
+**الحالة**: مكتمل عملياً. المتبقي فقط اختبار يدوي أوسع داخل بيئة الاستخدام الفعلية.
 
 ### 1.1 — Monorepo Setup ✅
 - [x] `pnpm-workspace.yaml` + `turbo.json` + `package.json`
@@ -34,14 +34,15 @@
 - [x] `@electron/rebuild` + `postinstall` لبناء `better-sqlite3` لـ Electron ABI
 
 ### 1.2 — Shared Package ✅
-- [x] Zod schemas (PrintRequest, StudentForm, FileUpload)
-- [x] Constants (DEPARTMENTS, STAGES, PAPER_SIZES, FILE_WHITELIST)
+- [x] Types المشتركة (`PrintRequest`, `RequestFile`, `PrintOptions`)
+- [x] Constants وحدود الرفع وأنواع الملفات المسموحة
+- [x] Validation helpers للامتدادات و `magic bytes`
 - [x] Types + exports من `index.ts`
 
 ### 1.3 — DB Schema ✅
-- [x] Drizzle schema (SQLite variant)
-- [x] `drizzle.config.ts`
-- [x] Migrations folder
+- [x] SQLite schema runtime داخل `apps/desktop/src/main/db.ts`
+- [x] Runtime migrations لحقول `pages` و `pickup_pin` و `options_json`
+- [x] تخزين إعدادات مستقلة لكل ملف داخل `request_files`
 
 ### 1.4 — Electron Shell ✅
 - [x] `main/index.ts` مع BrowserWindow + security hardening
@@ -57,6 +58,9 @@
 - [x] `PATCH /api/requests/:id/status`
 - [x] WebSocket `/ws` للتحديث اللحظي
 - [x] Magic-byte verification + SHA-256 dedup
+- [x] حساب تلقائي لعدد الصفحات للأنواع المدعومة
+- [x] خدمة `student.html` والشعارات من `resources/` عبر نفس الخادم المحلي
+- [x] ربط الخادم على `0.0.0.0` ليتاح عبر الشبكة المحلية داخل المكتبة
 
 ### 1.6 — صفحة رفع الطالب `/` ✅
 - [x] HTML standalone في `apps/desktop/resources/student.html`
@@ -65,6 +69,10 @@
 - [x] Auto-retry مع exponential backoff
 - [x] صفحة نجاح بتذكرة + PIN + أزرار نسخ
 - [x] RTL + responsive
+- [x] إعدادات طباعة افتراضية للطلب
+- [x] **إعدادات مستقلة لكل ملف** داخل قائمة الرفع
+- [x] حفظ اسم الطالب والإعدادات الافتراضية محلياً
+- [x] قسم `عن UOADrop` مع شعارات الجامعة والكلية وبطاقات الاعتمادات الأكاديمية
 
 ### 1.6.5 — Cleanup cron للملفات المهجورة ✅
 - [x] `cleanup.ts` — حذف طلبات `abandoned` > 24 ساعة
@@ -73,10 +81,15 @@
 ### 1.7 — Dashboard المكتبة ✅
 - [x] React + Vite renderer
 - [x] WebSocket للتحديث اللحظي + **native OS Notification** (نظام) عند وصول طلب/ملف
-- [x] Counters (قيد الانتظار / يطبع / جاهز)
+- [x] Counters وفلاتر وحالات `pending/printing/ready/done/canceled/blocked`
 - [x] Filters (الكل/pending/printing/ready/done) + search + pagination
 - [x] **Lock screen** — يبدأ مقفل + يقفل بعد 15 دقيقة idle + PIN + قفل 30 دقيقة بعد 5 محاولات فاشلة
 - [x] الأزرار: عرض / طباعة / جاهز / حذف
+- [x] عرض `pickupPin` داخل البطاقة
+- [x] drawer لعرض ملفات الطلب وتعديل إعدادات كل ملف
+- [x] إدخال السعر يدوياً قبل تحويل الطلب إلى `ready`
+- [x] تبويب منفصل `معلومات المشروع` بدل دفع المحتوى الرئيسي للأسفل
+- [x] بطاقات المطور والعميد ورئيس القسم والمشرفات وروابط الصفحات الرسمية
 
 ### 1.8 — QR Generator + ملصق الحائط ✅
 - [x] `qr.ts` — توليد QR عبر `qrcode`
@@ -84,7 +97,7 @@
 - [x] زر 🧾 "طباعة ملصق الحائط" في Dashboard
 
 ### 1.9 — Printer integration ✅
-- [x] **Root-cause fix**: `shell.openPath` بدل `webContents.print` (يحل تعلق الـ callback على macOS)
+- [x] **Root-cause fix**: `shell.openPath` للطباعة عبر التطبيق الافتراضي على كل الأنظمة
 - [x] Printer status polling + cache + WS broadcast
 - [x] CUPS state mapping (3=idle, 4=printing, 5=error)
 
@@ -95,9 +108,12 @@
 ### 1.11 — Polish + اختبار يدوي 🟡
 - [x] typecheck + build نظيفين (0 errors)
 - [x] ESLint/Prettier
+- [x] تحسين الهوية البصرية العربية في صفحة الطالب والدشبورد بدون الاعتماد على موارد خارجية
+- [x] التحقق من عمل الشعارات محلياً بعد إعادة التشغيل وعلى الشبكة المحلية
 - [ ] اختبار مع iOS + Android حقيقي (يحتاج جهاز سعد على شبكة حقيقية)
+- [ ] اختبار سيناريو طلب متعدد الملفات بإعدادات مختلفة لكل ملف
 
-**مخرجات Phase 1**: ملاك تقدر تستخدم النظام بالكامل. سعد عنده لوحة شغّالة مع إشعارات نظام. بدون online.
+**مخرجات Phase 1**: الطالب يرفع الملفات محلياً من المتصفح، ولكل ملف إعداداته الخاصة، وتظهر له واجهة محلية مكتملة الهوية البصرية، وسعد يدير الطلب من لوحة شغالة بالكامل داخل Electron.
 
 ---
 
@@ -174,33 +190,30 @@
 
 ---
 
-## Phase 3 — الأزرار الثلاثة ومراحل الطلب 🖨️
+## Phase 3 — Online + Notifications 🌐
 
-**المدة المتوقعة**: 1-2 يوم.
-**الهدف**: أزرار عرض/طباعة/جهز شغّالة + state machine — **بلا أي معالجة للملفات** (D1).
+**المدة المتوقعة**: 2-4 أيام.
+**الهدف**: إضافة نسخة online مرتبطة بالسحابة وإشعارات Email/Telegram للطلبات الخارجية.
 
-### 3.1 — Electron IPC Handlers (نصف يوم)
-- [ ] `apps/desktop/main/ipc.ts`
-- [ ] `file:open` → `shell.openPath(filePath)`
-- [ ] `file:print` → PDF/صور عبر `webContents.print({silent:false})`؛ DOCX على Windows عبر `rundll32 ... print`؛ على Mac عبر `shell.openPath` (سعد يضغط Cmd+P)
-- [ ] Preload bridge مع whitelist channels
+### 3.1 — Cloud storage + online upload
+- [ ] Supabase project + storage bucket + tables
+- [ ] صفحة web/online مستقلة عن صفحة الرفع المحلية
+- [ ] Request tracking للطلبات الأونلاين
 
-### 3.2 — الأزرار الثلاثة في Dashboard (نصف يوم)
-- [ ] 👁️ **عرض** — يستدعي `file:open`
-- [ ] 🖨️ **طباعة** — يستدعي `file:print`، يفتح Dialog النظام الأصلي
-- [ ] ✅ **جهز** — modal لإدخال السعر → POST `/api/requests/:id/done` → status=done + إشعار
+### 3.2 — Notifications
+- [ ] Telegram linking flow
+- [ ] Email notifications عند الجاهزية أو التعذر
+- [ ] Cloud-side request status API
 
-### 3.3 — مراحل الطلب (نصف يوم)
-- [ ] State machine: `pending → printing → done | blocked | canceled`
-- [ ] زر **blocked** مع reason (G4)
-- [ ] timestamps لكل انتقال
-- [ ] update daily_revenue عند done (H6)
+### 3.3 — Unified visibility
+- [ ] دمج الطلبات المحلية والسحابية داخل واجهة المكتبة عند الحاجة
+- [ ] تمييز مصدر الطلب بوضوح في اللوحة
 
-**مخرجات Phase 3**: سعد عنده 3 أزرار، الطباعة عبر Dialog النظام الأصلي، بدون أي معالجة ملفات.
+**مخرجات Phase 3**: الطلبات الخارجية تعمل وتصل إلى النظام مع الإشعارات المناسبة.
 
 ---
 
-## Phase 4 — Production 🚀
+## Phase 4 — Packaging & Operations 🚀
 
 **المدة المتوقعة**: 2-3 أيام.
 **الهدف**: installer جاهز + auto-update + cleanup + backup.
@@ -243,8 +256,8 @@
 | المعلم | بعد نهاية Phase |
 |--------|-----------------|
 | Offline يشتغل مع ملاك | Phase 1 |
-| Online يشتغل مع بلال | Phase 2 |
-| طباعة زر واحد | Phase 3 |
+| Online يشتغل مع بلال | Phase 2 / 3 |
+| إشعارات خارجية | Phase 3 |
 | جاهز للتسليم لسعد | Phase 4 |
 
 ---

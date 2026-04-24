@@ -4,17 +4,24 @@
   "private": true,
   "description": "UOADrop student web app (upload + track)",
   "scripts": {
-    "dev": "echo 'TODO: next dev' ",
-    "build": "echo 'TODO: next build' ",
-    "lint": "echo 'TODO: eslint' ",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next .turbo dist"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "@uoadrop/shared": "workspace:*",
-    "@uoadrop/ui": "workspace:*"
+    "next": "^14.2.29",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/react": "^18.3.21",
+    "@types/react-dom": "^18.3.6",
     "typescript": "^5.7.2"
   }
 }

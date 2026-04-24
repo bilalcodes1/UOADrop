@@ -52,6 +52,7 @@ export const PRICE_COLOR_PER_PAGE = 250;
 
 // Cleanup
 export const ABANDONED_UPLOAD_TTL_HOURS = 24;
+export const READY_REQUEST_RETENTION_DAYS = 3;
 export const COMPLETED_REQUEST_RETENTION_DAYS = 30;
 
 // Timezone

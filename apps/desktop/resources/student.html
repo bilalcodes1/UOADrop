@@ -6,16 +6,18 @@
     <title>UOADrop — رفع ملفات الطباعة</title>
     <style>
       :root {
-        --primary: #0b5cff;
-        --primary-hover: #0947cc;
-        --bg: #f4f6f9;
-        --surface: #fff;
-        --border: #e1e5eb;
-        --text: #1a2332;
+        --primary: #4f46e5;
+        --primary-hover: #4338ca;
+        --bg: #eef2ff;
+        --surface: #ffffff;
+        --surface-soft: #f8fafc;
+        --border: #e2e8f0;
+        --text: #0f172a;
         --muted: #64748b;
         --success: #16a34a;
         --danger: #dc2626;
         --warning: #d97706;
+        --shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
       }
       * { box-sizing: border-box; }
       html, body {
@@ -25,64 +27,334 @@
         background: var(--bg);
         color: var(--text);
       }
-      body { padding: 20px; min-height: 100vh; }
-      .container { max-width: 720px; margin: 0 auto; }
+      body { min-height: 100vh; }
+      .page-shell {
+        min-height: 100vh;
+        padding: 24px;
+        background:
+          radial-gradient(circle at top right, rgba(79, 70, 229, 0.16), transparent 22%),
+          linear-gradient(180deg, #e8edff 0%, #eef2ff 24%, #f8fafc 100%);
+      }
+      .container { max-width: 1120px; margin: 0 auto; }
+      .hero {
+        margin-bottom: 20px;
+        padding: 28px;
+        border-radius: 30px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        color: #fff;
+        box-shadow: var(--shadow);
+      }
+      .hero-brand-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 22px;
+      }
+      .brand-mark {
+        width: 118px;
+        height: 118px;
+        border-radius: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.1) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: 0 18px 34px rgba(15, 23, 42, 0.18);
+        backdrop-filter: blur(14px);
+        overflow: hidden;
+      }
+      .brand-mark img {
+        width: 86px;
+        height: 86px;
+        object-fit: contain;
+        display: block;
+        transform: scale(3);
+        transform-origin: center;
+        filter: drop-shadow(0 12px 16px rgba(79, 70, 229, 0.2));
+      }
+      .hero-copy h1 {
+        margin: 0;
+        font-size: 36px;
+        line-height: 1.15;
+        letter-spacing: -0.04em;
+      }
+      .hero-kicker {
+        display: inline-block;
+        margin-bottom: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        color: rgba(255,255,255,.74);
+      }
+      .sub {
+        margin: 10px 0 0;
+        color: rgba(255,255,255,.78);
+        font-size: 15px;
+        line-height: 1.8;
+      }
+      .hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.11);
+        border: 1px solid rgba(255,255,255,.12);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .hero-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 22px;
+      }
+      .stat-card {
+        padding: 18px;
+        border-radius: 22px;
+        background: rgba(255,255,255,.09);
+        border: 1px solid rgba(255,255,255,.12);
+      }
+      .stat-card strong {
+        display: block;
+        font-size: 26px;
+        font-weight: 800;
+        line-height: 1.15;
+      }
+      .stat-card span {
+        display: block;
+        margin-top: 6px;
+        color: rgba(255,255,255,.72);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.72fr);
+        gap: 20px;
+        align-items: start;
+      }
       .card {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: 16px;
+        border-radius: 28px;
         padding: 24px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
-        margin-bottom: 16px;
+        box-shadow: var(--shadow);
       }
-      h1 { margin: 0 0 6px; color: var(--primary); font-size: 24px; }
-      .sub { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
-      label { display: block; margin: 10px 0 6px; font-weight: 600; font-size: 14px; }
+      .form-card {
+        min-width: 0;
+      }
+      .side-panel {
+        display: grid;
+        gap: 18px;
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 22px;
+      }
+      .section-head h2 {
+        margin: 0;
+        font-size: 26px;
+        line-height: 1.2;
+      }
+      .section-sub {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.8;
+      }
+      .section-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(79, 70, 229, 0.08);
+        color: var(--primary);
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      form { display: flex; flex-direction: column; gap: 18px; }
+      .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .field { display: flex; flex-direction: column; gap: 8px; }
+      label { display: block; margin: 0; font-weight: 700; font-size: 14px; }
       input, select {
         width: 100%;
-        padding: 11px 14px;
+        padding: 13px 14px;
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 16px;
         font-size: 14px;
         font-family: inherit;
+        background: var(--surface-soft);
+        color: var(--text);
+        transition: border-color .15s, box-shadow .15s, background .15s;
+      }
+      input:focus, select:focus {
+        outline: none;
+        border-color: rgba(79, 70, 229, 0.34);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
         background: var(--surface);
       }
-      input:focus, select:focus { outline: none; border-color: var(--primary); }
-      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-      @media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
+      .footer-note {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .auto-pages-note {
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, #fcfdff 0%, #f8fafc 100%);
+        border: 1px solid var(--border);
+      }
+      .auto-pages-note strong {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 6px;
+      }
+      .auto-pages-note span {
+        display: block;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.8;
+      }
 
       /* Dropzone */
       .drop {
-        margin-top: 14px;
+        margin-top: 4px;
         border: 2px dashed var(--border);
-        border-radius: 14px;
-        padding: 28px 16px;
+        border-radius: 24px;
+        padding: 28px 20px;
         text-align: center;
         cursor: pointer;
-        transition: background 0.15s, border-color 0.15s;
+        transition: background 0.15s, border-color 0.15s, transform 0.15s;
+        background: linear-gradient(180deg, #fcfdff 0%, #f8fafc 100%);
+        min-height: 214px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
       }
-      .drop.active { background: #f0f5ff; border-color: var(--primary); }
-      .drop p { margin: 6px 0; color: var(--muted); font-size: 13px; }
-      .drop .big { font-size: 16px; color: var(--text); font-weight: 600; }
+      .drop.active {
+        background: #f4f4ff;
+        border-color: var(--primary);
+        transform: translateY(-1px);
+      }
+      .drop-visual {
+        width: min(100%, 270px);
+        height: auto;
+        min-height: 120px;
+        border-radius: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, rgba(79, 70, 229, 0.1) 0%, rgba(79, 70, 229, 0.04) 100%);
+        color: var(--primary);
+        padding: 14px;
+      }
+      .drop-illustration {
+        width: 100%;
+        max-width: 228px;
+        height: auto;
+      }
+      .drop p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
+      .drop .big { font-size: 19px; color: var(--text); font-weight: 800; }
+      .drop-meta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+      }
+      .drop-meta span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 600;
+      }
       .drop input { display: none; }
 
       /* File queue */
-      .queue { margin-top: 14px; }
+      .queue { margin-top: 14px; display: grid; gap: 10px; }
       .file-item {
         border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 10px 12px;
-        margin-bottom: 8px;
-        background: var(--surface);
+        border-radius: 18px;
+        padding: 14px;
+        background: var(--surface-soft);
       }
-      .file-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
-      .file-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-      .file-size { color: var(--muted); }
+      .file-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; font-size: 13px; }
+      .file-name {
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+      }
+      .file-size { color: var(--muted); white-space: nowrap; }
+      .file-options-grid {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .file-option {
+        display: grid;
+        gap: 6px;
+      }
+      .file-option label {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .file-option input,
+      .file-option select {
+        width: 100%;
+        min-height: 42px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: #fff;
+        padding: 10px 12px;
+        font-family: inherit;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .file-option input:disabled,
+      .file-option select:disabled {
+        opacity: 0.65;
+        background: #f6f7fb;
+        cursor: not-allowed;
+      }
+      .file-options-note {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
       .bar {
-        height: 6px;
-        background: #eef1f5;
+        height: 8px;
+        background: #e8ecf4;
         border-radius: 999px;
-        margin-top: 8px;
+        margin-top: 10px;
         overflow: hidden;
       }
       .bar > span {
@@ -92,141 +364,1468 @@
         background: var(--primary);
         transition: width 0.15s linear;
       }
-      .status { margin-top: 6px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+      .status {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .status-text {
+        line-height: 1.7;
+        flex: 1;
+        min-width: 160px;
+      }
       .status.ok { color: var(--success); }
       .status.err { color: var(--danger); }
       .retry-btn {
-        background: none;
+        background: #fff;
         border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 4px 10px;
+        border-radius: 999px;
+        padding: 7px 12px;
         font-size: 12px;
         cursor: pointer;
         color: var(--primary);
+        font-weight: 700;
+      }
+      @media (max-width: 780px) {
+        .file-options-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .helper-card-compact h3 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+      .helper-card-compact p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .compact-list {
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+      }
+      .compact-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .compact-list strong {
+        color: var(--primary);
+        font-size: 13px;
       }
 
       button.primary {
-        margin-top: 16px;
+        margin-top: 4px;
         width: 100%;
-        padding: 14px;
+        min-height: 54px;
+        padding: 14px 18px;
         border: 0;
-        border-radius: 12px;
+        border-radius: 18px;
         background: var(--primary);
         color: #fff;
         font-weight: 700;
         font-size: 15px;
         cursor: pointer;
         font-family: inherit;
+        transition: transform .15s, background .15s, box-shadow .15s;
       }
-      button.primary:hover { background: var(--primary-hover); }
+      button.primary:hover {
+        background: var(--primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 16px 30px rgba(79, 70, 229, 0.18);
+      }
       button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
       /* Success */
-      .success-card { display: none; }
+      .success-card { display: none; grid-column: 1 / -1; }
+      .success-head {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      .success-copy {
+        flex: 1;
+      }
+      .success-illustration-wrap {
+        width: min(100%, 240px);
+        min-height: 150px;
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, rgba(79, 70, 229, 0.08) 0%, rgba(34, 197, 94, 0.08) 100%);
+        border: 1px solid var(--border);
+        padding: 14px;
+        flex: 0 0 auto;
+      }
+      .success-illustration {
+        width: 100%;
+        max-width: 200px;
+        height: auto;
+      }
+      .success-head h1 {
+        margin: 0;
+        color: var(--success);
+        font-size: 28px;
+      }
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(79, 70, 229, 0.08);
+        color: var(--primary);
+        font-size: 13px;
+        font-weight: 700;
+        margin-top: 12px;
+      }
+      .status-pill.pulse-live {
+        animation: pillPulse 1.9s ease-in-out infinite;
+      }
+      .status-pill.status-pill-ready {
+        background: rgba(22, 163, 74, 0.12);
+        color: var(--success);
+        box-shadow: 0 0 0 8px rgba(22, 163, 74, 0.08);
+      }
+      .status-meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .update-stamp {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.05);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .status-summary {
+        margin-top: 20px;
+        padding: 18px;
+        border-radius: 22px;
+        background: linear-gradient(180deg, #fcfdff 0%, #f8fafc 100%);
+        border: 1px solid var(--border);
+      }
+      .status-summary.ready-arrived {
+        background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+        border-color: rgba(22, 163, 74, 0.26);
+        box-shadow: 0 22px 44px rgba(22, 163, 74, 0.12);
+      }
+      .status-summary.ready-flash {
+        animation: readyFlash 1.35s ease;
+      }
+      .status-summary strong {
+        display: block;
+        font-size: 17px;
+        margin-bottom: 6px;
+      }
+      .status-summary p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.8;
+      }
+      .status-tracker {
+        margin-top: 18px;
+        display: grid;
+        gap: 12px;
+      }
+      .tracker-step {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 16px 18px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        background: var(--surface-soft);
+        transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+      }
+      .tracker-dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: #dbe2ea;
+        border: 4px solid #eef2f7;
+        flex: 0 0 auto;
+        margin-top: 2px;
+      }
+      .tracker-copy {
+        flex: 1;
+        min-width: 0;
+      }
+      .tracker-copy strong {
+        display: block;
+        font-size: 14px;
+      }
+      .tracker-copy span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .tracker-step.done {
+        background: rgba(22, 163, 74, 0.08);
+        border-color: rgba(22, 163, 74, 0.18);
+      }
+      .tracker-step.done .tracker-dot {
+        background: var(--success);
+        border-color: rgba(22, 163, 74, 0.18);
+      }
+      .tracker-step.current {
+        background: rgba(79, 70, 229, 0.08);
+        border-color: rgba(79, 70, 229, 0.2);
+        box-shadow: 0 14px 28px rgba(79, 70, 229, 0.08);
+        transform: translateY(-1px);
+      }
+      .tracker-step.current .tracker-dot {
+        background: var(--primary);
+        border-color: rgba(79, 70, 229, 0.16);
+        animation: dotPulse 1.6s ease-in-out infinite;
+      }
+      .tracker-step.current.ready-step {
+        background: rgba(22, 163, 74, 0.12);
+        border-color: rgba(22, 163, 74, 0.24);
+        box-shadow: 0 18px 36px rgba(22, 163, 74, 0.12);
+      }
+      .tracker-step.current.ready-step .tracker-dot {
+        background: var(--success);
+        border-color: rgba(22, 163, 74, 0.18);
+      }
+      .tracker-step.warn {
+        background: rgba(217, 119, 6, 0.08);
+        border-color: rgba(217, 119, 6, 0.18);
+      }
+      .tracker-step.warn .tracker-dot {
+        background: var(--warning);
+        border-color: rgba(217, 119, 6, 0.18);
+      }
+      .live-note {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.8;
+      }
+
+      @keyframes dotPulse {
+        0% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.22);
+        }
+        70% {
+          transform: scale(1.06);
+          box-shadow: 0 0 0 12px rgba(79, 70, 229, 0);
+        }
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+        }
+      }
+
+      @keyframes pillPulse {
+        0%, 100% {
+          transform: translateY(0);
+          box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.14);
+        }
+        50% {
+          transform: translateY(-1px);
+          box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
+        }
+      }
+
+      @keyframes readyFlash {
+        0% {
+          transform: scale(0.995);
+          box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.24);
+        }
+        50% {
+          transform: scale(1.008);
+          box-shadow: 0 0 0 16px rgba(22, 163, 74, 0);
+        }
+        100% {
+          transform: scale(1);
+          box-shadow: 0 22px 44px rgba(22, 163, 74, 0.12);
+        }
+      }
+      .ticket-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .request-insights {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .insight-card {
+        background: linear-gradient(180deg, #f9fbff 0%, #f4f8ff 100%);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .insight-card strong {
+        color: var(--text);
+        font-size: 17px;
+      }
+      .insight-card .insight-label {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      .insight-card .insight-value {
+        color: var(--primary);
+        font-size: 26px;
+        font-weight: 800;
+        line-height: 1.2;
+      }
+      .insight-card .insight-hint {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      .insight-card.ready {
+        background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+        border-color: rgba(22, 163, 74, 0.2);
+      }
+      .insight-card.ready .insight-value {
+        color: var(--success);
+      }
       .ticket-box {
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        border-radius: 12px;
-        padding: 16px;
-        margin-top: 10px;
+        background: linear-gradient(180deg, #f9fbff 0%, #f4f8ff 100%);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 18px;
         text-align: center;
       }
-      .ticket-box h3 { margin: 0 0 4px; color: var(--success); }
-      .ticket-box .val { font-family: SFMono-Regular, Menlo, monospace; font-size: 22px; font-weight: 700; margin: 8px 0; }
+      .ticket-box h3 { margin: 0 0 4px; color: var(--text); font-size: 18px; }
+      .ticket-label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .ticket-box .val {
+        font-family: SFMono-Regular, Menlo, monospace;
+        font-size: 26px;
+        font-weight: 800;
+        margin: 12px 0;
+        color: var(--primary);
+      }
       .copy-btn {
         background: var(--surface);
         border: 1px solid var(--border);
-        padding: 6px 12px;
-        border-radius: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
         cursor: pointer;
         font-size: 12px;
+        font-weight: 700;
+        color: var(--text);
       }
       .err-msg {
         background: #fef2f2;
         border: 1px solid #fecaca;
         color: var(--danger);
-        padding: 10px;
-        border-radius: 10px;
-        margin-top: 10px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        margin-top: 2px;
         font-size: 14px;
+        line-height: 1.8;
+      }
+      .helper-card h3 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+      .helper-copy {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .step-list { display: grid; gap: 12px; margin-top: 16px; }
+      .step-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .step-no {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(79, 70, 229, 0.1);
+        color: var(--primary);
+        font-weight: 800;
+        flex: 0 0 auto;
+      }
+      .step-item strong {
+        display: block;
+        font-size: 14px;
+      }
+      .step-item p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      .helper-list {
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+      }
+      .helper-list li {
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: var(--surface-soft);
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.8;
+        border: 1px solid var(--border);
+      }
+      .credits-section {
+        margin-top: 20px;
+      }
+      .credits-panel {
+        overflow: hidden;
+        border-radius: 28px;
+        border: 1px solid rgba(79, 70, 229, 0.12);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        box-shadow: var(--shadow);
+      }
+      .credits-panel[open] {
+        border-color: rgba(79, 70, 229, 0.18);
+        box-shadow: 0 28px 60px rgba(15, 23, 42, 0.1);
+      }
+      .credits-summary {
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 24px 26px;
+        cursor: pointer;
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        color: #fff;
+      }
+      .credits-summary::-webkit-details-marker {
+        display: none;
+      }
+      .credits-summary::after {
+        content: '⌄';
+        flex: 0 0 auto;
+        width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        font-size: 22px;
+        line-height: 1;
+        transition: transform 0.2s ease;
+      }
+      .credits-panel[open] .credits-summary::after {
+        transform: rotate(180deg);
+      }
+      .credits-summary-copy {
+        min-width: 0;
+      }
+      .credits-kicker {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .credits-summary strong {
+        display: block;
+        margin-top: 12px;
+        font-size: 24px;
+        line-height: 1.2;
+      }
+      .credits-summary p {
+        margin: 8px 0 0;
+        color: rgba(255, 255, 255, 0.76);
+        font-size: 14px;
+        line-height: 1.8;
+      }
+      .credits-body {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        padding: 22px;
+      }
+      .credits-institutions {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .credits-institution-card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 16px;
+        padding: 18px;
+        border-radius: 24px;
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      }
+      .credits-institution-logo {
+        width: 88px;
+        height: 88px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        border-radius: 24px;
+        background: linear-gradient(180deg, rgba(79, 70, 229, 0.08) 0%, rgba(34, 197, 94, 0.08) 100%);
+        border: 1px solid rgba(79, 70, 229, 0.12);
+      }
+      .credits-institution-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+      }
+      .credits-institution-copy {
+        display: grid;
+        gap: 6px;
+      }
+      .credits-institution-label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        min-height: 28px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: rgba(79, 70, 229, 0.08);
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .credits-institution-copy strong {
+        font-size: 22px;
+        line-height: 1.25;
+      }
+      .credits-institution-copy p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.8;
+      }
+      .credits-card {
+        padding: 20px;
+        border-radius: 22px;
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        display: grid;
+        gap: 12px;
+      }
+      .credits-card-wide {
+        grid-column: 1 / -1;
+      }
+      .credits-label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        width: fit-content;
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: rgba(79, 70, 229, 0.08);
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .credits-card h3 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.3;
+      }
+      .credits-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.9;
+      }
+      .credits-inline-emphasis {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .credits-meta {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+      }
+      .credits-meta li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 14px;
+      }
+      .credits-meta span {
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .credits-link {
+        color: var(--primary);
+        font-weight: 800;
+        text-decoration: none;
+        overflow-wrap: anywhere;
+      }
+      .credits-link:hover {
+        text-decoration: underline;
+      }
+      .credits-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        min-height: 38px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        color: var(--primary);
+        text-decoration: none;
+        background: rgba(79, 70, 229, 0.08);
+        border: 1px solid rgba(79, 70, 229, 0.12);
+        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+      }
+      .credits-action:hover {
+        transform: translateY(-1px);
+        background: rgba(79, 70, 229, 0.12);
+        border-color: rgba(79, 70, 229, 0.2);
+      }
+      .credits-action-icon {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+      }
+      @media (max-width: 980px) {
+        .hero-stats,
+        .layout,
+        .ticket-grid,
+        .request-insights,
+        .credits-body {
+          grid-template-columns: 1fr 1fr;
+        }
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 680px) {
+        .page-shell {
+          padding: 14px;
+        }
+        .hero {
+          padding: 20px;
+          border-radius: 24px;
+        }
+        .hero-brand-row,
+        .hero-stats,
+        .field-grid,
+        .ticket-grid,
+        .request-insights {
+          grid-template-columns: 1fr;
+        }
+        .brand-mark {
+          width: 88px;
+          height: 88px;
+          padding: 8px;
+          margin-inline: auto;
+        }
+        .brand-mark img {
+          width: 64px;
+          height: 64px;
+          transform: scale(3);
+        }
+        .hero-copy {
+          text-align: center;
+        }
+        .hero-pills {
+          justify-content: center;
+        }
+        .credits-summary {
+          padding: 20px;
+        }
+        .credits-summary,
+        .credits-meta li {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .credits-body {
+          grid-template-columns: 1fr;
+          padding: 16px;
+        }
+        .credits-institutions,
+        .credits-institution-card {
+          grid-template-columns: 1fr;
+        }
+        .credits-institution-logo {
+          margin-inline: auto;
+        }
+        .credits-card {
+          padding: 18px;
+        }
+        .section-head,
+        .success-head,
+        .file-top,
+        .status {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .success-illustration-wrap {
+          width: 100%;
+        }
+        .section-badge {
+          align-self: flex-start;
+        }
+      }
+
+      .hero {
+        padding: clamp(22px, 3vw, 34px);
+        border-radius: 32px;
+      }
+      .hero-copy h1 {
+        font-size: clamp(30px, 4vw, 44px);
+      }
+      .sub {
+        font-size: 15px;
+      }
+      .container {
+        max-width: 1200px;
+      }
+      .layout {
+        grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr);
+        gap: 22px;
+      }
+      .card {
+        border-radius: 30px;
+        padding: clamp(20px, 2.4vw, 28px);
+      }
+      .form-card {
+        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+      }
+      .side-panel {
+        position: sticky;
+        top: 22px;
+      }
+      .section-head {
+        margin-bottom: 18px;
+      }
+      .section-head h2 {
+        font-size: clamp(25px, 2.8vw, 31px);
+      }
+      .section-sub {
+        max-width: 60ch;
+      }
+      .form-stack {
+        display: grid;
+        gap: 18px;
+      }
+      .form-section {
+        display: grid;
+        gap: 16px;
+        padding: 20px;
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      }
+      .section-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        min-height: 32px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(79, 70, 229, 0.08);
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .section-title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1.3;
+        color: var(--text);
+      }
+      .section-desc {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.9;
+      }
+      .field-grid.default-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      label {
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .field-hint {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      input, select {
+        min-height: 52px;
+        border-radius: 18px;
+        background: #fff;
+      }
+      .auto-pages-note {
+        border-radius: 20px;
+      }
+      .queue-shell {
+        display: grid;
+        gap: 14px;
+      }
+      .queue-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+      }
+      .queue-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: #eef2ff;
+        border: 1px solid rgba(79, 70, 229, 0.12);
+        color: var(--primary);
+        font-size: 13px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .drop {
+        min-height: 238px;
+        border-radius: 28px;
+        padding: 30px 22px;
+      }
+      .drop .big {
+        font-size: 22px;
+      }
+      .drop p {
+        max-width: 58ch;
+      }
+      .drop-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+      }
+      .drop-cta,
+      .drop-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .drop-cta {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 12px 28px rgba(79, 70, 229, 0.18);
+      }
+      .drop-secondary {
+        background: #fff;
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
+      .queue-empty {
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px dashed rgba(148, 163, 184, 0.4);
+        background: linear-gradient(180deg, #fcfdff 0%, #f8fafc 100%);
+        text-align: center;
+      }
+      .queue-empty strong {
+        display: block;
+        font-size: 16px;
+        margin-bottom: 6px;
+      }
+      .queue-empty span {
+        display: block;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .queue {
+        gap: 12px;
+      }
+      .file-item {
+        border-radius: 22px;
+        padding: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.04);
+      }
+      .file-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+      }
+      .file-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        min-width: 0;
+        flex: 1;
+      }
+      .file-icon-badge {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(79, 70, 229, 0.1);
+        color: var(--primary);
+        font-size: 14px;
+        font-weight: 900;
+        flex: 0 0 auto;
+      }
+      .file-meta-block {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      .file-overline {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .file-name {
+        white-space: normal;
+        word-break: break-word;
+        line-height: 1.7;
+      }
+      .file-size {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .file-state-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+        border: 1px solid transparent;
+      }
+      .file-state-chip.pending {
+        background: rgba(148, 163, 184, 0.1);
+        color: #475569;
+        border-color: rgba(148, 163, 184, 0.16);
+      }
+      .file-state-chip.uploading {
+        background: rgba(79, 70, 229, 0.1);
+        color: var(--primary);
+        border-color: rgba(79, 70, 229, 0.16);
+      }
+      .file-state-chip.done {
+        background: rgba(22, 163, 74, 0.1);
+        color: var(--success);
+        border-color: rgba(22, 163, 74, 0.18);
+      }
+      .file-state-chip.error {
+        background: rgba(220, 38, 38, 0.08);
+        color: var(--danger);
+        border-color: rgba(220, 38, 38, 0.16);
+      }
+      .file-options-grid {
+        margin-top: 14px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .file-option {
+        padding: 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.9);
+      }
+      .file-option label {
+        color: var(--text);
+        font-size: 12px;
+      }
+      .file-option input,
+      .file-option select {
+        min-height: 46px;
+        border-radius: 14px;
+      }
+      .file-options-note {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(79, 70, 229, 0.05);
+        color: #4b5563;
+      }
+      .status {
+        margin-top: 12px;
+        align-items: center;
+      }
+      .status-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .retry-btn {
+        min-height: 36px;
+        padding: 7px 14px;
+      }
+      .action-panel {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        border-radius: 24px;
+        border: 1px solid rgba(79, 70, 229, 0.12);
+        background: linear-gradient(180deg, rgba(79, 70, 229, 0.04) 0%, rgba(255,255,255,0.96) 100%);
+      }
+      .action-panel .footer-note {
+        margin-top: 0;
+      }
+      .side-summary-card h3 {
+        margin: 0;
+        font-size: 21px;
+      }
+      .summary-stack {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .summary-item {
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, #f9fbff 0%, #f8fafc 100%);
+      }
+      .summary-item span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .summary-item strong {
+        display: block;
+        margin-top: 6px;
+        color: var(--text);
+        font-size: 18px;
+        line-height: 1.6;
+      }
+      .summary-item p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      @media (max-width: 1100px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .side-panel {
+          position: static;
+        }
+      }
+      @media (max-width: 780px) {
+        .field-grid.default-grid,
+        .file-options-grid {
+          grid-template-columns: 1fr;
+        }
+        .queue-head,
+        .file-top {
+          flex-direction: column;
+          align-items: stretch;
+        }
+      }
+      @media (max-width: 680px) {
+        .form-section {
+          padding: 16px;
+        }
+        .drop {
+          min-height: 218px;
+          padding: 24px 16px;
+        }
+        .drop .big {
+          font-size: 19px;
+        }
+        .action-panel {
+          position: sticky;
+          bottom: 10px;
+          z-index: 5;
+          box-shadow: 0 18px 36px rgba(15, 23, 42, 0.1);
+        }
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0 16px;gap:12px">
-        <img src="/logo-university.png" alt="جامعة الانبار" style="height:64px;object-fit:contain"/>
-        <div style="text-align:center;flex:1">
-          <div style="font-size:13px;color:#64748b;font-weight:600">جامعة الانبار — كلية علوم الحاسوب</div>
-          <div style="font-size:11px;color:#94a3b8;margin-top:2px">مكتبة الكلية</div>
-        </div>
-        <img src="/logo-cs.png" alt="كلية علوم الحاسوب" style="height:64px;object-fit:contain"/>
-      </div>
-
-      <div class="card" id="formCard">
-        <h1>رفع ملفات الطباعة</h1>
-        <p class="sub">املأ المعلومات ثم اسحب/اختر الملفات. بعد الإرسال ستحصل على رقم تذكرة + PIN للاستلام.</p>
-        <form id="f">
-          <label>الاسم (اختياري)</label>
-          <input name="studentName" placeholder="الاسم الثلاثي" maxlength="80" />
-
-          <div class="row">
-            <div>
-              <label>عدد النسخ</label>
-              <input name="copies" type="number" min="1" max="10" value="1" required />
+    <div class="page-shell">
+      <div class="container">
+        <header class="hero">
+          <div class="hero-brand-row">
+            <div class="brand-mark">
+              <img src="/uoadrop-logo.png" alt="UOADrop" />
             </div>
-            <div>
-              <label>نوع الطباعة</label>
-              <select name="color">
-                <option value="false" selected>أبيض/أسود</option>
-                <option value="true">ملوّن</option>
-              </select>
+
+            <div class="hero-copy">
+              <span class="hero-kicker">منصة رفع ملفات الطباعة</span>
+              <h1>ارفع ملفاتك للطباعة بسرعة ووضوح</h1>
             </div>
           </div>
+        </header>
 
-          <div class="row">
-            <div>
-              <label>وجهين</label>
-              <select name="doubleSided">
-                <option value="true" selected>نعم</option>
-                <option value="false">لا</option>
-              </select>
+        <div class="layout">
+          <div class="card form-card" id="formCard">
+            <div class="section-head">
+              <div>
+                <h2>تفاصيل الطلب</h2>
+              </div>
+              <div class="section-badge">الخطوة الأولى</div>
             </div>
-            <div>
-              <label>عدد الصفحات (تقريبي)</label>
-              <input name="totalPages" type="number" min="1" max="500" value="1" required />
-            </div>
+
+            <form id="f">
+              <div class="form-stack">
+                <section class="form-section">
+                  <span class="section-eyebrow">1. المعلومات الأساسية</span>
+                  <h3 class="section-title">بيانات الطالب</h3>
+                  <div class="field-grid">
+                    <div class="field" style="grid-column: 1 / -1;">
+                      <label for="studentNameInput">اسم الطالب</label>
+                      <input id="studentNameInput" name="studentName" placeholder="اكتب اسم الطالب" maxlength="80" autocomplete="name" required />
+                    </div>
+                  </div>
+                </section>
+
+                <section class="form-section">
+                  <span class="section-eyebrow">2. الإعدادات الافتراضية</span>
+                  <h3 class="section-title">كيف تريد أن يبدأ الطلب؟</h3>
+                  <div class="field-grid default-grid">
+                    <div class="field">
+                      <label for="copiesInput">عدد النسخ الافتراضي</label>
+                      <input id="copiesInput" name="copies" type="number" min="1" max="10" value="1" required inputmode="numeric" />
+                    </div>
+                    <div class="field">
+                      <label for="colorSelect">نوع الطباعة الافتراضي</label>
+                      <select id="colorSelect" name="color">
+                        <option value="false" selected>أبيض وأسود</option>
+                        <option value="true">ملونة</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="doubleSidedSelect">الطباعة على وجهين افتراضياً</label>
+                      <select id="doubleSidedSelect" name="doubleSided">
+                        <option value="true" selected>نعم</option>
+                        <option value="false">لا</option>
+                      </select>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="form-section">
+                  <div class="queue-shell">
+                    <div class="queue-head">
+                      <div>
+                        <span class="section-eyebrow">3. الملفات</span>
+                        <h3 class="section-title">أضف الملفات المطلوب طباعتها</h3>
+                      </div>
+                      <div class="queue-count" id="queueCountBadge">لا توجد ملفات بعد</div>
+                    </div>
+
+                    <div class="field">
+                      <div class="drop" id="drop">
+                        <div class="drop-visual">
+                          <svg class="drop-illustration" viewBox="0 0 260 170" fill="none" aria-hidden="true">
+                            <rect x="33" y="42" width="194" height="96" rx="28" fill="#EDE9FE"/>
+                            <rect x="49" y="56" width="162" height="68" rx="22" fill="#FFFFFF" stroke="#C7D2FE" stroke-width="2"/>
+                            <path d="M85 107l28-29 18 18 34-35 29 31" stroke="#A5B4FC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="171" cy="74" r="10" fill="#C4B5FD"/>
+                            <path d="M130 27v42m0 0l-16-16m16 16l16-16" stroke="#4F46E5" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <rect x="102" y="118" width="56" height="14" rx="7" fill="#4F46E5" fill-opacity="0.12"/>
+                            <circle cx="54" cy="30" r="8" fill="#22C55E" fill-opacity="0.18"/>
+                            <circle cx="212" cy="34" r="6" fill="#4F46E5" fill-opacity="0.14"/>
+                          </svg>
+                        </div>
+                        <div class="big">ابدأ من هنا وأضف ملفاتك</div>
+                        <div class="drop-actions">
+                          <span class="drop-cta">اختيار الملفات الآن</span>
+                        </div>
+                        <input id="fileInput" type="file" multiple />
+                      </div>
+                    </div>
+
+                    <div class="queue-empty" id="queueEmpty">
+                      <strong>ما أضفت أي ملف بعد</strong>
+                    </div>
+
+                    <div class="queue" id="queue" aria-live="polite"></div>
+                  </div>
+                </section>
+
+                <div class="action-panel">
+                  <button class="primary" id="submitBtn" type="submit">إرسال الطلب إلى المكتبة</button>
+                  <div id="formError" class="err-msg" style="display:none"></div>
+                </div>
+              </div>
+            </form>
           </div>
 
-          <label>الملفات</label>
-          <div class="drop" id="drop">
-            <div class="big">📎 اسحب الملفات هنا</div>
-            <p>أو انقر للاختيار — PDF, Word, PowerPoint, Excel, صور</p>
-            <p>الحد: 50 ميغا لكل ملف، حتى 10 ملفات</p>
-            <input id="fileInput" type="file" multiple />
+          <aside class="side-panel" id="sidePanel">
+            <div class="card side-summary-card">
+              <span class="section-eyebrow">ملخص حي</span>
+              <h3>جاهزية الطلب الآن</h3>
+              <div class="summary-stack">
+                <div class="summary-item">
+                  <span>الملفات المختارة</span>
+                  <strong id="filesSelectedValue">0</strong>
+                  <p id="filesSelectedHint"></p>
+                </div>
+                <div class="summary-item">
+                  <span>الإعداد الافتراضي الحالي</span>
+                  <strong id="defaultOptionsValue">1 نسخة • أبيض وأسود • وجهين</strong>
+                </div>
+                <div class="summary-item">
+                  <span>حالة الإرسال</span>
+                  <strong id="sendReadinessValue">غير جاهز بعد</strong>
+                  <p id="sendReadinessHint"></p>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <div class="card success-card" id="successCard">
+            <div class="success-head">
+              <div class="success-illustration-wrap">
+                <svg class="success-illustration" viewBox="0 0 220 170" fill="none" aria-hidden="true">
+                  <rect x="22" y="44" width="176" height="96" rx="28" fill="#ECFDF5"/>
+                  <rect x="46" y="24" width="84" height="102" rx="18" fill="#FFFFFF" stroke="#BBF7D0" stroke-width="2"/>
+                  <rect x="60" y="40" width="56" height="10" rx="5" fill="#A7F3D0"/>
+                  <rect x="60" y="58" width="44" height="8" rx="4" fill="#D1FAE5"/>
+                  <rect x="60" y="74" width="52" height="8" rx="4" fill="#D1FAE5"/>
+                  <circle cx="153" cy="79" r="28" fill="#DCFCE7"/>
+                  <path d="M141 80l9 9 17-18" stroke="#16A34A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M160 107h18a12 12 0 0012-12V69" stroke="#86EFAC" stroke-width="4" stroke-linecap="round"/>
+                  <circle cx="44" cy="132" r="6" fill="#4F46E5" fill-opacity="0.12"/>
+                  <circle cx="182" cy="36" r="7" fill="#22C55E" fill-opacity="0.16"/>
+                </svg>
+              </div>
+              <div class="success-copy">
+                <h1>تم استلام الطلب</h1>
+                <div class="status-meta-row">
+                  <div class="status-pill pulse-live" id="requestStatusBadge">قيد الانتظار</div>
+                  <div class="update-stamp" id="lastUpdatedAt">آخر تحديث: الآن</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="status-summary">
+              <strong id="requestStatusTitle">تم استلام الطلب وهو الآن بانتظار المعالجة</strong>
+            </div>
+
+            <div class="ticket-grid">
+              <div class="ticket-box">
+                <h3>رقم التذكرة</h3>
+                <div class="val" id="ticketVal"></div>
+                <button class="copy-btn" onclick="copyVal('ticketVal')">نسخ رقم التذكرة</button>
+              </div>
+              <div class="ticket-box">
+                <h3>رمز الاستلام</h3>
+                <div class="val" id="pinVal"></div>
+                <button class="copy-btn" onclick="copyVal('pinVal')">نسخ رمز الاستلام</button>
+              </div>
+            </div>
+
+            <div class="request-insights">
+              <div class="insight-card" id="priceInsightCard">
+                <strong>السعر النهائي</strong>
+                <div class="insight-value" id="finalPriceVal">قيد الحساب</div>
+              </div>
+              <div class="insight-card" id="pagesInsightCard">
+                <strong>عدد الصفحات</strong>
+                <div class="insight-value" id="finalPagesVal">قيد الحساب</div>
+              </div>
+            </div>
+
+            <div class="status-tracker" id="statusTracker"></div>
+
+            <button class="primary" onclick="location.reload()">إرسال طلب جديد</button>
           </div>
-
-          <div class="queue" id="queue"></div>
-
-          <button class="primary" id="submitBtn" type="submit">إرسال الطلب</button>
-          <div id="formError" class="err-msg" style="display:none"></div>
-        </form>
-      </div>
-
-      <div class="card success-card" id="successCard">
-        <h1 style="color: var(--success)">✅ تم الرفع بنجاح</h1>
-        <p class="sub">احفظ رقم التذكرة و PIN — ستحتاجهما عند الاستلام.</p>
-        <div class="ticket-box">
-          <h3>التذكرة</h3>
-          <div class="val" id="ticketVal"></div>
-          <button class="copy-btn" onclick="copyVal('ticketVal')">نسخ</button>
         </div>
-        <div class="ticket-box">
-          <h3>PIN</h3>
-          <div class="val" id="pinVal"></div>
-          <button class="copy-btn" onclick="copyVal('pinVal')">نسخ</button>
-        </div>
-        <button class="primary" onclick="location.reload()">طلب جديد</button>
+
+        <section class="credits-section" aria-label="معلومات المشروع والمطور">
+          <details class="credits-panel">
+            <summary class="credits-summary">
+              <div class="credits-summary-copy">
+                <span class="credits-kicker">عن UOADrop</span>
+                <strong>معلومات المشروع والجهة الأكاديمية الداعمة</strong>
+                <p>اضغط لعرض تفاصيل المشروع، والجهة الأكاديمية، ووسائل التواصل بشكل منظم ومتناسق مع الهوية البصرية.</p>
+              </div>
+            </summary>
+
+            <div class="credits-body">
+              <div class="credits-institutions" aria-label="الجهة الأكاديمية">
+                <article class="credits-institution-card">
+                  <div class="credits-institution-logo">
+                    <img src="/university-of-anbar.svg" alt="جامعة الأنبار" />
+                  </div>
+                  <div class="credits-institution-copy">
+                    <span class="credits-institution-label">الجامعة</span>
+                    <strong>جامعة الأنبار</strong>
+                    <p>الجهة الأكاديمية الحاضنة للمشروع والداعمة لتطوير تجربة الطباعة داخل المكتبة.</p>
+                  </div>
+                </article>
+
+                <article class="credits-institution-card">
+                  <div class="credits-institution-logo">
+                    <img src="/cs-college.svg" alt="كلية علوم الحاسوب" />
+                  </div>
+                  <div class="credits-institution-copy">
+                    <span class="credits-institution-label">الكلية</span>
+                    <strong>كلية علوم الحاسوب وتكنولوجيا المعلومات</strong>
+                    <p>البيئة الأكاديمية التي يستهدفها النظام لتسهيل رفع الملفات والطباعة بسرعة ووضوح.</p>
+                  </div>
+                </article>
+              </div>
+
+              <article class="credits-card">
+                <span class="credits-label">العميد</span>
+                <h3>أ.د. صلاح عواد سلمان</h3>
+                <p>عميد <span class="credits-inline-emphasis">كلية علوم الحاسوب وتكنولوجيا المعلومات</span>، وتأتي الإشارة إليه هنا بوصفه جزءاً من البيئة الأكاديمية الداعمة للمشروع داخل <span class="credits-inline-emphasis">جامعة الأنبار</span>.</p>
+                <a class="credits-action" href="https://www.uoanbar.edu.iq/staff-page.php?ID=1614" target="_blank" rel="noreferrer">
+                  <span>الصفحة الرسمية</span>
+                  <svg class="credits-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 17L17 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M9 7h8v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </a>
+              </article>
+
+              <article class="credits-card">
+                <span class="credits-label">رئيس القسم</span>
+                <h3>د. عصام طه ياسين حسين الهيتي</h3>
+                <p>يُذكر <span class="credits-inline-emphasis">د. عصام طه ياسين حسين الهيتي</span> هنا بصفته <span class="credits-inline-emphasis">رئيس القسم</span> ضمن البنية الأكاديمية الداعمة لبيئة المشروع في <span class="credits-inline-emphasis">كلية علوم الحاسوب وتكنولوجيا المعلومات</span>.</p>
+                <a class="credits-action" href="https://www.uoanbar.edu.iq/staff-page.php?ID=1673" target="_blank" rel="noreferrer">
+                  <span>الصفحة الرسمية</span>
+                  <svg class="credits-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 17L17 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M9 7h8v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </a>
+              </article>
+
+              <article class="credits-card">
+                <span class="credits-label">الإشراف</span>
+                <h3>د. رقية أياد عبد الجبار عبيد العاني</h3>
+                <p>أشرفت <span class="credits-inline-emphasis">د. رقية أياد عبد الجبار عبيد العاني</span> على الجوانب الأكاديمية والتنظيمية للمشروع لضمان انسجامه مع احتياج المكتبة وسهولة استخدامه للطلبة.</p>
+                <a class="credits-action" href="https://www.uoanbar.edu.iq/staff-page.php?ID=1626" target="_blank" rel="noreferrer">
+                  <span>الصفحة الرسمية</span>
+                  <svg class="credits-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 17L17 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M9 7h8v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </a>
+              </article>
+
+              <article class="credits-card">
+                <span class="credits-label">المشرفة الثانية</span>
+                <h3>د. مكارم عبدالواحد عبدالجبار التركي</h3>
+                <p>تُذكر <span class="credits-inline-emphasis">د. مكارم عبدالواحد عبدالجبار التركي</span> ضمن الإطار الأكاديمي المساند للمشروع بوصفها من الكادر التدريسي في <span class="credits-inline-emphasis">كلية علوم الحاسوب وتكنولوجيا المعلومات</span>.</p>
+                <a class="credits-action" href="https://www.uoanbar.edu.iq/staff-page.php?ID=1651" target="_blank" rel="noreferrer">
+                  <span>الصفحة الرسمية</span>
+                  <svg class="credits-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 17L17 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M9 7h8v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </a>
+              </article>
+
+              <article class="credits-card">
+                <span class="credits-label">المطور</span>
+                <h3>بلال زامل احمد</h3>
+                <p>تولّى <span class="credits-inline-emphasis">بلال زامل احمد</span> تصميم النظام وتنفيذه وصياغة واجهته وتوحيد هويته البصرية لتظهر منصة <span class="credits-inline-emphasis">UOADrop</span> بصورة واضحة واحترافية.</p>
+                <ul class="credits-meta">
+                  <li>
+                    <span>Instagram</span>
+                    <a class="credits-link" href="https://instagram.com/bilalcodes1" target="_blank" rel="noreferrer">bilalcodes1</a>
+                  </li>
+                  <li>
+                    <span>Telegram</span>
+                    <a class="credits-link" href="https://t.me/bilalcodes1" target="_blank" rel="noreferrer">bilalcodes1</a>
+                  </li>
+                  <li>
+                    <span>Email</span>
+                    <a class="credits-link" href="mailto:bil24c1055@uoanbar.edu.iq">bil24c1055@uoanbar.edu.iq</a>
+                  </li>
+                </ul>
+              </article>
+
+              <article class="credits-card credits-card-wide">
+                <span class="credits-label">الهدف من المشروع</span>
+                <p>يهدف <span class="credits-inline-emphasis">UOADrop</span> إلى تقليل الوقت والجهد في رفع ملفات الطباعة ومتابعة الطلبات داخل المكتبة، عبر تجربة أسرع وأكثر وضوحاً واحترافية لكل من <span class="credits-inline-emphasis">الطالب</span> و<span class="credits-inline-emphasis">إدارة الطباعة</span>.</p>
+              </article>
+
+              <article class="credits-card credits-card-wide">
+                <span class="credits-label">رسالة شكر</span>
+                <p>شكر خاص إلى <span class="credits-inline-emphasis">الطالب عمر عبد الجبار مجبل</span> و<span class="credits-inline-emphasis">الطالبة ملاك مازن يوسف</span> على مساعدتهم ودعمهم القيّم خلال مراحل العمل على هذا المشروع.</p>
+              </article>
+            </div>
+          </details>
+        </section>
       </div>
     </div>
 
@@ -239,42 +1838,488 @@
       const formError = document.getElementById('formError');
       const formCard = document.getElementById('formCard');
       const successCard = document.getElementById('successCard');
+      const sidePanel = document.getElementById('sidePanel');
+      const requestStatusBadge = document.getElementById('requestStatusBadge');
+      const requestStatusTitle = document.getElementById('requestStatusTitle');
+      const requestStatusText = document.getElementById('requestStatusText');
+      const statusTracker = document.getElementById('statusTracker');
+      const filesSummary = document.getElementById('filesSummary');
+      const lastUpdatedAt = document.getElementById('lastUpdatedAt');
+      const finalPriceVal = document.getElementById('finalPriceVal');
+      const finalPagesVal = document.getElementById('finalPagesVal');
+      const finalPriceHint = document.getElementById('finalPriceHint');
+      const finalPagesHint = document.getElementById('finalPagesHint');
+      const priceInsightCard = document.getElementById('priceInsightCard');
+      const pagesInsightCard = document.getElementById('pagesInsightCard');
+      const queueCountBadge = document.getElementById('queueCountBadge');
+      const queueEmpty = document.getElementById('queueEmpty');
+      const filesSelectedValue = document.getElementById('filesSelectedValue');
+      const filesSelectedHint = document.getElementById('filesSelectedHint');
+      const defaultOptionsValue = document.getElementById('defaultOptionsValue');
+      const sendReadinessValue = document.getElementById('sendReadinessValue');
+      const sendReadinessHint = document.getElementById('sendReadinessHint');
+      const studentNameInput = document.getElementById('studentNameInput');
+      const copiesInput = document.getElementById('copiesInput');
+      const colorSelect = document.getElementById('colorSelect');
+      const doubleSidedSelect = document.getElementById('doubleSidedSelect');
 
-      /** @type {{file:File, status:string, progress:number, error:string}[]} */
       const queue = [];
+      const FORM_PREFS_KEY = 'uoadrop.student.formPrefs.v1';
+      const REQUEST_STATUS_META = {
+        pending: {
+          badge: 'قيد الانتظار',
+          title: 'تم استلام الطلب وهو الآن بانتظار المعالجة',
+          text: 'اكتمل الرفع بنجاح، وسيظهر هنا أي تغيير في حالة الطلب داخل المكتبة.',
+        },
+        printing: {
+          badge: 'تحت الطباعة',
+          title: 'بدأت المكتبة تنفيذ الطلب',
+          text: 'الطلب دخل مرحلة التنفيذ الآن. انتظر حتى يتحول إلى جاهز للاستلام.',
+        },
+        ready: {
+          badge: 'جاهز للاستلام',
+          title: 'الطلب جاهز الآن',
+          text: 'يمكنك مراجعة المكتبة مع رقم التذكرة ورمز الاستلام لإتمام الاستلام.',
+        },
+        done: {
+          badge: 'تم التسليم',
+          title: 'تم تسليم الطلب',
+          text: 'اكتملت الدورة الخاصة بهذا الطلب بنجاح.',
+        },
+        canceled: {
+          badge: 'الطلب ملغي',
+          title: 'تم إلغاء الطلب',
+          text: 'إذا كان هذا الإلغاء غير مقصود، أنشئ طلباً جديداً وأعد رفع الملفات المطلوبة.',
+        },
+        blocked: {
+          badge: 'الطلب موقوف',
+          title: 'هذا الطلب يحتاج مراجعة',
+          text: 'يرجى مراجعة المكتبة لمعرفة سبب إيقاف الطلب أو المتابعة المطلوبة.',
+        },
+      };
+
+      let currentRequestId = null;
+      let latestUploadedRequest = null;
+      let running = false;
+      let statusPollTimer = null;
+      let lastKnownStatus = null;
+      let readyFlashTimer = null;
+
+      function hasLatin(text) {
+        return /[A-Za-z]/.test(String(text || ''));
+      }
+
+      function toArabicMessage(text, fallback) {
+        const value = String(text || '').trim();
+        if (!value) return fallback;
+        if (!hasLatin(value)) return value;
+        const lower = value.toLowerCase();
+        if (lower.includes('network')) return 'مشكلة في الاتصال بالشبكة';
+        if (lower.includes('timeout')) return 'انتهت مهلة الاتصال مع الخادم';
+        if (lower.includes('http')) return 'تعذر الاتصال بالخادم';
+        if (lower.includes('failed')) return 'تعذر إتمام العملية';
+        return fallback;
+      }
+
+      function formatSize(bytes) {
+        const mb = bytes / 1024 / 1024;
+        if (mb >= 1) return mb.toFixed(2) + ' ميغابايت';
+        return Math.max(1, Math.round(bytes / 1024)) + ' كيلوبايت';
+      }
+
+      function escape(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        }[c]));
+      }
+
+      function clampOptionInt(value, min, max, fallback) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.max(min, Math.min(max, Math.floor(n)));
+      }
+
+      function readStoredFormPrefs() {
+        try {
+          const raw = window.localStorage.getItem(FORM_PREFS_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === 'object' ? parsed : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function saveFormPrefs() {
+        try {
+          const payload = {
+            studentName: studentNameInput ? String(studentNameInput.value || '').trim().slice(0, 80) : '',
+            copies: copiesInput ? clampOptionInt(copiesInput.value, 1, 10, 1) : 1,
+            color: colorSelect ? colorSelect.value === 'true' : false,
+            doubleSided: doubleSidedSelect ? doubleSidedSelect.value === 'true' : true,
+          };
+          window.localStorage.setItem(FORM_PREFS_KEY, JSON.stringify(payload));
+        } catch {
+          // Ignore storage errors.
+        }
+      }
+
+      function restoreFormPrefs() {
+        const stored = readStoredFormPrefs();
+        if (!stored) return;
+
+        if (studentNameInput && typeof stored.studentName === 'string' && stored.studentName.trim()) {
+          studentNameInput.value = stored.studentName.trim().slice(0, 80);
+        }
+        if (copiesInput) {
+          copiesInput.value = String(clampOptionInt(stored.copies, 1, 10, 1));
+        }
+        if (colorSelect && typeof stored.color === 'boolean') {
+          colorSelect.value = stored.color ? 'true' : 'false';
+        }
+        if (doubleSidedSelect && typeof stored.doubleSided === 'boolean') {
+          doubleSidedSelect.value = stored.doubleSided ? 'true' : 'false';
+        }
+      }
+
+      function getDefaultFileOptions() {
+        const fd = new FormData(form);
+        return {
+          copies: clampOptionInt(fd.get('copies') || 1, 1, 10, 1),
+          color: (fd.get('color') || 'false') === 'true',
+          doubleSided: (fd.get('doubleSided') || 'true') === 'true',
+        };
+      }
+
+      function normalizeFileOptions(source, fallback) {
+        const base = Object.assign({}, fallback || {}, source || {});
+        return {
+          copies: clampOptionInt(base.copies, 1, 10, 1),
+          color: !!base.color,
+          doubleSided: base.doubleSided === undefined ? true : !!base.doubleSided,
+        };
+      }
+
+      function getFilesSummaryText(filesDone, filesCount) {
+        const total = Number(filesCount || queue.length || 0);
+        const done = Number(filesDone || 0);
+        if (!total) return '';
+        return 'تم رفع ' + done + ' من ' + total + ' ملفات بنجاح. ستظهر هنا حالة الطلب مع السعر والصفحات النهائية فور اعتمادها من المكتبة.';
+      }
+
+      function formatQueueCountLabel(count) {
+        const total = Number(count || 0);
+        if (!total) return 'لا توجد ملفات بعد';
+        if (total === 1) return 'ملف واحد جاهز';
+        if (total === 2) return 'ملفان جاهزان';
+        return total + ' ملفات جاهزة';
+      }
+
+      function formatDefaultOptionsText(options) {
+        const copies = clampOptionInt(options && options.copies, 1, 10, 1);
+        const copiesLabel = copies === 1 ? 'نسخة واحدة' : copies === 2 ? 'نسختان' : copies + ' نسخ';
+        const colorLabel = options && options.color ? 'ملونة' : 'أبيض وأسود';
+        const doubleSidedLabel = options && options.doubleSided ? 'وجهين' : 'وجه واحد';
+        return copiesLabel + ' • ' + colorLabel + ' • ' + doubleSidedLabel;
+      }
+
+      function updateUploadFormSummary() {
+        const count = queue.length;
+        const failed = queue.filter((item) => item.status === 'error').length;
+        const uploading = queue.filter((item) => item.status === 'uploading').length;
+        const defaults = getDefaultFileOptions();
+
+        if (queueCountBadge) queueCountBadge.textContent = formatQueueCountLabel(count);
+        if (queueEmpty) queueEmpty.style.display = count > 0 ? 'none' : 'block';
+        if (filesSelectedValue) filesSelectedValue.textContent = String(count);
+        if (filesSelectedHint) {
+          filesSelectedHint.textContent = count > 0
+            ? 'يمكنك الآن مراجعة كل ملف داخل القائمة قبل الإرسال.'
+            : 'أضف ملفاً واحداً أو أكثر حتى تجهز القائمة.';
+        }
+        if (defaultOptionsValue) defaultOptionsValue.textContent = formatDefaultOptionsText(defaults);
+
+        let readinessLabel = 'غير جاهز بعد';
+        let readinessHint = 'يصبح الطلب جاهزاً عندما تضيف ملفاً واحداً على الأقل.';
+        if (uploading > 0) {
+          readinessLabel = 'جاري الرفع';
+          readinessHint = 'انتظر حتى يكتمل رفع الملفات ثم راقب حالة الطلب.';
+        } else if (failed > 0) {
+          readinessLabel = 'يحتاج مراجعة';
+          readinessHint = 'بعض الملفات فشل رفعها. استخدم إعادة المحاولة أو عدّل القائمة.';
+        } else if (count > 0) {
+          readinessLabel = 'جاهز للإرسال';
+          readinessHint = 'كل شيء واضح الآن: يمكنك الإرسال أو تعديل أي ملف قبل المتابعة.';
+        }
+
+        if (sendReadinessValue) sendReadinessValue.textContent = readinessLabel;
+        if (sendReadinessHint) sendReadinessHint.textContent = readinessHint;
+      }
+
+      function formatPriceValue(value) {
+        const num = Number(value || 0);
+        if (!Number.isFinite(num) || num <= 0) return 'قيد الحساب';
+        return num.toLocaleString('ar-IQ') + ' د.ع';
+      }
+
+      function formatPagesValue(value) {
+        const num = Number(value || 0);
+        if (!Number.isFinite(num) || num <= 0) return 'قيد الحساب';
+        return num.toLocaleString('ar-IQ') + ' صفحة';
+      }
+
+      function renderRequestPricing(request) {
+        const price = request && typeof request.priceIqd === 'number' ? request.priceIqd : 0;
+        const pages = request && typeof request.totalPages === 'number' ? request.totalPages : 0;
+        const hasPrice = Number.isFinite(price) && price > 0;
+        const hasPages = Number.isFinite(pages) && pages > 0;
+
+        if (finalPriceVal) finalPriceVal.textContent = formatPriceValue(price);
+        if (finalPagesVal) finalPagesVal.textContent = formatPagesValue(pages);
+        if (finalPriceHint) {
+          finalPriceHint.textContent = hasPrice
+            ? 'تم اعتماد السعر النهائي لهذا الطلب داخل المكتبة.'
+            : 'سيتم تحديثه تلقائياً عند اعتماد السعر.';
+        }
+        if (finalPagesHint) {
+          finalPagesHint.textContent = hasPages
+            ? 'تم تثبيت عدد الصفحات النهائي لهذا الطلب.'
+            : 'سيتم تحديثه تلقائياً عند تثبيت العدد النهائي.';
+        }
+        if (priceInsightCard) priceInsightCard.classList.toggle('ready', hasPrice);
+        if (pagesInsightCard) pagesInsightCard.classList.toggle('ready', hasPages);
+      }
+
+      function formatUpdatedAt(value) {
+        if (!value) return 'آخر تحديث: الآن';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'آخر تحديث: الآن';
+        return 'آخر تحديث: ' + date.toLocaleString('ar-IQ', {
+          hour: 'numeric',
+          minute: '2-digit',
+          day: 'numeric',
+          month: 'short',
+        });
+      }
+
+      function renderTracker(status) {
+        if (!statusTracker) return;
+
+        const steps = [
+          {
+            label: 'تسجيل الطلب',
+            text: 'تم إنشاء رقم التذكرة ورمز الاستلام الخاصين بطلبك.',
+            state: 'done',
+          },
+          {
+            label: 'رفع الملفات',
+            text: 'اكتمل رفع الملفات إلى المكتبة بنجاح.',
+            state: 'done',
+          },
+        ];
+
+        const flow = [
+          {
+            key: 'pending',
+            label: 'بانتظار المعالجة',
+            text: 'الطلب وصل إلى المكتبة وينتظر بدء التنفيذ.',
+          },
+          {
+            key: 'printing',
+            label: 'تحت الطباعة',
+            text: 'يتم الآن تجهيز الطلب على الطابعة.',
+          },
+          {
+            key: 'ready',
+            label: 'جاهز للاستلام',
+            text: 'يمكنك مراجعة المكتبة واستلام الطلب باستخدام التذكرة والرمز.',
+          },
+        ];
+
+        const statusIndex = flow.findIndex((step) => step.key === status);
+        flow.forEach((step, index) => {
+          let state = '';
+          if (status === 'done') state = 'done';
+          else if (status === 'canceled' || status === 'blocked') state = '';
+          else if (statusIndex > index) state = 'done';
+          else if (statusIndex === index) state = 'current';
+          if (status === 'ready' && step.key === 'ready' && state === 'current') state += ' ready-step';
+          steps.push({ label: step.label, text: step.text, state });
+        });
+
+        if (status === 'done') {
+          steps.push({
+            label: 'تم التسليم',
+            text: 'اكتمل الطلب وتم استلامه بنجاح.',
+            state: 'current done',
+          });
+        }
+
+        if (status === 'canceled' || status === 'blocked') {
+          steps.push({
+            label: status === 'canceled' ? 'الطلب ملغي' : 'الطلب موقوف',
+            text: status === 'canceled'
+              ? 'تم إلغاء الطلب قبل اكتمال الدورة.'
+              : 'الطلب يحتاج مراجعة مباشرة داخل المكتبة.',
+            state: 'current warn',
+          });
+        }
+
+        statusTracker.innerHTML = steps.map((step) => (
+          '<div class="tracker-step ' + step.state + '">' +
+            '<div class="tracker-dot"></div>' +
+            '<div class="tracker-copy">' +
+              '<strong>' + escape(step.label) + '</strong>' +
+              '<span>' + escape(step.text) + '</span>' +
+            '</div>' +
+          '</div>'
+        )).join('');
+      }
+
+      function applyReadyVisualState(status, shouldFlash) {
+        if (requestStatusBadge) {
+          requestStatusBadge.classList.toggle('pulse-live', status === 'pending' || status === 'printing');
+          requestStatusBadge.classList.toggle('status-pill-ready', status === 'ready');
+        }
+        const summaryEl = requestStatusTitle ? requestStatusTitle.parentElement : null;
+        if (summaryEl) {
+          summaryEl.classList.toggle('ready-arrived', status === 'ready');
+          if (shouldFlash && status === 'ready') {
+            summaryEl.classList.remove('ready-flash');
+            void summaryEl.offsetWidth;
+            summaryEl.classList.add('ready-flash');
+            if (readyFlashTimer) window.clearTimeout(readyFlashTimer);
+            readyFlashTimer = window.setTimeout(() => summaryEl.classList.remove('ready-flash'), 1500);
+          }
+        }
+      }
+
+      function renderRequestStatus(status, filesDone, filesCount, updatedAt, request) {
+        const meta = REQUEST_STATUS_META[status] || REQUEST_STATUS_META.pending;
+        const becameReady = lastKnownStatus !== 'ready' && status === 'ready';
+        if (requestStatusBadge) requestStatusBadge.textContent = meta.badge;
+        if (requestStatusTitle) requestStatusTitle.textContent = meta.title;
+        if (requestStatusText) requestStatusText.textContent = meta.text;
+        if (filesSummary) filesSummary.textContent = getFilesSummaryText(filesDone, filesCount);
+        if (lastUpdatedAt) lastUpdatedAt.textContent = formatUpdatedAt(updatedAt);
+        renderRequestPricing(request);
+        applyReadyVisualState(status, becameReady);
+        renderTracker(status);
+        lastKnownStatus = status;
+      }
+
+      async function refreshRequestStatus() {
+        if (!currentRequestId) return;
+        try {
+          const res = await fetch('/api/requests/' + currentRequestId, { cache: 'no-store' });
+          if (!res.ok) return;
+          const data = await res.json();
+          const request = data && data.request ? data.request : null;
+          const nextStatus = request && request.status ? request.status : 'pending';
+          const updatedAt = request ? request.updatedAt : null;
+          renderRequestStatus(nextStatus, data.filesDone || queue.length, data.filesCount || queue.length, updatedAt, request);
+          if (nextStatus === 'done' || nextStatus === 'canceled' || nextStatus === 'blocked') {
+            stopStatusPolling();
+          }
+        } catch {
+        }
+      }
+
+      function startStatusPolling() {
+        stopStatusPolling();
+        refreshRequestStatus();
+        statusPollTimer = window.setInterval(refreshRequestStatus, 5000);
+      }
+
+      function stopStatusPolling() {
+        if (statusPollTimer) {
+          window.clearInterval(statusPollTimer);
+          statusPollTimer = null;
+        }
+      }
+
+      function showTrackingScreen() {
+        if (formCard) formCard.style.display = 'none';
+        if (sidePanel) sidePanel.style.display = 'none';
+        if (successCard) {
+          successCard.style.display = 'block';
+          successCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
 
       function render() {
+        if (!queueEl) return;
         queueEl.innerHTML = '';
         queue.forEach((item, i) => {
           const div = document.createElement('div');
           div.className = 'file-item';
-          const sizeMb = (item.file.size / 1024 / 1024).toFixed(2);
+          const sizeLabel = formatSize(item.file.size);
           const pct = Math.round(item.progress || 0);
           const stateClass = item.status === 'done' ? 'ok' : item.status === 'error' ? 'err' : '';
+          const stateTone = item.status === 'done' ? 'done' : item.status === 'error' ? 'error' : item.status === 'uploading' ? 'uploading' : 'pending';
+          const options = normalizeFileOptions(item.options, getDefaultFileOptions());
+          item.options = options;
+          const optionsDisabled = item.status === 'uploading' || item.status === 'done' ? ' disabled' : '';
           const stateText = {
             pending: 'قيد الانتظار',
-            uploading: 'جاري الرفع...',
-            done: '✓ تم',
-            error: '✗ خطأ',
-          }[item.status] || item.status;
+            uploading: 'جاري رفع الملف',
+            done: 'تم رفع الملف',
+            error: 'تعذر رفع الملف',
+          }[item.status] || 'حالة غير معروفة';
+
           div.innerHTML =
             '<div class="file-top">' +
-              '<span class="file-name">' + escape(item.file.name) + '</span>' +
-              '<span class="file-size">' + sizeMb + ' MB</span>' +
+              '<div class="file-main">' +
+                '<div class="file-icon-badge">' + (i + 1) + '</div>' +
+                '<div class="file-meta-block">' +
+                  '<span class="file-overline">ملف ' + (i + 1) + '</span>' +
+                  '<span class="file-name">' + escape(item.file.name) + '</span>' +
+                  '<span class="file-size">' + sizeLabel + '</span>' +
+                '</div>' +
+              '</div>' +
+              '<span class="file-state-chip ' + stateTone + '">' + stateText + '</span>' +
             '</div>' +
+            '<div class="file-options-grid">' +
+              '<div class="file-option">' +
+                '<label>عدد النسخ</label>' +
+                '<input type="number" min="1" max="10" value="' + options.copies + '" data-index="' + i + '" data-option="copies"' + optionsDisabled + ' />' +
+              '</div>' +
+              '<div class="file-option">' +
+                '<label>نوع الطباعة</label>' +
+                '<select data-index="' + i + '" data-option="color"' + optionsDisabled + '>' +
+                  '<option value="false"' + (!options.color ? ' selected' : '') + '>أبيض وأسود</option>' +
+                  '<option value="true"' + (options.color ? ' selected' : '') + '>ملونة</option>' +
+                '</select>' +
+              '</div>' +
+              '<div class="file-option">' +
+                '<label>الطباعة على وجهين</label>' +
+                '<select data-index="' + i + '" data-option="doubleSided"' + optionsDisabled + '>' +
+                  '<option value="true"' + (options.doubleSided ? ' selected' : '') + '>نعم</option>' +
+                  '<option value="false"' + (!options.doubleSided ? ' selected' : '') + '>لا</option>' +
+                '</select>' +
+              '</div>' +
+            '</div>' +
+            '<div class="file-options-note">هذه الإعدادات خاصة بهذا الملف فقط داخل نفس الطلب.</div>' +
             '<div class="bar"><span style="width:' + pct + '%"></span></div>' +
             '<div class="status ' + stateClass + '">' +
-              '<span>' + stateText + (item.error ? ' — ' + escape(item.error) : '') + '</span>' +
-              (item.status === 'error' ? '<button class="retry-btn" data-retry="' + i + '">إعادة</button>' : '') +
-              (item.status === 'pending' ? '<button class="retry-btn" data-remove="' + i + '">حذف</button>' : '') +
+              '<span class="status-text">' + stateText + (item.error ? ' — ' + escape(toArabicMessage(item.error, 'تعذر رفع الملف')) : '') + '</span>' +
+              '<div class="status-actions">' +
+                (item.status === 'error' ? '<button class="retry-btn" data-retry="' + i + '">إعادة المحاولة</button>' : '') +
+                (item.status === 'pending' ? '<button class="retry-btn" data-remove="' + i + '">إزالة الملف</button>' : '') +
+              '</div>' +
             '</div>';
           queueEl.appendChild(div);
         });
-      }
-      function escape(s) {
-        return String(s).replace(/[&<>"']/g, (c) =>
-          ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]),
-        );
+
+        updateUploadFormSummary();
+
+        if (filesSummary && successCard && successCard.style.display === 'block') {
+          filesSummary.textContent = getFilesSummaryText(queue.filter((item) => item.status === 'done').length, queue.length);
+        }
       }
 
       queueEl.addEventListener('click', (e) => {
@@ -284,6 +2329,7 @@
         const remove = t.getAttribute('data-remove');
         if (retry !== null) {
           const i = Number(retry);
+          if (!queue[i]) return;
           queue[i].status = 'pending';
           queue[i].progress = 0;
           queue[i].error = '';
@@ -295,10 +2341,51 @@
         }
       });
 
+      queueEl.addEventListener('input', (e) => {
+        const t = e.target;
+        if (!t || !(t instanceof HTMLInputElement)) return;
+        const index = Number(t.getAttribute('data-index'));
+        const option = t.getAttribute('data-option');
+        if (!Number.isFinite(index) || !queue[index] || option !== 'copies') return;
+        queue[index].options = normalizeFileOptions({
+          ...(queue[index].options || {}),
+          copies: t.value,
+        }, getDefaultFileOptions());
+      });
+
+      queueEl.addEventListener('change', (e) => {
+        const t = e.target;
+        if (!t || !(t instanceof HTMLSelectElement || t instanceof HTMLInputElement)) return;
+        const index = Number(t.getAttribute('data-index'));
+        const option = t.getAttribute('data-option');
+        if (!Number.isFinite(index) || !queue[index] || !option) return;
+        const next = { ...(queue[index].options || {}) };
+        if (option === 'copies' && t instanceof HTMLInputElement) next.copies = t.value;
+        if (option === 'color') next.color = t.value === 'true';
+        if (option === 'doubleSided') next.doubleSided = t.value === 'true';
+        queue[index].options = normalizeFileOptions(next, getDefaultFileOptions());
+      });
+
+      form.addEventListener('input', () => {
+        saveFormPrefs();
+        updateUploadFormSummary();
+      });
+
+      form.addEventListener('change', () => {
+        saveFormPrefs();
+        updateUploadFormSummary();
+      });
+
       function addFiles(list) {
         for (const f of list) {
           if (queue.length >= 10) break;
-          queue.push({ file: f, status: 'pending', progress: 0, error: '' });
+          queue.push({
+            file: f,
+            status: 'pending',
+            progress: 0,
+            error: '',
+            options: getDefaultFileOptions(),
+          });
         }
         render();
       }
@@ -308,24 +2395,27 @@
         addFiles(fileInput.files || []);
         fileInput.value = '';
       });
-      ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, (e) => {
-        e.preventDefault(); drop.classList.add('active');
+
+      ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        drop.classList.add('active');
       }));
-      ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, (e) => {
-        e.preventDefault(); drop.classList.remove('active');
+
+      ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        drop.classList.remove('active');
       }));
+
       drop.addEventListener('drop', (e) => {
         const files = e.dataTransfer ? e.dataTransfer.files : null;
         if (files && files.length) addFiles(files);
       });
 
-      let currentRequestId = null;
-      let running = false;
-
       async function uploadOne(item) {
         return new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           const fd = new FormData();
+          fd.append('options', JSON.stringify(normalizeFileOptions(item.options, getDefaultFileOptions())));
           fd.append('file', item.file);
           xhr.open('POST', '/api/requests/' + currentRequestId + '/files');
           xhr.upload.onprogress = (e) => {
@@ -335,16 +2425,16 @@
             }
           };
           xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) resolve();
-            else {
-              try {
-                const body = JSON.parse(xhr.responseText || '{}');
-                reject(new Error(body.error || body.hint || 'HTTP ' + xhr.status));
-              } catch { reject(new Error('HTTP ' + xhr.status)); }
+            try {
+              const body = JSON.parse(xhr.responseText || '{}');
+              if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+              else reject(new Error(toArabicMessage(body.error || body.hint || ('HTTP ' + xhr.status), 'تعذر رفع الملف')));
+            } catch {
+              reject(new Error(xhr.status >= 200 && xhr.status < 300 ? 'تعذر قراءة استجابة الخادم' : 'تعذر الاتصال بالخادم'));
             }
           };
-          xhr.onerror = () => reject(new Error('network error'));
-          xhr.ontimeout = () => reject(new Error('timeout'));
+          xhr.onerror = () => reject(new Error('مشكلة في الاتصال بالشبكة'));
+          xhr.ontimeout = () => reject(new Error('انتهت مهلة الاتصال مع الخادم'));
           xhr.send(fd);
         });
       }
@@ -356,7 +2446,8 @@
         const maxAttempts = 3;
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
           try {
-            await uploadOne(item);
+            const result = await uploadOne(item);
+            if (result && result.request) latestUploadedRequest = result.request;
             item.status = 'done';
             item.progress = 100;
             render();
@@ -364,11 +2455,11 @@
           } catch (err) {
             if (attempt >= maxAttempts) {
               item.status = 'error';
-              item.error = (err && err.message) || 'failed';
+              item.error = toArabicMessage((err && err.message) || '', 'تعذر رفع الملف');
               render();
               return;
             }
-            await new Promise(r => setTimeout(r, 400 * attempt));
+            await new Promise((r) => setTimeout(r, 400 * attempt));
           }
         }
       }
@@ -376,12 +2467,11 @@
       async function runQueue() {
         if (running || !currentRequestId) return;
         running = true;
-        const pending = queue.filter(item => item.status === 'pending');
-        const CONCURRENCY = 3;
-        // Upload in parallel batches of CONCURRENCY
-        for (let i = 0; i < pending.length; i += CONCURRENCY) {
-          const batch = pending.slice(i, i + CONCURRENCY);
-          await Promise.all(batch.map(item => uploadOneWithRetry(item)));
+        const pending = queue.filter((item) => item.status === 'pending');
+        const concurrency = 3;
+        for (let i = 0; i < pending.length; i += concurrency) {
+          const batch = pending.slice(i, i + concurrency);
+          await Promise.all(batch.map((item) => uploadOneWithRetry(item)));
         }
         running = false;
       }
@@ -390,6 +2480,15 @@
         e.preventDefault();
         formError.style.display = 'none';
 
+        const fd = new FormData(form);
+        const studentName = String(fd.get('studentName') || '').trim();
+
+        if (!studentName) {
+          formError.textContent = 'الرجاء إدخال اسم الطالب';
+          formError.style.display = 'block';
+          return;
+        }
+
         if (queue.length === 0) {
           formError.textContent = 'الرجاء اختيار ملف واحد على الأقل';
           formError.style.display = 'block';
@@ -397,17 +2496,14 @@
         }
 
         submitBtn.disabled = true;
-        submitBtn.textContent = 'جاري الإرسال...';
+        submitBtn.textContent = 'جاري إرسال الطلب...';
+        saveFormPrefs();
 
-        const fd = new FormData(form);
+        const defaultOptions = getDefaultFileOptions();
         const payload = {
-          studentName: fd.get('studentName') || '',
-          options: {
-            copies: Number(fd.get('copies') || 1),
-            color: (fd.get('color') || 'false') === 'true',
-            doubleSided: (fd.get('doubleSided') || 'true') === 'true',
-          },
-          totalPages: Number(fd.get('totalPages') || 1),
+          studentName,
+          options: defaultOptions,
+          totalPages: 0,
         };
 
         try {
@@ -416,15 +2512,16 @@
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(payload),
           });
-          if (!createRes.ok) throw new Error('HTTP ' + createRes.status);
+          if (!createRes.ok) throw new Error('تعذر إنشاء الطلب');
           const created = await createRes.json();
           currentRequestId = created.request.id;
+          latestUploadedRequest = created.request;
 
           await runQueue();
 
-          const failed = queue.filter(q => q.status === 'error').length;
+          const failed = queue.filter((q) => q.status === 'error').length;
           if (failed > 0) {
-            formError.textContent = 'فشل رفع ' + failed + ' ملف — استخدم زر "إعادة" أو انقر إرسال مجدداً';
+            formError.textContent = 'تعذر رفع ' + failed + ' ملف. يمكنك استخدام زر إعادة المحاولة أو إرسال الطلب من جديد.';
             formError.style.display = 'block';
             submitBtn.disabled = false;
             submitBtn.textContent = 'إعادة المحاولة';
@@ -433,20 +2530,26 @@
 
           document.getElementById('ticketVal').textContent = created.request.ticket;
           document.getElementById('pinVal').textContent = created.pin;
-          formCard.style.display = 'none';
-          successCard.style.display = 'block';
+          showTrackingScreen();
+          const immediateRequest = latestUploadedRequest || created.request || null;
+          renderRequestStatus(immediateRequest && immediateRequest.status ? immediateRequest.status : 'pending', queue.length, queue.length, immediateRequest ? immediateRequest.updatedAt : null, immediateRequest);
+          startStatusPolling();
         } catch (err) {
-          formError.textContent = 'فشل إنشاء الطلب: ' + ((err && err.message) || err);
+          formError.textContent = 'تعذر إنشاء الطلب. ' + toArabicMessage((err && err.message) || err, 'حاول مرة أخرى بعد قليل.');
           formError.style.display = 'block';
           submitBtn.disabled = false;
-          submitBtn.textContent = 'إرسال الطلب';
+          submitBtn.textContent = 'إرسال الطلب إلى المكتبة';
         }
       });
 
       function copyVal(id) {
-        const v = document.getElementById(id).textContent;
-        navigator.clipboard && navigator.clipboard.writeText(v);
+        const value = document.getElementById(id).textContent;
+        if (navigator.clipboard && value) navigator.clipboard.writeText(value);
       }
+
+      window.addEventListener('beforeunload', stopStatusPolling);
+      restoreFormPrefs();
+      render();
     </script>
-  </body>
+    </body>
 </html>

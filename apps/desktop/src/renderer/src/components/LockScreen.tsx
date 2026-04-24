@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import uoadropLogo from './icons/uoadrop-logo.png';
 
 interface Props {
   onUnlock: () => void;
@@ -42,7 +43,12 @@ export function LockScreen({ onUnlock }: Props): JSX.Element {
   return (
     <div className="lock-screen">
       <div className="lock-card">
-        <div className="lock-icon">🔒</div>
+        <div className="lock-brand">
+          <span className="lock-brand-badge">UOADrop</span>
+          <div className="lock-brand-shell">
+            <img src={uoadropLogo} alt="UOADrop" />
+          </div>
+        </div>
         <h2>الشاشة مقفلة</h2>
         <p className="lock-hint">أدخل PIN المكتبة للفتح</p>
         <form onSubmit={handleSubmit}>
@@ -72,11 +78,6 @@ export function LockScreen({ onUnlock }: Props): JSX.Element {
         {remaining !== null && !locked && (
           <p className="dev-hint">محاولات متبقية: <code>{remaining}</code></p>
         )}
-        <p className="dev-hint">
-          [dev] عند أول تشغيل تم توليد PIN عشوائي وطبعه في terminal. اضبط
-          <code> LIBRARIAN_PIN_HASH </code>
-          في البيئة لتجاوزه.
-        </p>
       </div>
     </div>
   );
