@@ -460,7 +460,7 @@ export function Dashboard(): JSX.Element {
     return () => clearInterval(id);
   }, [filter, search, page]);
 
-  // ── Supabase catch-up: fetch all pending online requests on startup ──
+  // ── Supabase catch-up: fetch + auto-delete pending online requests on startup ──
   useEffect(() => {
     supabase
       .from('print_requests')
@@ -468,11 +468,13 @@ export function Dashboard(): JSX.Element {
       .eq('source', 'online')
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          setOnlineQueue(data as SupabaseRequestRow[]);
-          showToast(`${data.length} طلب أونلاين بانتظار الطباعة`);
-        }
+      .then(async ({ data }) => {
+        if (!data || data.length === 0) return;
+        setOnlineQueue(data as SupabaseRequestRow[]);
+        showToast(`${data.length} طلب أونلاين جديد`);
+        // Auto-delete from Supabase — desktop has received them
+        const ids = data.map((r) => r.id);
+        await supabase.from('print_requests').delete().in('id', ids);
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -484,7 +486,7 @@ export function Dashboard(): JSX.Element {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'print_requests' },
-        (payload) => {
+        async (payload) => {
           console.log('[Realtime] INSERT received:', payload.new);
           const row = payload.new as SupabaseRequestRow;
           if (row.source !== 'online') return;
@@ -493,6 +495,8 @@ export function Dashboard(): JSX.Element {
             return [row, ...prev];
           });
           showToast(`طلب أونلاين جديد — ${row.ticket}`);
+          // Auto-delete from Supabase — desktop has received it
+          await supabase.from('print_requests').delete().eq('id', row.id);
         },
       )
       .subscribe((status, err) => {
