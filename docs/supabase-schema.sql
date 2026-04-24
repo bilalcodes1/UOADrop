@@ -100,6 +100,10 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- حذف policies الـ storage إن وجدت
+DROP POLICY IF EXISTS "anon upload print-files" ON storage.objects;
+DROP POLICY IF EXISTS "anon read print-files"   ON storage.objects;
+
 -- السماح للـ anon بالرفع إلى bucket
 CREATE POLICY "anon upload print-files"
   ON storage.objects FOR INSERT TO anon

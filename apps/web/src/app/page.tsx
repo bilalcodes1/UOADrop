@@ -188,7 +188,8 @@ export default function UploadPage() {
       setState('success');
     } catch (err) {
       console.error(err);
-      setError('حدث خطأ أثناء الرفع. تحقق من اتصالك بالإنترنت وحاول مجدداً.');
+      const msg = err instanceof Error ? err.message : JSON.stringify(err);
+      setError(`خطأ: ${msg}`);
       setState('form');
     }
   };
