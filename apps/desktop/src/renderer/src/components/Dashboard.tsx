@@ -512,8 +512,11 @@ export function Dashboard(): JSX.Element {
           const row = payload.new as SupabaseRequestRow;
           if (row.source !== 'online') return;
           if (onlineQueue.some((r) => r.id === row.id)) return;
-          showToast(`طلب أونلاين جديد — ${row.ticket} — جارٍ التحميل...`);
+          showToast(`طلب أونلاين جديد — ${row.ticket}`);
+          // Wait for files to finish uploading before processing
+          await new Promise((res) => setTimeout(res, 5000));
           const entry = await processOnlineRequest(row);
+          if (entry.localFiles.length === 0) return;
           setOnlineQueue((prev) => {
             if (prev.some((r) => r.id === entry.id)) return prev;
             return [entry, ...prev];
