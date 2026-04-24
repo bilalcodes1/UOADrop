@@ -479,7 +479,7 @@ export function Dashboard(): JSX.Element {
         } catch { /* skip failed file */ }
       }
     }
-    await supabase.from('print_requests').delete().eq('id', row.id);
+    await supabase.from('print_requests').update({ status: 'received' }).eq('id', row.id);
     return { ...row, localFiles };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

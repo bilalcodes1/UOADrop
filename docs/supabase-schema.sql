@@ -60,9 +60,16 @@ DROP POLICY IF EXISTS "anon select own request" ON print_requests;
 DROP POLICY IF EXISTS "anon insert files"       ON request_files;
 DROP POLICY IF EXISTS "anon select files"       ON request_files;
 
--- الطالب يقدر يضيف طلب
+-- السماح للـ anon بإدراج طلب جديد (المصدر لازم يكون online)
 CREATE POLICY "anon insert requests"
   ON print_requests FOR INSERT TO anon
+  WITH CHECK (source = 'online');
+
+-- السماح للـ anon بتحديث حالة الطلب (لتغييره إلى received عند استلامه)
+DROP POLICY IF EXISTS "anon update online status" ON print_requests;
+CREATE POLICY "anon update online status"
+  ON print_requests FOR UPDATE TO anon
+  USING (source = 'online')
   WITH CHECK (source = 'online');
 
 -- الطالب يقدر يقرأ طلبه بالـ ticket فقط (للـ tracking لاحقاً)
