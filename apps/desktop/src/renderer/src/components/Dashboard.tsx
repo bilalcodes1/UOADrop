@@ -495,8 +495,9 @@ export function Dashboard(): JSX.Element {
         if (!data || data.length === 0) return;
         showToast(`${data.length} طلب أونلاين جديد — جارٍ التحميل...`);
         const entries = await Promise.all((data as SupabaseRequestRow[]).map(processOnlineRequest));
-        setOnlineQueue(entries);
-        showToast(`${entries.length} طلب أونلاين جاهز للطباعة`);
+        const valid = entries.filter((e) => e.localFiles.length > 0);
+        setOnlineQueue(valid);
+        if (valid.length > 0) showToast(`${valid.length} طلب أونلاين جاهز للطباعة`);
       });
   }, [processOnlineRequest]);
 
