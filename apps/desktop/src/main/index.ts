@@ -143,14 +143,23 @@ app.whenReady().then(() => {
       mainWindow.webContents.send('requests:changed', ev);
     }
 
-    // ── Native OS notification + sound on file-added ──
-    if (ev.reason !== 'file-added') return;
+    const isOfflineFileArrival = ev.reason === 'file-added';
+    const isOnlineRequestArrival = ev.reason === 'created' && ev.payload?.source === 'online';
+
+    if (!isOfflineFileArrival && !isOnlineRequestArrival) return;
+
     playSystemDing();
     if (!Notification.isSupported()) return;
+
+    const title = isOnlineRequestArrival ? 'UOADrop — طلب أونلاين جديد' : 'UOADrop — ملف جديد';
+    const body = isOnlineRequestArrival
+      ? 'تم استلام طلب أونلاين جديد — افتح اللوحة للطباعة.'
+      : 'تم استلام ملف جديد — افتح اللوحة للطباعة.';
+
     try {
       const n = new Notification({
-        title: 'UOADrop — ملف جديد',
-        body: 'تم استلام ملف جديد — افتح اللوحة للطباعة.',
+        title,
+        body,
         silent: true,
       });
       n.on('click', () => {

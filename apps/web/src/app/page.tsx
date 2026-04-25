@@ -2,8 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useCallback, useRef } from 'react';
-import { useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import styles from './page.module.css';
 
@@ -51,6 +50,7 @@ const ALLOWED_TYPES = [
 
 const MAX_FILES = 10;
 const TELEGRAM_BOT_USERNAME = 'UOADropBot';
+const FORM_PREFS_KEY = 'uoadrop:web:upload-form-prefs';
 
 const FILE_ICONS: Record<string, string> = {
   'application/pdf': '📄',
@@ -111,6 +111,47 @@ function settingsEqual(a: PrintSettings, b: PrintSettings): boolean {
   );
 }
 
+function clampOptionInt(value: unknown, min: number, max: number, fallback: number): number {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function readStoredFormPrefs(): {
+  studentName: string;
+  email: string;
+  notifyEmail: boolean;
+  notifyTelegram: boolean;
+  defaultSettings: PrintSettings;
+} | null {
+  try {
+    const raw = window.localStorage.getItem(FORM_PREFS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    return {
+      studentName: typeof parsed.studentName === 'string' ? parsed.studentName.trim().slice(0, 80) : '',
+      email: typeof parsed.email === 'string' ? parsed.email.trim().slice(0, 120) : '',
+      notifyEmail: Boolean(parsed.notifyEmail),
+      notifyTelegram: Boolean(parsed.notifyTelegram),
+      defaultSettings: {
+        copies: clampOptionInt((parsed as any)?.defaultSettings?.copies, 1, 10, DEFAULT_SETTINGS.copies),
+        color: Boolean((parsed as any)?.defaultSettings?.color),
+        doubleSided: Boolean((parsed as any)?.defaultSettings?.doubleSided),
+        pagesPerSheet: [1, 2, 4].includes(Number((parsed as any)?.defaultSettings?.pagesPerSheet))
+          ? Number((parsed as any)?.defaultSettings?.pagesPerSheet) as 1 | 2 | 4
+          : DEFAULT_SETTINGS.pagesPerSheet,
+        pageRange: typeof (parsed as any)?.defaultSettings?.pageRange === 'string'
+          ? String((parsed as any).defaultSettings.pageRange).slice(0, 40)
+          : DEFAULT_SETTINGS.pageRange,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function UploadPage() {
   const [state, setState] = useState<PageState>('form');
   const [name, setName] = useState('');
@@ -125,6 +166,34 @@ export default function UploadPage() {
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const stored = readStoredFormPrefs();
+    if (!stored) return;
+
+    setName(stored.studentName);
+    setEmail(stored.email);
+    setNotifyEmail(stored.notifyEmail);
+    setNotifyTelegram(stored.notifyTelegram);
+    setDefaultSettings(stored.defaultSettings);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        FORM_PREFS_KEY,
+        JSON.stringify({
+          studentName: name.trim().slice(0, 80),
+          email: email.trim().slice(0, 120),
+          notifyEmail,
+          notifyTelegram,
+          defaultSettings,
+        }),
+      );
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [name, email, notifyEmail, notifyTelegram, defaultSettings]);
 
   const addFiles = useCallback((incoming: File[]) => {
     const valid = incoming.filter(f => ALLOWED_TYPES.includes(f.type));
@@ -280,11 +349,6 @@ export default function UploadPage() {
 
   const resetForm = () => {
     setState('form');
-    setName('');
-    setEmail('');
-    setNotifyEmail(false);
-    setNotifyTelegram(false);
-    setDefaultSettings(DEFAULT_SETTINGS);
     setFiles([]);
     setSuccess(null);
     setError('');
