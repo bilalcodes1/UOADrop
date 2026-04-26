@@ -84,3 +84,8 @@ export function getNotifyServerUrl(): string {
   const runtimeConfig = getDesktopRuntimeConfig();
   return String(process.env.UOADROP_NOTIFY_SERVER_URL ?? runtimeConfig.notifyServerUrl ?? '').trim();
 }
+
+export function getWebBaseUrl(): string {
+  const runtimeConfig = getDesktopRuntimeConfig();
+  return String(process.env.UOADROP_WEB_BASE_URL ?? runtimeConfig.webBaseUrl ?? '').trim().replace(/\/$/, '');
+}

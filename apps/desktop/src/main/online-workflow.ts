@@ -12,6 +12,8 @@ import {
   setRequestWorkflowMeta,
 } from './db';
 import { emit as emitAppEvent } from './events';
+import { notifyEmailReceived } from './email-notify';
+import { notifyTelegramRequestReceived } from './telegram';
 
 type SupabaseRequestRow = {
   id: string;
@@ -377,6 +379,8 @@ async function importPendingRow(row: SupabaseRequestRow): Promise<PrintRequest |
 
     const finalRequest = getRequestById(row.id) ?? { ...imported, importState: 'cleanup_pending', sourceOfTruth: 'desktop', deskReceivedAt };
     emitAppEvent({ type: 'requests:changed', reason: 'created', requestId: finalRequest.id, payload: finalRequest });
+    if (finalRequest.telegramChatId) void notifyTelegramRequestReceived(finalRequest);
+    if (finalRequest.studentEmail) void notifyEmailReceived(finalRequest);
     return finalRequest;
   } finally {
     processingIds.delete(row.id);

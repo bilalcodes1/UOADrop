@@ -29,6 +29,7 @@ import { emit as emitAppEvent } from './events';
 import { downloadOnlineFileToRequestStore, repairOnlineRequestLocalFiles, syncOnlineRequestMirrorFromLocal } from './online-workflow';
 import { enqueueRequestPrint } from './print-queue';
 import { notifyTelegramReady } from './telegram';
+import { notifyEmailReady } from './email-notify';
 
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
 
@@ -88,8 +89,9 @@ export function registerIpcHandlers(): void {
     emitAppEvent({ type: 'requests:changed', reason: 'status', requestId: id });
     if (status === 'ready') {
       const req = getRequestById(id);
-      if (req && req.telegramChatId) {
-        void notifyTelegramReady(req);
+      if (req) {
+        if (req.telegramChatId) void notifyTelegramReady(req);
+        if (req.studentEmail) void notifyEmailReady(req);
       }
     }
     return res;
