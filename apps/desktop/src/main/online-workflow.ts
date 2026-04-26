@@ -2,7 +2,7 @@ import { app } from 'electron';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import type { PrintRequest } from '@uoadrop/shared';
 import { getSupabaseRuntimeConfig, hasProductionServiceRoleKey } from './runtime-config';
 import {
@@ -11,6 +11,7 @@ import {
   logRequestEvent,
   setRequestWorkflowMeta,
 } from './db';
+import { countFilePages } from './page-counter';
 import { emit as emitAppEvent } from './events';
 import { notifyEmailReceived } from './email-notify';
 import { notifyTelegramRequestReceived } from './telegram';
@@ -71,6 +72,7 @@ type ImportedLocalFile = {
   localPath: string;
   sha256: string;
   magicByteVerified: boolean;
+  pages?: number;
   options: {
     copies: number;
     color: boolean;
@@ -250,6 +252,9 @@ async function prepareLocalFiles(requestId: string, files: SupabaseFileRow[]): P
     const buffer = await readFile(localPath);
     const sha256 = createHash('sha256').update(buffer).digest('hex');
 
+    const ext = extname(file.filename || localPath).toLowerCase();
+    const pages = await countFilePages(localPath, ext);
+
     localFiles.push({
       filename: file.filename,
       mimeType: file.mime_type ?? 'application/octet-stream',
@@ -257,6 +262,7 @@ async function prepareLocalFiles(requestId: string, files: SupabaseFileRow[]): P
       localPath,
       sha256,
       magicByteVerified: false,
+      pages,
       options: {
         copies: file.copies,
         color: file.color,
