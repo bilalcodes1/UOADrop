@@ -60,3 +60,6 @@ coverage/
 *.p12
 apps/desktop/resources/runtime-config.json
 apps/desktop/release/runtime-config.json
+
+# Archives
+*.tgz
