@@ -120,7 +120,6 @@ export async function notifyTelegramReady(request: PrintRequest): Promise<void> 
         `مرحباً ${formatStudentName(request)}`,
         buildTicketLine(request),
         priceLine,
-        request.pickupPin ? `PIN الاستلام: ${request.pickupPin}` : '',
         `يرجى مراجعة المكتبة لاستلام الطلب.`,
       ].filter(Boolean).join('\n'),
     );
