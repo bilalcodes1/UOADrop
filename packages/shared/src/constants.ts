@@ -7,10 +7,8 @@ export const DESKTOP_LAN_IP = '192.168.50.10';
 export const DESKTOP_PORT = 3737;
 export const DESKTOP_MDNS = 'uoadrop.local';
 
-// PIN policy
-export const PIN_LENGTH = 6;
-export const PIN_MAX_ATTEMPTS = 5;           // per request
-export const PIN_CUMULATIVE_MAX = 20;        // per student/day across requests
+// Librarian PIN policy
+export const PIN_MAX_ATTEMPTS = 5;
 export const PIN_LOCKOUT_MINUTES = 30;
 export const PIN_BCRYPT_ROUNDS = 12;
 

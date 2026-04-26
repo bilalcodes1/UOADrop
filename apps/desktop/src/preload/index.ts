@@ -74,8 +74,8 @@ export const api = {
   repairOnlineFiles: (id: string): Promise<{ ok: boolean; request?: PrintRequest; error?: string; repairedFiles?: number }> =>
     ipcRenderer.invoke('requests:repairOnlineFiles', id),
 
-  completeRequestPickup: (id: string, pin: string): Promise<{ ok: boolean; request?: PrintRequest; error?: string; locked?: boolean; remaining?: number; lockoutMinutes?: number }> =>
-    ipcRenderer.invoke('requests:completePickup', id, pin),
+  markRequestDone: (id: string): Promise<{ ok: boolean; request?: PrintRequest; error?: string }> =>
+    ipcRenderer.invoke('requests:markDone', id),
 
   deleteRequest: (id: string): Promise<{ deletedFiles: number }> =>
     ipcRenderer.invoke('requests:delete', id),

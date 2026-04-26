@@ -1683,11 +1683,7 @@
                 <div class="val" id="ticketVal"></div>
                 <button class="copy-btn" onclick="copyVal('ticketVal')">نسخ رقم التذكرة</button>
               </div>
-              <div class="ticket-box">
-                <h3>رمز الاستلام</h3>
-                <div class="val" id="pinVal"></div>
-                <button class="copy-btn" onclick="copyVal('pinVal')">نسخ رمز الاستلام</button>
-              </div>
+              
             </div>
 
             <div class="request-insights">
@@ -1879,7 +1875,7 @@
         ready: {
           badge: 'جاهز للاستلام',
           title: 'الطلب جاهز الآن',
-          text: 'يمكنك مراجعة المكتبة مع رقم التذكرة ورمز الاستلام لإتمام الاستلام.',
+          text: 'يمكنك مراجعة المكتبة مع رقم التذكرة لإتمام الاستلام.',
         },
         done: {
           badge: 'تم التسليم',
@@ -2112,7 +2108,7 @@
         const steps = [
           {
             label: 'تسجيل الطلب',
-            text: 'تم إنشاء رقم التذكرة ورمز الاستلام الخاصين بطلبك.',
+            text: 'تم إنشاء رقم التذكرة الخاص بطلبك.',
             state: 'done',
           },
           {
@@ -2529,7 +2525,6 @@
           }
 
           document.getElementById('ticketVal').textContent = created.request.ticket;
-          document.getElementById('pinVal').textContent = created.pin;
           showTrackingScreen();
           const immediateRequest = latestUploadedRequest || created.request || null;
           renderRequestStatus(immediateRequest && immediateRequest.status ? immediateRequest.status : 'pending', queue.length, queue.length, immediateRequest ? immediateRequest.updatedAt : null, immediateRequest);

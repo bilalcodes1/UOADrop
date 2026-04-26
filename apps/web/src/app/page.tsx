@@ -22,7 +22,6 @@ type PageState = 'form' | 'uploading' | 'success';
 
 type SuccessInfo = {
   ticket: string;
-  pin: string;
   requestId: string;
   warning?: string;
   telegramEnabled?: boolean;
@@ -52,19 +51,6 @@ function generateTicket(): string {
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-function generatePin(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-async function hashPin(pin: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
-  const saltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-  const data = encoder.encode(pin + saltHex);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-  return `sha256:${saltHex}:${hashHex}`;
-}
 
 function formatFileSize(bytes: number): string {
   const mb = bytes / 1024 / 1024;
@@ -243,13 +229,10 @@ export default function UploadPage() {
 
     try {
       const ticket = generateTicket();
-      const pin = generatePin();
-      const pinHash = await hashPin(pin);
       const rawBaseRequestPayload = {
         ticket,
         student_name: name.trim(),
         student_email: emailForNotifications || null,
-        pickup_pin_hash: pinHash,
         status: 'uploading',
         source: 'online',
       };
@@ -353,7 +336,6 @@ export default function UploadPage() {
 
       setSuccess({
         ticket,
-        pin,
         requestId,
         warning: warning || undefined,
         telegramEnabled: notifyTelegram,
@@ -414,7 +396,7 @@ export default function UploadPage() {
 
               <div className={styles.heroPills}>
                 <span className={styles.heroPill}>مصدر الطلب: أونلاين</span>
-                <span className={styles.heroPill}>التذكرة وPIN يظهران بعد الإرسال</span>
+                <span className={styles.heroPill}>التذكرة تظهر بعد الإرسال</span>
                 <span className={styles.heroPill}>PDF · Office · صور</span>
               </div>
             </div>
@@ -428,7 +410,6 @@ export default function UploadPage() {
             ) : state === 'success' && success ? (
               <SuccessPanel
                 ticket={success.ticket}
-                pin={success.pin}
                 requestId={success.requestId}
                 warning={success.warning}
                 telegramEnabled={success.telegramEnabled}
@@ -693,7 +674,7 @@ export default function UploadPage() {
                     >
                       إرسال الطلب إلى المكتبة
                     </button>
-                    <p className={styles.footerNote}>بعد الإرسال ستظهر لك التذكرة ورمز الاستلام مباشرة، مع تتبع حي للحالة داخل صفحة النجاح.</p>
+                    <p className={styles.footerNote}>بعد الإرسال ستظهر لك التذكرة مباشرة، مع تتبع حي للحالة داخل صفحة النجاح.</p>
                   </div>
                 </div>
               </>
@@ -762,20 +743,18 @@ function UploadingScreen({
 
 function SuccessPanel({
   ticket,
-  pin,
   requestId,
   warning,
   telegramEnabled,
   onNew,
 }: {
   ticket: string;
-  pin: string;
   requestId: string;
   warning?: string;
   telegramEnabled?: boolean;
   onNew: () => void;
 }) {
-  const [copiedField, setCopiedField] = useState<'ticket' | 'pin' | null>(null);
+  const [copiedField, setCopiedField] = useState<'ticket' | null>(null);
   const [status, setStatus] = useState<string>('pending');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date>(new Date());
   const [totalPages, setTotalPages] = useState<number>(0);
@@ -801,7 +780,7 @@ function SuccessPanel({
     ready: {
       badge: 'جاهز للاستلام',
       title: 'الطلب جاهز الآن',
-      text: 'يمكنك مراجعة المكتبة مع رقم التذكرة ورمز الاستلام لإتمام الاستلام.',
+      text: 'يمكنك مراجعة المكتبة مع رقم التذكرة لإتمام الاستلام.',
     },
     done: {
       badge: 'تم التسليم',
@@ -927,7 +906,7 @@ function SuccessPanel({
     const intro = [
       {
         label: 'تسجيل الطلب',
-        text: 'تم إنشاء رقم التذكرة ورمز الاستلام الخاصين بطلبك.',
+        text: 'تم إنشاء رقم التذكرة الخاص بطلبك.',
         state: 'done' as const,
         readyStep: false,
       },
@@ -1000,7 +979,7 @@ function SuccessPanel({
     return [...intro, ...derived];
   })();
 
-  const copyValue = async (value: string, field: 'ticket' | 'pin') => {
+  const copyValue = async (value: string, field: 'ticket') => {
     await navigator.clipboard.writeText(value);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
@@ -1059,16 +1038,6 @@ function SuccessPanel({
           </button>
         </div>
 
-        <div className={styles.pinBox}>
-          <span className={styles.pinLabel}>رمز الاستلام</span>
-          <span className={styles.pinCode} dir="ltr">{pin}</span>
-          <button className={styles.copyBtn} onClick={() => void copyValue(pin, 'pin')}>
-            {copiedField === 'pin' ? '✓ تم نسخ الـ PIN' : 'نسخ رمز الاستلام'}
-          </button>
-          <p className={styles.pinNote}>
-            أبقِ هذا الرمز سرياً — ستُطلب منك إدخاله عند استلام طباعتك
-          </p>
-        </div>
       </div>
 
       <div className={styles.requestInsights}>

@@ -41,7 +41,7 @@ declare global {
       setRequestFileOptions: (fileId: string, options: RequestFile['options']) => Promise<{ ok: true }>;
       queueRequestPrint: (id: string) => Promise<{ ok: boolean; error?: string; hint?: string }>;
       repairOnlineFiles: (id: string) => Promise<{ ok: boolean; request?: PrintRequest; error?: string; repairedFiles?: number }>;
-      completeRequestPickup: (id: string, pin: string) => Promise<{ ok: boolean; request?: PrintRequest; error?: string; locked?: boolean; remaining?: number; lockoutMinutes?: number }>;
+      markRequestDone: (id: string) => Promise<{ ok: boolean; request?: PrintRequest; error?: string }>;
       deleteRequest: (id: string) => Promise<{ deletedFiles: number }>;
       addFileToRequest: (requestId: string, filePath: string) => Promise<RequestFile>;
       openFile: (filePath: string) => Promise<{ ok: boolean; error?: string }>;

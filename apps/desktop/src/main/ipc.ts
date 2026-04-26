@@ -6,7 +6,7 @@ import type { OnlineImportState, PrinterStatus, RequestEvent, RequestSourceOfTru
 import { PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
 import {
   addRequestFile,
-  completeRequestPickup,
+  markRequestDone,
   deleteRequest,
   ensureLibrarianPin,
   getRequestById,
@@ -143,8 +143,8 @@ export function registerIpcHandlers(): void {
     return repairOnlineRequestLocalFiles(id);
   });
 
-  ipcMain.handle('requests:completePickup', async (_e, id: string, pin: string) => {
-    const res = completeRequestPickup(id, pin);
+  ipcMain.handle('requests:markDone', async (_e, id: string) => {
+    const res = markRequestDone(id);
     await syncOnlineMirrorIfNeeded(id);
     emitAppEvent({ type: 'requests:changed', reason: 'picked-up', requestId: id, payload: res.request });
     return res;

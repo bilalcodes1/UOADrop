@@ -660,23 +660,12 @@ export function Dashboard(): JSX.Element {
       showToast('لا يمكن تسليم الطلب قبل أن يصبح جاهزاً');
       return;
     }
-    const pin = window.prompt(`أدخل رمز الاستلام للطلب ${req.ticket}`)?.trim() ?? '';
-    if (!pin) return;
 
     setBusy(req.id);
     try {
-      const result = await window.api.completeRequestPickup(req.id, pin);
+      const result = await window.api.markRequestDone(req.id);
       if (!result.ok || !result.request) {
-        if (result.error === 'pickup_locked' || result.locked) {
-          showToast(`تم تجميد التسليم مؤقتاً لهذا الطلب لمدة ${result.lockoutMinutes ?? 30} دقيقة`);
-        } else if (result.error === 'invalid_pin') {
-          const remainingLabel = typeof result.remaining === 'number'
-            ? ` — المتبقي ${result.remaining.toLocaleString('ar-IQ')} محاولات`
-            : '';
-          showToast(`رمز الاستلام غير صحيح${remainingLabel}`);
-        } else {
-          showToast('تعذر إتمام التسليم');
-        }
+        showToast('تعذر إتمام التسليم');
         return;
       }
 
@@ -1353,10 +1342,7 @@ export function Dashboard(): JSX.Element {
               </div>
 
               <div className="meta-grid">
-                <span className="meta-pill meta-pill-code">
-                  <span>رمز الاستلام:</span>
-                  <strong dir="ltr">{req.pickupPin ?? 'غير متاح'}</strong>
-                </span>
+                
                 <span className="meta-pill">عدد الصفحات: {formatPages(req.totalPages)}</span>
                 <span className="meta-pill">{formatSourceOfTruthLabel(req)}</span>
                 {req.source === 'online' && <span className="meta-pill">{formatImportStateLabel(req)}</span>}

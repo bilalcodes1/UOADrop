@@ -6,7 +6,7 @@ export type RequestStatus =
   | 'ready'     // printed, waiting for student pickup
   | 'done'      // picked up
   | 'canceled'  // student canceled
-  | 'blocked';  // PIN lockout or abuse
+  | 'blocked';  // abuse
 
 export type RequestSourceOfTruth = 'supabase_intake' | 'desktop';
 
@@ -31,8 +31,6 @@ export type RequestEventType =
   | 'print_failed'
   | 'print_recovered'
   | 'ready'
-  | 'pickup_pin_failed'
-  | 'pickup_pin_locked'
   | 'picked_up'
   | 'deleted'
   | 'status_changed'
@@ -53,8 +51,6 @@ export type PrintRequest = {
   studentName?: string;
   studentEmail?: string;
   telegramChatId?: string;
-  pickupPin?: string;
-  pinHash: string;       // bcrypt hash
   status: RequestStatus;
   options: PrintOptions;
   totalPages: number;

@@ -14,8 +14,6 @@ import {
   ALLOWED_MIME_TYPES,
   MAX_FILE_SIZE_MB,
   MAX_FILES_PER_REQUEST,
-  PIN_LOCKOUT_MINUTES,
-  PIN_MAX_ATTEMPTS,
   detectMagic,
   isAllowedExtension,
   isAllowedMime,
@@ -35,12 +33,9 @@ import {
   listStoredFilesForPageRecount,
   purgeLegacySeedData,
   purgeOldPinAttempts,
-  recentFailedPinAttempts,
-  recordPinAttempt,
   recalcRequestPages,
   setRequestFilePages,
   setRequestStatus,
-  verifyStudentPinByTicket,
 } from './db';
 import { countFilePages } from './page-counter';
 import {
@@ -393,53 +388,6 @@ export async function startLocalServer(): Promise<{ port: number }> {
       filesDone: files.length,
     });
   });
-
-  server.post(
-    '/api/verify-pin',
-    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
-    async (req: any, reply: any) => {
-      const body = (req.body ?? {}) as { ticket?: string; pin?: string };
-      const ticket = String(body.ticket ?? '').trim().toUpperCase().slice(0, 8);
-      const pin = String(body.pin ?? '').trim();
-
-      if (!ticket || !pin) {
-        return reply.code(400).send({ ok: false, error: 'missing ticket or pin' });
-      }
-
-      const scope = `student:${ticket}`;
-      const windowMs = PIN_LOCKOUT_MINUTES * 60 * 1000;
-      const failures = recentFailedPinAttempts(scope, windowMs);
-      if (failures >= PIN_MAX_ATTEMPTS) {
-        return reply.code(429).send({
-          ok: false,
-          locked: true,
-          remaining: 0,
-          lockoutMinutes: PIN_LOCKOUT_MINUTES,
-          hint: `تم تجميد التحقق لهذه التذكرة لمدة ${PIN_LOCKOUT_MINUTES} دقيقة`,
-        });
-      }
-
-      const res = verifyStudentPinByTicket(ticket, pin);
-      recordPinAttempt(scope, res.ok);
-      const remaining = Math.max(0, PIN_MAX_ATTEMPTS - (res.ok ? 0 : failures + 1));
-
-      if (!res.ok) {
-        return reply.code(401).send({
-          ok: false,
-          locked: false,
-          remaining,
-          hint: res.requestId ? 'PIN خاطئ' : 'التذكرة غير موجودة',
-        });
-      }
-
-      return {
-        ok: true,
-        remaining,
-        requestId: res.requestId,
-        status: res.status,
-      };
-    },
-  );
 
   server.post('/requests/:id/status', async (req: any, reply: any) => {
     const { id } = req.params as { id: string };

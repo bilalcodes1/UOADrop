@@ -21,7 +21,6 @@ type SupabaseRequestRow = {
   ticket: string;
   student_name: string | null;
   student_email: string | null;
-  pickup_pin_hash: string | null;
   status: string;
   price_iqd: number;
   total_pages: number;
@@ -334,7 +333,6 @@ async function importPendingRow(row: SupabaseRequestRow): Promise<PrintRequest |
         id: row.id,
         ticket: row.ticket,
         studentName: row.student_name,
-        pinHash: row.pickup_pin_hash,
         status: 'pending',
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -418,7 +416,6 @@ export async function repairOnlineRequestLocalFiles(requestId: string): Promise<
       id: current.id,
       ticket: current.ticket,
       studentName: current.studentName ?? remoteRow.student_name,
-      pinHash: current.pinHash || remoteRow.pickup_pin_hash,
       status: current.status,
       createdAt: current.createdAt,
       updatedAt: new Date().toISOString(),

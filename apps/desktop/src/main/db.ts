@@ -12,7 +12,7 @@ import type {
   RequestSourceOfTruth,
   RequestStatus,
 } from '@uoadrop/shared';
-import { PIN_BCRYPT_ROUNDS, PIN_LENGTH, PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
+import { PIN_BCRYPT_ROUNDS, PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
 import bcrypt from 'bcryptjs';
 
 let db: Database.Database | null = null;
@@ -397,8 +397,6 @@ function buildPrintRequest(row: RequestRow): PrintRequest {
     studentName: row.student_name ?? undefined,
     studentEmail: row.student_email ?? undefined,
     telegramChatId: row.telegram_chat_id ?? undefined,
-    pickupPin: row.pickup_pin ?? undefined,
-    pinHash: row.pin_hash,
     status: row.status,
     options: normalizePrintOptions(parsePrintOptionsJson(row.options_json)),
     totalPages: row.total_pages,
@@ -471,21 +469,6 @@ export function listRequestEvents(requestId: string, limit = 50): RequestEvent[]
   }));
 }
 
-function matchesStoredPinHash(pin: string, storedHash: string): boolean {
-  if (!storedHash) return false;
-  if (storedHash.startsWith('sha256:')) {
-    const [, saltHex = '', hashHex = ''] = storedHash.split(':');
-    if (!saltHex || !hashHex) return false;
-    const digest = createHash('sha256').update(pin + saltHex).digest('hex');
-    return digest === hashHex;
-  }
-  try {
-    return bcrypt.compareSync(pin, storedHash);
-  } catch {
-    return false;
-  }
-}
-
 function getSetting(key: string): string | null {
   const d = getDb();
   const row = d.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
@@ -503,6 +486,12 @@ function setSetting(key: string, value: string): void {
 
 const LIBRARIAN_PIN_KEY = 'librarian_pin_hash';
 
+function generateLibrarianPin(): string {
+  let out = '';
+  for (let i = 0; i < 6; i++) out += Math.floor(Math.random() * 10).toString();
+  return out;
+}
+
 export function ensureLibrarianPin(): { generatedPin: string | null } {
   // If env override is set, trust it and mirror into settings.
   const envHash = process.env.LIBRARIAN_PIN_HASH;
@@ -514,7 +503,7 @@ export function ensureLibrarianPin(): { generatedPin: string | null } {
   const existing = getSetting(LIBRARIAN_PIN_KEY);
   if (existing) return { generatedPin: null };
 
-  const pin = generatePin();
+  const pin = generateLibrarianPin();
   const hash = bcrypt.hashSync(pin, PIN_BCRYPT_ROUNDS);
   setSetting(LIBRARIAN_PIN_KEY, hash);
   return { generatedPin: pin };
@@ -533,19 +522,6 @@ export function recordPinAttempt(scope: string, ok: boolean): void {
     ok ? 1 : 0,
     new Date().toISOString(),
   );
-}
-
-export function verifyStudentPinByTicket(
-  ticket: string,
-  pin: string,
-): { ok: boolean; requestId: string | null; status: RequestStatus | null } {
-  const d = getDb();
-  const row = d
-    .prepare('SELECT id, pin_hash, status FROM print_requests WHERE ticket = ?')
-    .get(ticket) as { id: string; pin_hash: string; status: RequestStatus } | undefined;
-  if (!row) return { ok: false, requestId: null, status: null };
-  const ok = matchesStoredPinHash(pin, row.pin_hash);
-  return { ok, requestId: row.id, status: row.status };
 }
 
 export function recentFailedPinAttempts(scope: string, withinMs: number): number {
@@ -571,18 +547,12 @@ function generateTicket(): string {
   return out;
 }
 
-function generatePin(): string {
-  let out = '';
-  for (let i = 0; i < PIN_LENGTH; i++) out += Math.floor(Math.random() * 10).toString();
-  return out;
-}
-
 export function createRequest(args: {
   studentName: string;
   options: PrintRequest['options'];
   totalPages: number;
   priceIqd: number;
-}): { request: PrintRequest; pin: string } {
+}): { request: PrintRequest } {
   const d = getDb();
   const now = new Date().toISOString();
   const id = randomUUID();
@@ -594,9 +564,6 @@ export function createRequest(args: {
     if (!exists.get(ticket)) break;
     ticket = generateTicket();
   }
-
-  const pin = generatePin();
-  const pinHash = bcrypt.hashSync(pin, PIN_BCRYPT_ROUNDS);
 
   const normalizedOptions = normalizePrintOptions(args.options);
   const optionsJson = JSON.stringify(normalizedOptions);
@@ -613,8 +580,8 @@ export function createRequest(args: {
     ticket,
     args.studentName ?? null,
     'local',
-    pin,
-    pinHash,
+    null,
+    '',
     status,
     optionsJson,
     args.totalPages,
@@ -635,8 +602,6 @@ export function createRequest(args: {
     ticket,
     source: 'local',
     studentName: args.studentName,
-    pickupPin: pin,
-    pinHash,
     status,
     options: normalizedOptions,
     totalPages: args.totalPages,
@@ -656,7 +621,7 @@ export function createRequest(args: {
     details: { source: 'local' },
   });
 
-  return { request, pin };
+  return { request };
 }
 
 export function existsRequestFileBySha256(requestId: string, sha256: string): boolean {
@@ -802,7 +767,6 @@ export function importOnlineRequest(args: {
     id: string;
     ticket: string;
     studentName?: string | null;
-    pinHash?: string | null;
     status: RequestStatus;
     createdAt: string;
     updatedAt: string;
@@ -855,7 +819,7 @@ export function importOnlineRequest(args: {
     args.request.studentName ?? null,
     'online',
     null,
-    args.request.pinHash ?? '',
+    '',
     args.request.status,
     optionsJson,
     args.request.totalPages ?? 0,
@@ -1046,58 +1010,14 @@ export function setRequestWorkflowMeta(args: {
   return { ok: true };
 }
 
-export function completeRequestPickup(id: string, pin: string): {
+export function markRequestDone(id: string): {
   ok: boolean;
   request?: PrintRequest;
   error?: string;
-  locked?: boolean;
-  remaining?: number;
-  lockoutMinutes?: number;
 } {
   const request = getRequestById(id);
   if (!request) return { ok: false, error: 'not_found' };
   if (request.status !== 'ready') return { ok: false, error: 'invalid_status' };
-  const scope = `pickup:${id}`;
-  const windowMs = PIN_LOCKOUT_MINUTES * 60 * 1000;
-  const failures = recentFailedPinAttempts(scope, windowMs);
-  if (failures >= PIN_MAX_ATTEMPTS) {
-    logRequestEvent({
-      requestId: id,
-      type: 'pickup_pin_locked',
-      actor: 'librarian',
-      status: request.status,
-      details: { failures, lockoutMinutes: PIN_LOCKOUT_MINUTES },
-    });
-    return {
-      ok: false,
-      error: 'pickup_locked',
-      locked: true,
-      remaining: 0,
-      lockoutMinutes: PIN_LOCKOUT_MINUTES,
-    };
-  }
-
-  const pinOk = matchesStoredPinHash(pin.trim(), request.pinHash);
-  recordPinAttempt(scope, pinOk);
-  if (!pinOk) {
-    const nextFailures = failures + 1;
-    const remaining = Math.max(0, PIN_MAX_ATTEMPTS - nextFailures);
-    const locked = nextFailures >= PIN_MAX_ATTEMPTS;
-    logRequestEvent({
-      requestId: id,
-      type: locked ? 'pickup_pin_locked' : 'pickup_pin_failed',
-      actor: 'librarian',
-      status: request.status,
-      details: { remaining, failures: nextFailures, lockoutMinutes: locked ? PIN_LOCKOUT_MINUTES : undefined },
-    });
-    return {
-      ok: false,
-      error: locked ? 'pickup_locked' : 'invalid_pin',
-      locked,
-      remaining,
-      ...(locked ? { lockoutMinutes: PIN_LOCKOUT_MINUTES } : {}),
-    };
-  }
 
   const now = new Date().toISOString();
   const d = getDb();
@@ -1112,7 +1032,7 @@ export function completeRequestPickup(id: string, pin: string): {
     actor: 'librarian',
     status: 'done',
   });
-  return { ok: true, request: getRequestById(id)!, remaining: PIN_MAX_ATTEMPTS };
+  return { ok: true, request: getRequestById(id)! };
 }
 
 export function addRequestFile(args: {
