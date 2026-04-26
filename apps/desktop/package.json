@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "UOADrop librarian Electron app (dashboard + local server + printing)",
+  "author": "Bilal <asel64152@icloud.com>",
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -12,16 +13,17 @@
     "typecheck": "tsc --build --noEmit",
     "clean": "rm -rf dist dist-electron release .turbo tsconfig.*.tsbuildinfo",
     "electron:rebuild": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "electron-rebuild -f -w better-sqlite3 || true"
+    "postinstall": "electron-builder install-app-deps",
+    "runtime-config:write": "node ./scripts/write-runtime-config.mjs",
+    "pack": "pnpm build && electron-builder --dir",
+    "dist:mac": "pnpm build && electron-builder --mac dmg zip",
+    "dist:win": "pnpm build && electron-builder --win nsis portable"
   },
   "dependencies": {
     "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/websocket": "^11.2.0",
     "@supabase/supabase-js": "^2.104.1",
-    "@uoadrop/db-schema": "workspace:*",
-    "@uoadrop/shared": "workspace:*",
-    "@uoadrop/ui": "workspace:*",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.10.0",
     "fastify": "^5.8.5",
@@ -41,15 +43,50 @@
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8",
     "electron-vite": "^3.1.0",
+    "@uoadrop/db-schema": "workspace:*",
+    "@uoadrop/shared": "workspace:*",
+    "@uoadrop/ui": "workspace:*",
     "typescript": "^5.7",
     "vite": "^6.4.2"
   },
   "build": {
+    "appId": "iq.uoadrop.desktop",
+    "productName": "UOADrop",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
     "extraResources": [
       {
         "from": "resources",
         "to": "resources"
       }
-    ]
+    ],
+    "mac": {
+      "identity": null,
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

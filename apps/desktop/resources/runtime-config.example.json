@@ -1,0 +1,7 @@
+{
+  "supabaseUrl": "https://your-project.supabase.co",
+  "supabaseAnonKey": "your-anon-key",
+  "supabaseServiceRoleKey": "your-service-role-key",
+  "notifyServerUrl": "https://your-web.app/api/notify/telegram",
+  "webBaseUrl": "https://your-web.app"
+}

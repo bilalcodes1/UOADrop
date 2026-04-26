@@ -1,14 +1,18 @@
-import { ipcMain, BrowserWindow, shell, dialog, app } from 'electron';
-import { basename, join } from 'node:path';
-import { stat, writeFile, mkdir } from 'node:fs/promises';
+import { ipcMain, BrowserWindow, shell, dialog } from 'electron';
+import { basename } from 'node:path';
+import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import type { PrinterStatus } from '@uoadrop/shared';
+import type { OnlineImportState, PrinterStatus, RequestEvent, RequestSourceOfTruth } from '@uoadrop/shared';
 import { PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
 import {
   addRequestFile,
+  completeRequestPickup,
   deleteRequest,
   ensureLibrarianPin,
+  getRequestById,
+  importOnlineRequest,
   listPrinterEvents,
+  listRequestEvents,
   listRequestFiles,
   listRequests,
   listRequestsPaged,
@@ -17,12 +21,22 @@ import {
   setRequestFileOptions,
   setRequestPrice,
   setRequestStatus,
+  setRequestWorkflowMeta,
   verifyLibrarianPin,
 } from './db';
 import { getCachedPrinterStatus } from './printer';
 import { emit as emitAppEvent } from './events';
+import { downloadOnlineFileToRequestStore, repairOnlineRequestLocalFiles, syncOnlineRequestMirrorFromLocal } from './online-workflow';
+import { enqueueRequestPrint } from './print-queue';
+import { notifyTelegramReady } from './telegram';
 
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
+
+async function syncOnlineMirrorIfNeeded(requestId: string): Promise<void> {
+  const request = getRequestById(requestId);
+  if (!request || request.source !== 'online') return;
+  await syncOnlineRequestMirrorFromLocal(requestId);
+}
 
 export function registerIpcHandlers(): void {
   // Ensure librarian PIN exists; log generated PIN for dev only
@@ -70,20 +84,67 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('requests:setStatus', async (_e, id: string, status: string) => {
     const res = setRequestStatus(id, status as any);
+    await syncOnlineMirrorIfNeeded(id);
     emitAppEvent({ type: 'requests:changed', reason: 'status', requestId: id });
+    if (status === 'ready') {
+      const req = getRequestById(id);
+      if (req && req.telegramChatId) {
+        void notifyTelegramReady(req);
+      }
+    }
     return res;
   });
   ipcMain.handle('requests:setPrice', async (_e, id: string, priceIqd: number) => {
     const res = setRequestPrice(id, priceIqd);
+    await syncOnlineMirrorIfNeeded(id);
     emitAppEvent({ type: 'requests:changed', reason: 'price', requestId: id });
     return res;
   });
+  ipcMain.handle(
+    'requests:setWorkflowMeta',
+    async (
+      _e,
+      args: {
+        id: string;
+        sourceOfTruth?: RequestSourceOfTruth;
+        importState?: OnlineImportState | null;
+        deskReceivedAt?: string | null;
+        printedAt?: string | null;
+        pickedUpAt?: string | null;
+        finalPriceConfirmedAt?: string | null;
+        onlineFilesCleanupAt?: string | null;
+      },
+    ) => {
+      const res = setRequestWorkflowMeta(args);
+      await syncOnlineMirrorIfNeeded(args.id);
+      emitAppEvent({ type: 'requests:changed', reason: 'workflow-meta', requestId: args.id });
+      return res;
+    },
+  );
   ipcMain.handle('requests:files', async (_e, requestId: string) => ({
     items: listRequestFiles(requestId),
+  }));
+  ipcMain.handle('requests:events', async (_e, requestId: string, limit?: number): Promise<{ items: RequestEvent[] }> => ({
+    items: listRequestEvents(requestId, typeof limit === 'number' ? limit : 50),
   }));
 
   ipcMain.handle('requests:setFileOptions', async (_e, fileId: string, options: unknown) => {
     const res = setRequestFileOptions(fileId, (options ?? {}) as any);
+    return res;
+  });
+
+  ipcMain.handle('requests:queuePrint', async (_e, id: string) => {
+    return enqueueRequestPrint(id);
+  });
+
+  ipcMain.handle('requests:repairOnlineFiles', async (_e, id: string) => {
+    return repairOnlineRequestLocalFiles(id);
+  });
+
+  ipcMain.handle('requests:completePickup', async (_e, id: string, pin: string) => {
+    const res = completeRequestPickup(id, pin);
+    await syncOnlineMirrorIfNeeded(id);
+    emitAppEvent({ type: 'requests:changed', reason: 'picked-up', requestId: id, payload: res.request });
     return res;
   });
 
@@ -107,8 +168,72 @@ export function registerIpcHandlers(): void {
       sha256,
       magicByteVerified: false,
     });
-    emitAppEvent({ type: 'requests:changed', reason: 'file-added', requestId });
+    emitAppEvent({ type: 'requests:changed', reason: 'file-added', requestId, payload: getRequestById(requestId) ?? undefined, file: res });
     return res;
+  });
+
+  ipcMain.handle('requests:importOnline', async (_e, args: {
+    request: {
+      id: string;
+      ticket: string;
+      studentName?: string | null;
+      pinHash?: string | null;
+      status: string;
+      createdAt: string;
+      updatedAt: string;
+      priceIqd?: number;
+      options?: Record<string, unknown>;
+      totalPages?: number;
+    };
+    files: Array<{
+      filename: string;
+      mimeType: string;
+      sizeBytes: number;
+      localPath: string;
+      options?: Record<string, unknown>;
+    }>;
+  }) => {
+    const preparedFiles = [] as Array<{
+      filename: string;
+      mimeType: string;
+      sizeBytes: number;
+      localPath: string;
+      sha256: string;
+      magicByteVerified: boolean;
+      options?: Record<string, unknown>;
+    }>;
+
+    for (const file of args.files ?? []) {
+      const buf = await (await import('node:fs/promises')).readFile(file.localPath);
+      preparedFiles.push({
+        filename: file.filename,
+        mimeType: file.mimeType,
+        sizeBytes: file.sizeBytes,
+        localPath: file.localPath,
+        sha256: createHash('sha256').update(buf).digest('hex'),
+        magicByteVerified: false,
+        options: file.options,
+      });
+    }
+
+    const request = importOnlineRequest({
+      request: {
+        id: args.request.id,
+        ticket: args.request.ticket,
+        studentName: args.request.studentName,
+        pinHash: args.request.pinHash,
+        status: args.request.status as any,
+        createdAt: args.request.createdAt,
+        updatedAt: args.request.updatedAt,
+        priceIqd: args.request.priceIqd,
+        options: args.request.options as any,
+        totalPages: args.request.totalPages,
+      },
+      files: preparedFiles,
+    });
+
+    emitAppEvent({ type: 'requests:changed', reason: 'created', requestId: request.id, payload: request });
+    return { request };
   });
 
   // ─────────────────────────────────────────
@@ -173,16 +298,13 @@ export function registerIpcHandlers(): void {
   // ─────────────────────────────────────────
   // online:downloadFile — download a Supabase signed URL to local temp dir
   // ─────────────────────────────────────────
-  ipcMain.handle('online:downloadFile', async (_e, url: string, filename: string): Promise<string> => {
-    const tmpDir = join(app.getPath('temp'), 'uoadrop-online');
-    await mkdir(tmpDir, { recursive: true });
-    const safe = filename.replace(/\s+/g, '_').replace(/[^\w.\-]/g, '_');
-    const dest = join(tmpDir, `${Date.now()}-${safe}`);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-    const buffer = await res.arrayBuffer();
-    await writeFile(dest, Buffer.from(buffer));
-    return dest;
+  ipcMain.handle('online:downloadFile', async (_e, url: string, filename: string, requestId?: string, fileId?: string): Promise<string> => {
+    return downloadOnlineFileToRequestStore({
+      url,
+      requestId: String(requestId ?? 'manual-download'),
+      fileId: String(fileId ?? `${Date.now()}`),
+      filename,
+    });
   });
 
   // ─────────────────────────────────────────

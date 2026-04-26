@@ -50,6 +50,7 @@ import {
 } from '@uoadrop/shared';
 
 const DEFAULT_PORT = 3737;
+const PUBLISHED_ONLINE_UPLOAD_URL = 'https://uoadrop.vercel.app/';
 
 function getDataDir(): string {
   return resolve(process.cwd(), './data');
@@ -200,6 +201,7 @@ export async function startLocalServer(): Promise<{ port: number }> {
       '.url-box{padding:14px 16px;border-radius:18px;background:#f8fafc;border:1px solid var(--line)}',
       '.url-label{display:block;color:var(--muted);font-size:12px;font-weight:800;margin-bottom:6px}',
       '.url{display:block;direction:ltr;text-align:center;font-family:SFMono-Regular,Menlo,monospace;color:var(--primary-dark);font-size:15px;font-weight:800;word-break:break-all}',
+      '.poster-mode{display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin-top:14px;padding:7px 14px;border-radius:999px;background:rgba(15,23,42,.06);border:1px solid rgba(148,163,184,.24);color:#0f172a;font-size:12px;font-weight:800}',
       '.steps{display:grid;gap:12px;margin-top:16px}',
       '.step{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;padding:14px 16px;border-radius:20px;background:var(--soft);border:1px solid var(--line)}',
       '.step-no{width:34px;height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(79,70,229,.10);color:var(--primary);font-size:14px;font-weight:900}',
@@ -232,6 +234,7 @@ export async function startLocalServer(): Promise<{ port: number }> {
       '<h2>امسح الرمز</h2>',
       '<div class="qr-shell"><img alt="QR" src="' + dataUrl + '"/></div>',
       '<div class="url-box"><span class="url-label">أو افتح الرابط مباشرة</span><span class="url">' + url + '</span></div>',
+      '<span class="poster-mode">ملصق أوفلاين</span>',
       '</section>',
       '<section class="panel">',
       '<h2>طريقة الاستخدام</h2>',
@@ -239,6 +242,95 @@ export async function startLocalServer(): Promise<{ port: number }> {
       '<div class="step"><div class="step-no">1</div><div><strong>اتصل بواي فاي المكتبة</strong><span>افتح الشبكة المحلية الخاصة بالنظام داخل المكتبة.</span></div></div>',
       '<div class="step"><div class="step-no">2</div><div><strong>افتح صفحة الرفع</strong><span>امسح QR أو اكتب الرابط الظاهر هنا في المتصفح.</span></div></div>',
       '<div class="step"><div class="step-no">3</div><div><strong>أرسل الملفات</strong><span>أدخل اسمك، اختر الملفات، ثم اضغط إرسال الطلب.</span></div></div>',
+      '</div>',
+      '<div class="quick-list">',
+      '<div class="quick-item"><strong>الحد الأعلى</strong><span>حتى 10 ملفات في الطلب الواحد.</span></div>',
+      '<div class="quick-item"><strong>بعد الإرسال</strong><span>احتفظ برقم التذكرة ورمز الاستلام.</span></div>',
+      '</div>',
+      '</section>',
+      '</div>',
+      '<div class="footer-bar actions">',
+      '<div class="footer-copy"><strong>جاهز للطباعة والتعليق</strong><span>نسخة متناسقة مع هوية UOADrop وبحجم مناسب لورقة A4.</span></div>',
+      '<button class="print-btn" onclick="window.print()">طباعة الملصق</button>',
+      '</div>',
+      '</div>',
+      '</body></html>',
+    ].join('\n');
+  });
+
+  server.get('/online-wall-sign', async (_req: any, reply: any) => {
+    const url = PUBLISHED_ONLINE_UPLOAD_URL;
+    const dataUrl = await QRCode.toDataURL(url, { width: 420, margin: 1 });
+    reply.header('content-type', 'text/html; charset=utf-8');
+    return [
+      '<!doctype html>',
+      '<html lang="ar" dir="rtl"><head>',
+      '<meta charset="utf-8"/>',
+      '<meta name="viewport" content="width=device-width, initial-scale=1"/>',
+      '<title>UOADrop — ملصق الحائط</title>',
+      '<style>',
+      ':root{--primary:#4f46e5;--primary-dark:#312e81;--accent:#22c55e;--text:#0f172a;--muted:#64748b;--line:#dbe4f0;--surface:#ffffff;--soft:#f8fafc}',
+      '@page { size: A4; margin: 14mm; }',
+      '*{box-sizing:border-box}',
+      'body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Tahoma,sans-serif;color:var(--text);margin:0;background:linear-gradient(180deg,#eef2ff 0%,#f8fafc 100%);padding:14mm}',
+      '.poster{max-width:760px;margin:0 auto;padding:28px;border-radius:36px;background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);border:1px solid rgba(148,163,184,.22);box-shadow:0 28px 64px rgba(15,23,42,.10)}',
+      '.hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;padding:22px 24px;border-radius:28px;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);color:#fff}',
+      '.brand-mark{width:96px;height:96px;border-radius:28px;display:flex;align-items:center;justify-content:center;padding:10px;background:linear-gradient(180deg,rgba(255,255,255,.18) 0%,rgba(255,255,255,.1) 100%);border:1px solid rgba(255,255,255,.16);box-shadow:0 16px 28px rgba(15,23,42,.16);overflow:hidden}',
+      '.brand-mark img{width:72px;height:72px;display:block;object-fit:contain;transform:scale(3);transform-origin:center}',
+      '.hero-kicker{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.10);font-size:11px;font-weight:800;color:rgba(255,255,255,.85)}',
+      '.hero h1{margin:10px 0 6px;font-size:34px;line-height:1.15;letter-spacing:-.04em}',
+      '.hero p{margin:0;color:rgba(255,255,255,.78);font-size:15px;line-height:1.8}',
+      '.grid{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(280px,.82fr);gap:18px;margin-top:18px}',
+      '.panel{border:1px solid var(--line);border-radius:28px;background:linear-gradient(180deg,#fff 0%,#f8fbff 100%);padding:22px}',
+      '.panel h2{margin:0 0 8px;font-size:24px;line-height:1.25}',
+      '.panel p{margin:0;color:var(--muted);font-size:14px;line-height:1.9}',
+      '.qr-card{text-align:center;display:grid;gap:14px;align-content:start}',
+      '.qr-shell{display:inline-flex;align-items:center;justify-content:center;padding:14px;border-radius:28px;background:#fff;border:1px solid var(--line);box-shadow:0 18px 40px rgba(79,70,229,.10)}',
+      '.qr-shell img{display:block;width:100%;max-width:284px;height:auto}',
+      '.url-box{padding:14px 16px;border-radius:18px;background:#f8fafc;border:1px solid var(--line)}',
+      '.url-label{display:block;color:var(--muted);font-size:12px;font-weight:800;margin-bottom:6px}',
+      '.url{display:block;direction:ltr;text-align:center;font-family:SFMono-Regular,Menlo,monospace;color:var(--primary-dark);font-size:15px;font-weight:800;word-break:break-all}',
+      '.poster-mode{display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin-top:14px;padding:7px 14px;border-radius:999px;background:rgba(79,70,229,.10);border:1px solid rgba(79,70,229,.18);color:#4338ca;font-size:12px;font-weight:800}',
+      '.steps{display:grid;gap:12px;margin-top:16px}',
+      '.step{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;padding:14px 16px;border-radius:20px;background:var(--soft);border:1px solid var(--line)}',
+      '.step-no{width:34px;height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(79,70,229,.10);color:var(--primary);font-size:14px;font-weight:900}',
+      '.step strong{display:block;font-size:15px;margin-bottom:4px}',
+      '.step span{display:block;color:var(--muted);font-size:13px;line-height:1.8}',
+      '.quick-list{display:grid;gap:10px;margin-top:16px}',
+      '.quick-item{padding:14px 16px;border-radius:20px;background:linear-gradient(180deg,#f9fbff 0%,#f8fafc 100%);border:1px solid var(--line)}',
+      '.quick-item strong{display:block;font-size:14px;margin-bottom:4px}',
+      '.quick-item span{display:block;color:var(--muted);font-size:13px;line-height:1.8}',
+      '.footer-bar{margin-top:18px;padding:16px 18px;border-radius:22px;background:linear-gradient(135deg,rgba(79,70,229,.08) 0%,rgba(34,197,94,.08) 100%);border:1px solid rgba(79,70,229,.10);display:flex;justify-content:space-between;align-items:center;gap:16px}',
+      '.footer-copy strong{display:block;font-size:16px;margin-bottom:4px}',
+      '.footer-copy span{display:block;color:var(--muted);font-size:13px;line-height:1.7}',
+      '.print-btn{padding:12px 18px;border-radius:16px;border:0;background:var(--primary);color:#fff;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;box-shadow:0 16px 32px rgba(79,70,229,.18)}',
+      '@media print { body{background:#fff;padding:0}.poster{box-shadow:none;border-color:#dbe4f0}.footer-bar{background:#fff}.actions{display:none} }',
+      '@media (max-width: 720px){body{padding:10px}.poster{padding:16px;border-radius:24px}.hero{grid-template-columns:1fr;text-align:center}.brand-mark{margin:0 auto}.grid{grid-template-columns:1fr}.footer-bar{flex-direction:column;align-items:stretch}.print-btn{width:100%}}',
+      '</style></head><body>',
+      '<div class="poster">',
+      '<section class="hero">',
+      '<div class="brand-mark">',
+      '<img src="/uoadrop-logo.png" alt="UOADrop" />',
+      '</div>',
+      '<div>',
+      '<span class="hero-kicker">UOADrop</span>',
+      '<h1>ارفع ملفاتك للطباعة خلال دقيقة</h1>',
+      '<p>امسح الرمز أو افتح الرابط المباشر، ثم أرسل الملفات من هاتفك أو حاسوبك.</p>',
+      '</div>',
+      '</section>',
+      '<div class="grid">',
+      '<section class="panel qr-card">',
+      '<h2>امسح الرمز</h2>',
+      '<div class="qr-shell"><img alt="QR" src="' + dataUrl + '"/></div>',
+      '<div class="url-box"><span class="url-label">أو افتح الرابط مباشرة</span><span class="url">' + url + '</span></div>',
+      '<span class="poster-mode">ملصق أونلاين</span>',
+      '</section>',
+      '<section class="panel">',
+      '<h2>طريقة الاستخدام</h2>',
+      '<div class="steps">',
+      '<div class="step"><div class="step-no">1</div><div><strong>افتح صفحة الرفع</strong><span>امسح QR أو اكتب الرابط الظاهر هنا في المتصفح.</span></div></div>',
+      '<div class="step"><div class="step-no">2</div><div><strong>أرسل الملفات</strong><span>أدخل اسمك، اختر الملفات، ثم اضغط إرسال الطلب.</span></div></div>',
+      '<div class="step"><div class="step-no">3</div><div><strong>بعد الإرسال</strong><span>احتفظ برقم التذكرة ورمز الاستلام لتحتاجهما عند مراجعة المكتبة.</span></div></div>',
       '</div>',
       '<div class="quick-list">',
       '<div class="quick-item"><strong>الحد الأعلى</strong><span>حتى 10 ملفات في الطلب الواحد.</span></div>',
@@ -271,24 +363,17 @@ export async function startLocalServer(): Promise<{ port: number }> {
       }
 
       const options = normalizePrintOptionsPayload((body?.options ?? {}) as Record<string, unknown>);
-      const copies = options.copies;
       const totalPages = clampInt(body.totalPages ?? 0, 0, 500, 0);
-      const color = options.color;
-      const doubleSided = options.doubleSided;
 
       if (!Number.isFinite(totalPages) || totalPages < 0) {
         return reply.code(400).send({ ok: false, error: 'invalid body' });
       }
 
-      // Simple pricing (Phase 1.5+: central pricing rules)
-      const perPage = color ? 250 : 100;
-      const priceIqd = perPage * totalPages * copies;
-
       const created = createRequest({
         studentName,
         options,
         totalPages,
-        priceIqd,
+        priceIqd: 0,
       });
 
       emit({ type: 'requests:changed', reason: 'created', requestId: created.request.id, payload: created.request });

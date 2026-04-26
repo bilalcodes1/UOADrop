@@ -18,7 +18,11 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint:root": "eslint ."
+    "lint:root": "eslint .",
+    "desktop:runtime-config:write": "pnpm --filter @uoadrop/desktop runtime-config:write",
+    "desktop:pack": "pnpm --filter @uoadrop/desktop pack",
+    "desktop:dist:mac": "pnpm --filter @uoadrop/desktop dist:mac",
+    "desktop:dist:win": "pnpm --filter @uoadrop/desktop dist:win"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

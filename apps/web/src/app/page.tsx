@@ -27,6 +27,7 @@ type SuccessInfo = {
   ticket: string;
   pin: string;
   requestId: string;
+  initialTotalPages?: number;
   warning?: string;
   telegramEnabled?: boolean;
 };
@@ -111,6 +112,137 @@ function settingsEqual(a: PrintSettings, b: PrintSettings): boolean {
   );
 }
 
+function getFileExtension(file: File): string {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.pdf')) return '.pdf';
+  if (name.endsWith('.pptx')) return '.pptx';
+  if (name.endsWith('.docx')) return '.docx';
+  if (name.endsWith('.xlsx')) return '.xlsx';
+  if (name.endsWith('.jpeg')) return '.jpeg';
+  if (name.endsWith('.jpg')) return '.jpg';
+  if (name.endsWith('.png')) return '.png';
+  return '';
+}
+
+function supportsImmediatePageCount(file: File): boolean {
+  return ['.pdf', '.pptx', '.jpg', '.jpeg', '.png'].includes(getFileExtension(file));
+}
+
+function toBinaryString(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let output = '';
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    output += String.fromCharCode(...bytes.subarray(index, Math.min(index + chunkSize, bytes.length)));
+  }
+  return output;
+}
+
+async function countPdfPagesInBrowser(file: File): Promise<number> {
+  const buffer = await file.arrayBuffer();
+  const text = toBinaryString(buffer);
+  const pageMatches = text.match(/\/Type\s*\/Page\b/g);
+  if (pageMatches && pageMatches.length > 0) return pageMatches.length;
+
+  const countMatches = Array.from(text.matchAll(/\/Count\s+(\d+)/g))
+    .map(match => Number.parseInt(match[1] ?? '0', 10))
+    .filter(value => Number.isFinite(value) && value > 0);
+
+  return countMatches.length > 0 ? Math.max(...countMatches) : 0;
+}
+
+async function countPptxSlidesInBrowser(file: File): Promise<number> {
+  const buffer = await file.arrayBuffer();
+  const text = toBinaryString(buffer);
+  const re = /ppt\/slides\/slide(\d+)\.xml/g;
+  const seen = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    if (match[1]) seen.add(match[1]);
+  }
+  return seen.size;
+}
+
+async function countFilePagesInBrowser(file: File): Promise<number> {
+  try {
+    switch (getFileExtension(file)) {
+      case '.pdf':
+        return await countPdfPagesInBrowser(file);
+      case '.pptx':
+        return await countPptxSlidesInBrowser(file);
+      case '.jpg':
+      case '.jpeg':
+      case '.png':
+        return 1;
+      default:
+        return 0;
+    }
+  } catch {
+    return 0;
+  }
+}
+
+function countPagesFromRange(totalPages: number, pageRange: string): number {
+  if (!Number.isFinite(totalPages) || totalPages <= 0) return 0;
+  const normalized = pageRange.trim();
+  if (!normalized) return totalPages;
+
+  const selected = new Set<number>();
+  let hasValidToken = false;
+
+  for (const rawToken of normalized.split(',')) {
+    const token = rawToken.trim();
+    if (!token) continue;
+
+    const rangeMatch = token.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (rangeMatch) {
+      let start = Number.parseInt(rangeMatch[1] ?? '0', 10);
+      let end = Number.parseInt(rangeMatch[2] ?? '0', 10);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+      if (start > end) [start, end] = [end, start];
+      start = Math.max(1, start);
+      end = Math.min(totalPages, end);
+      if (start > end) continue;
+      hasValidToken = true;
+      for (let current = start; current <= end; current += 1) {
+        selected.add(current);
+      }
+      continue;
+    }
+
+    const value = Number.parseInt(token, 10);
+    if (!Number.isFinite(value)) continue;
+    if (value < 1 || value > totalPages) continue;
+    hasValidToken = true;
+    selected.add(value);
+  }
+
+  return hasValidToken ? selected.size : totalPages;
+}
+
+function calculateEntrySelectedPages(entry: FileEntry, basePages: number | undefined): number {
+  if (!Number.isFinite(basePages) || (basePages ?? 0) <= 0) return 0;
+  return countPagesFromRange(basePages ?? 0, entry.settings.pageRange);
+}
+
+function calculateEntryPriceIqd(selectedPages: number, settings: PrintSettings): number {
+  if (!Number.isFinite(selectedPages) || selectedPages <= 0) return 0;
+  const perPage = settings.color ? 250 : 100;
+  return selectedPages * settings.copies * perPage;
+}
+
+function formatPriceValue(value: number): string {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num) || num <= 0) return 'قيد الحساب';
+  return `${num.toLocaleString('ar-IQ')} د.ع`;
+}
+
+function formatPagesValue(value: number): string {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num) || num <= 0) return 'قيد الحساب';
+  return `${num.toLocaleString('ar-IQ')} صفحة`;
+}
+
 function clampOptionInt(value: unknown, min: number, max: number, fallback: number): number {
   const parsed = Number.parseInt(String(value ?? ''), 10);
   if (!Number.isFinite(parsed)) return fallback;
@@ -165,6 +297,7 @@ export default function UploadPage() {
   const [currentFile, setCurrentFile] = useState(0);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [basePageCounts, setBasePageCounts] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -194,6 +327,35 @@ export default function UploadPage() {
       // Ignore storage errors.
     }
   }, [name, email, notifyEmail, notifyTelegram, defaultSettings]);
+
+  useEffect(() => {
+    const ids = new Set(files.map(entry => entry.id));
+    setBasePageCounts(prev => {
+      const filtered = Object.fromEntries(Object.entries(prev).filter(([id]) => ids.has(id)));
+      return Object.keys(filtered).length === Object.keys(prev).length ? prev : filtered;
+    });
+  }, [files]);
+
+  useEffect(() => {
+    const pending = files.filter(entry => basePageCounts[entry.id] === undefined);
+    if (pending.length === 0) return;
+
+    let active = true;
+
+    const run = async () => {
+      for (const entry of pending) {
+        const pages = await countFilePagesInBrowser(entry.file);
+        if (!active) return;
+        setBasePageCounts(prev => (prev[entry.id] === undefined ? { ...prev, [entry.id]: pages } : prev));
+      }
+    };
+
+    void run();
+
+    return () => {
+      active = false;
+    };
+  }, [files, basePageCounts]);
 
   const addFiles = useCallback((incoming: File[]) => {
     const valid = incoming.filter(f => ALLOWED_TYPES.includes(f.type));
@@ -256,10 +418,28 @@ export default function UploadPage() {
     setCurrentFile(0);
 
     try {
+      const preparedFiles = await Promise.all(
+        files.map(async entry => {
+          const basePages = basePageCounts[entry.id] ?? await countFilePagesInBrowser(entry.file);
+          const selectedPages = calculateEntrySelectedPages(entry, basePages);
+          return {
+            entry,
+            basePages,
+            selectedPages,
+          };
+        }),
+      );
+
+      setBasePageCounts(prev => ({
+        ...prev,
+        ...Object.fromEntries(preparedFiles.map(item => [item.entry.id, item.basePages])),
+      }));
+
+      const totalPages = preparedFiles.reduce((sum, item) => sum + item.selectedPages, 0);
       const ticket = generateTicket();
       const pin = generatePin();
       const pinHash = await hashPin(pin);
-      const baseRequestPayload = {
+      const rawBaseRequestPayload = {
         ticket,
         student_name: name.trim(),
         student_email: emailForNotifications || null,
@@ -267,8 +447,17 @@ export default function UploadPage() {
         status: 'uploading',
         source: 'online',
       };
-      const extendedRequestPayload = {
+      const baseRequestPayload = {
+        ...rawBaseRequestPayload,
+        source_of_truth: 'supabase_intake',
+        import_state: 'pending',
+      };
+      const metricsRequestPayload = {
         ...baseRequestPayload,
+        total_pages: totalPages,
+      };
+      const extendedRequestPayload = {
+        ...metricsRequestPayload,
         notify_preferences: {
           email: Boolean(emailForNotifications),
           telegram: notifyTelegram,
@@ -278,31 +467,57 @@ export default function UploadPage() {
       let requestId = '';
       let warning = '';
 
-      const { data: req, error: reqErr } = await supabase
-        .from('print_requests')
-        .insert(extendedRequestPayload)
-        .select('id')
-        .single();
+      const appendWarning = (message: string) => {
+        warning = warning ? `${warning} ${message}` : message;
+      };
 
-      if (reqErr) {
-        const missingNotificationColumns = /notify_preferences/i.test(reqErr.message ?? '');
-        if (!missingNotificationColumns) throw reqErr;
+      const requestInsertAttempts = [
+        { payload: extendedRequestPayload, kind: 'extended' as const },
+        { payload: metricsRequestPayload, kind: 'metrics' as const },
+        { payload: baseRequestPayload, kind: 'workflow' as const },
+        { payload: rawBaseRequestPayload, kind: 'base' as const },
+      ];
 
-        const { data: fallbackReq, error: fallbackErr } = await supabase
+      let lastRequestError: Error | null = null;
+
+      for (const attempt of requestInsertAttempts) {
+        const { data, error: insertError } = await supabase
           .from('print_requests')
-          .insert(baseRequestPayload)
+          .insert(attempt.payload)
           .select('id')
           .single();
 
-        if (fallbackErr) throw fallbackErr;
-        requestId = fallbackReq.id;
-      } else {
-        requestId = req.id;
+        if (!insertError) {
+          requestId = data.id;
+          break;
+        }
+
+        lastRequestError = insertError;
+        const errorMessage = insertError.message ?? '';
+        const missingNotificationColumns = /notify_preferences/i.test(errorMessage);
+        const missingMetricsColumns = /total_pages|source_of_truth|import_state/i.test(errorMessage);
+
+        if (attempt.kind === 'extended' && missingNotificationColumns) {
+          appendWarning('تم إرسال الطلب، لكن حقول تفضيلات الإشعار غير مفعّلة بعد في قاعدة البيانات.');
+          continue;
+        }
+
+        if ((attempt.kind === 'extended' || attempt.kind === 'metrics' || attempt.kind === 'workflow') && missingMetricsColumns) {
+          appendWarning('تم إرسال الطلب، لكن تتبع الاستلام/عدد الصفحات الكامل يحتاج تحديث Schema في Supabase.');
+          continue;
+        }
+
+        throw insertError;
       }
 
-      for (let i = 0; i < files.length; i++) {
+      if (!requestId) {
+        throw lastRequestError ?? new Error('تعذر إنشاء الطلب');
+      }
+
+      for (let i = 0; i < preparedFiles.length; i++) {
         setCurrentFile(i + 1);
-        const entry = files[i]!;
+        const prepared = preparedFiles[i]!;
+        const entry = prepared.entry;
         const safeName = entry.file.name.replace(/\s+/g, '_').replace(/[^\w.\-]/g, '_');
         const storagePath = `${requestId}/${Date.now()}-${safeName}`;
 
@@ -312,7 +527,7 @@ export default function UploadPage() {
 
         if (uploadErr) throw uploadErr;
 
-        const { error: fileErr } = await supabase.from('request_files').insert({
+        const filePayload = {
           request_id: requestId,
           filename: entry.file.name,
           mime_type: entry.file.type,
@@ -323,9 +538,32 @@ export default function UploadPage() {
           double_sided: entry.settings.doubleSided,
           pages_per_sheet: entry.settings.pagesPerSheet,
           page_range: entry.settings.pageRange || null,
-        });
+          pages: prepared.selectedPages,
+        };
 
-        if (fileErr) throw fileErr;
+        const { error: fileErr } = await supabase.from('request_files').insert(filePayload);
+
+        if (fileErr) {
+          const missingPagesColumn = /pages/i.test(fileErr.message ?? '');
+          if (!missingPagesColumn) throw fileErr;
+
+          appendWarning('تم حفظ الملفات، لكن حفظ عدد صفحات كل ملف يحتاج تحديث Schema في Supabase.');
+
+          const { error: fallbackFileErr } = await supabase.from('request_files').insert({
+            request_id: requestId,
+            filename: entry.file.name,
+            mime_type: entry.file.type,
+            size_bytes: entry.file.size,
+            storage_path: storagePath,
+            copies: entry.settings.copies,
+            color: entry.settings.color,
+            double_sided: entry.settings.doubleSided,
+            pages_per_sheet: entry.settings.pagesPerSheet,
+            page_range: entry.settings.pageRange || null,
+          });
+
+          if (fallbackFileErr) throw fallbackFileErr;
+        }
 
         setProgress(Math.round(((i + 1) / files.length) * 100));
       }
@@ -337,7 +575,14 @@ export default function UploadPage() {
 
       if (readyErr) throw readyErr;
 
-      setSuccess({ ticket, pin, requestId, warning: warning || undefined, telegramEnabled: notifyTelegram });
+      setSuccess({
+        ticket,
+        pin,
+        requestId,
+        initialTotalPages: totalPages,
+        warning: warning || undefined,
+        telegramEnabled: notifyTelegram,
+      });
       setState('success');
     } catch (err) {
       console.error(err);
@@ -349,6 +594,7 @@ export default function UploadPage() {
 
   const resetForm = () => {
     setState('form');
+    setBasePageCounts({});
     setFiles([]);
     setSuccess(null);
     setError('');
@@ -356,9 +602,32 @@ export default function UploadPage() {
   };
 
   const totalBytes = files.reduce((sum, entry) => sum + entry.file.size, 0);
+  const estimatedTotalPages = files.reduce((sum, entry) => sum + calculateEntrySelectedPages(entry, basePageCounts[entry.id]), 0);
+  const estimatedPriceIqd = files.reduce(
+    (sum, entry) => sum + calculateEntryPriceIqd(calculateEntrySelectedPages(entry, basePageCounts[entry.id]), entry.settings),
+    0,
+  );
+  const pagesEstimatePending = files.some(entry => basePageCounts[entry.id] === undefined);
+  const hasUnsupportedPageEstimates = files.some(entry => !supportsImmediatePageCount(entry.file));
   const filesCountLabel = `${files.length.toLocaleString('ar-IQ')} ${files.length === 1 ? 'ملف' : 'ملفات'}`;
   const filesHint = files.length === 0 ? 'أضف ملفاتك لتظهر هنا مباشرة.' : `${formatFileSize(totalBytes)} إجمالي الحجم الحالي`;
   const defaultsValue = formatSettingsSummary(defaultSettings);
+  const estimatedPagesLabel = files.length === 0
+    ? 'لا توجد بيانات بعد'
+    : pagesEstimatePending
+      ? 'جارٍ الحساب...'
+      : formatPagesValue(estimatedTotalPages);
+  const estimatedPriceLabel = files.length === 0
+    ? 'لا توجد بيانات بعد'
+    : pagesEstimatePending
+      ? 'جارٍ الحساب...'
+      : formatPriceValue(estimatedPriceIqd);
+  const estimatedPagesHint = hasUnsupportedPageEstimates
+    ? 'ملفات DOCX وXLSX تبقى قيد الحساب مثل الأوفلاين حتى تعتمدها المكتبة.'
+    : 'يتم احتساب PDF وPPTX والصور تلقائياً قبل الإرسال.';
+  const estimatedPriceHint = hasUnsupportedPageEstimates
+    ? 'السعر الحالي تقديري وقد يتحدث بعد اعتماد ملفات Office داخل المكتبة.'
+    : 'السعر يُحسب تلقائياً من عدد الصفحات، النسخ، ونوع الطباعة.';
   const readinessValue = state === 'uploading'
     ? 'جاري الرفع'
     : !name.trim()
@@ -413,6 +682,7 @@ export default function UploadPage() {
                 ticket={success.ticket}
                 pin={success.pin}
                 requestId={success.requestId}
+                initialTotalPages={success.initialTotalPages}
                 warning={success.warning}
                 telegramEnabled={success.telegramEnabled}
                 onNew={resetForm}
@@ -422,6 +692,7 @@ export default function UploadPage() {
                 <div className={styles.sectionHead}>
                   <div>
                     <h2 className={styles.sectionTitle}>تفاصيل الطلب</h2>
+                    <p className={styles.sectionSub}>ارفع ملفاتك واضبط الإعدادات الأساسية ليصل الطلب إلى المكتبة بنفس تجربة الواجهة الأساسية.</p>
                   </div>
                   <span className={styles.sectionBadge}>الخطوة الأولى</span>
                 </div>
@@ -555,11 +826,25 @@ export default function UploadPage() {
                         onKeyDown={e => e.key === 'Enter' && fileInputRef.current?.click()}
                       >
                         <div className={styles.dropVisual}>
-                          <span className={styles.dropVisualIcon}>⬆</span>
+                          <svg className={styles.dropIllustration} viewBox="0 0 260 170" fill="none" aria-hidden="true">
+                            <rect x="33" y="42" width="194" height="96" rx="28" fill="#EDE9FE" />
+                            <rect x="49" y="56" width="162" height="68" rx="22" fill="#FFFFFF" stroke="#C7D2FE" strokeWidth="2" />
+                            <path d="M85 107l28-29 18 18 34-35 29 31" stroke="#A5B4FC" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+                            <circle cx="171" cy="74" r="10" fill="#C4B5FD" />
+                            <path d="M130 27v42m0 0l-16-16m16 16l16-16" stroke="#4F46E5" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+                            <rect x="102" y="118" width="56" height="14" rx="7" fill="#4F46E5" fillOpacity="0.12" />
+                            <circle cx="54" cy="30" r="8" fill="#22C55E" fillOpacity="0.18" />
+                            <circle cx="212" cy="34" r="6" fill="#4F46E5" fillOpacity="0.14" />
+                          </svg>
                         </div>
                         <div className={styles.dropBig}>ابدأ من هنا وأضف ملفاتك</div>
                         <div className={styles.dropActions}>
                           <span className={styles.dropCta}>اختيار الملفات الآن</span>
+                        </div>
+                        <div className={styles.dropMeta}>
+                          <span className={styles.dropMetaPill}>حد أقصى 10 ملفات</span>
+                          <span className={styles.dropMetaPill}>50 MB لكل ملف</span>
+                          <span className={styles.dropMetaPill}>PDF · Office · صور</span>
                         </div>
                         <p className={styles.dropzoneHint}>PDF · DOCX · PPTX · XLSX · JPG · PNG — حد أقصى 50 MB للملف</p>
                         <input
@@ -572,99 +857,136 @@ export default function UploadPage() {
                         />
                       </div>
 
+                      <div className={styles.autoPagesNote}>
+                        <strong>حساب الصفحات يتم تلقائياً قدر الإمكان</strong>
+                        <span>ملفات PDF وPPTX والصور تُحتسب مباشرة، بينما DOCX وXLSX تبقى قيد الحساب حتى تثبيتها داخل المكتبة مثل الأوفلاين.</span>
+                      </div>
+
                       {files.length === 0 && (
                         <div className={styles.queueEmpty}>
                           <strong>ما أضفت أي ملف بعد</strong>
+                          <span>اسحب الملفات هنا أو استخدم زر الاختيار للبدء برفع الطلب.</span>
                         </div>
                       )}
 
                       {files.length > 0 && (
                         <ul className={styles.fileList}>
-                          {files.map(entry => (
+                          {files.map(entry => {
+                            const filePagesPreview = calculateEntrySelectedPages(entry, basePageCounts[entry.id]);
+                            const fileStateLabel = basePageCounts[entry.id] === undefined
+                              ? 'جارٍ الحساب'
+                              : filePagesPreview > 0
+                                ? formatPagesValue(filePagesPreview)
+                                : 'قيد الحساب';
+                            const fileStateClass = basePageCounts[entry.id] === undefined
+                              ? styles.fileStatePending
+                              : filePagesPreview > 0
+                                ? styles.fileStateDone
+                                : styles.fileStateNeutral;
+
+                            return (
                             <li key={entry.id} className={styles.fileItem}>
                               <div className={styles.fileHeader}>
-                                <span className={styles.fileIcon}>
-                                  {FILE_ICONS[entry.file.type] ?? '📄'}
-                                </span>
-                                <span className={styles.fileName}>{entry.file.name}</span>
-                                <span className={styles.fileSize}>{formatFileSize(entry.file.size)}</span>
-                                <button
-                                  className={styles.settingsBtn}
-                                  onClick={() => toggleExpanded(entry.id)}
-                                >
-                                  {entry.expanded ? '▲ إخفاء' : '▼ إعدادات'}
-                                </button>
-                                <button
-                                  className={styles.removeBtn}
-                                  onClick={() => removeFile(entry.id)}
-                                  aria-label="حذف الملف"
-                                >
-                                  ✕
-                                </button>
+                                <div className={styles.fileMain}>
+                                  <span className={styles.fileIconBadge}>
+                                    {FILE_ICONS[entry.file.type] ?? '📄'}
+                                  </span>
+                                  <div className={styles.fileMetaBlock}>
+                                    <span className={styles.fileOverline}>ملف للطباعة</span>
+                                    <span className={styles.fileName}>{entry.file.name}</span>
+                                    <span className={styles.fileSize}>{formatFileSize(entry.file.size)}</span>
+                                  </div>
+                                </div>
+
+                                <div className={styles.fileHeaderActions}>
+                                  <span className={`${styles.fileStateChip} ${fileStateClass}`}>{fileStateLabel}</span>
+                                  <button
+                                    className={styles.settingsBtn}
+                                    onClick={() => toggleExpanded(entry.id)}
+                                  >
+                                    {entry.expanded ? '▲ إخفاء' : '▼ إعدادات'}
+                                  </button>
+                                  <button
+                                    className={styles.removeBtn}
+                                    onClick={() => removeFile(entry.id)}
+                                    aria-label="حذف الملف"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
                               </div>
 
                               {entry.expanded && (
                                 <div className={styles.settings}>
-                                  <div className={styles.settingRow}>
-                                    <label>عدد النسخ</label>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={20}
-                                      value={entry.settings.copies}
-                                      onChange={e =>
-                                        updateSettings(entry.id, { copies: Math.max(1, Number(e.target.value)) })
-                                      }
-                                      className={styles.numberInput}
-                                    />
+                                  <div className={styles.fileOptionsGrid}>
+                                    <div className={styles.fileOption}>
+                                      <label>عدد النسخ</label>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        max={20}
+                                        value={entry.settings.copies}
+                                        onChange={e => updateSettings(entry.id, { copies: Math.max(1, Number(e.target.value) || 1) })}
+                                        className={styles.optionInput}
+                                        inputMode="numeric"
+                                      />
+                                    </div>
+
+                                    <div className={styles.fileOption}>
+                                      <label>نوع الطباعة</label>
+                                      <select
+                                        value={String(entry.settings.color)}
+                                        onChange={e => updateSettings(entry.id, { color: e.target.value === 'true' })}
+                                        className={styles.optionInput}
+                                      >
+                                        <option value="false">أبيض وأسود</option>
+                                        <option value="true">ملونة</option>
+                                      </select>
+                                    </div>
+
+                                    <div className={styles.fileOption}>
+                                      <label>وجهين</label>
+                                      <select
+                                        value={String(entry.settings.doubleSided)}
+                                        onChange={e => updateSettings(entry.id, { doubleSided: e.target.value === 'true' })}
+                                        className={styles.optionInput}
+                                      >
+                                        <option value="true">نعم</option>
+                                        <option value="false">لا</option>
+                                      </select>
+                                    </div>
+
+                                    <div className={styles.fileOption}>
+                                      <label>صفحات في الورقة</label>
+                                      <select
+                                        value={entry.settings.pagesPerSheet}
+                                        onChange={e => updateSettings(entry.id, { pagesPerSheet: Number(e.target.value) as 1 | 2 | 4 })}
+                                        className={styles.optionInput}
+                                      >
+                                        <option value={1}>1</option>
+                                        <option value={2}>2</option>
+                                        <option value={4}>4</option>
+                                      </select>
+                                    </div>
+
+                                    <div className={styles.fileOption}>
+                                      <label>نطاق الصفحات</label>
+                                      <input
+                                        type="text"
+                                        placeholder="مثال: 1-5,7"
+                                        value={entry.settings.pageRange}
+                                        onChange={e => updateSettings(entry.id, { pageRange: e.target.value })}
+                                        className={styles.optionInput}
+                                        dir="ltr"
+                                      />
+                                    </div>
                                   </div>
-                                  <div className={styles.settingRow}>
-                                    <label>طباعة ملوّنة</label>
-                                    <input
-                                      type="checkbox"
-                                      checked={entry.settings.color}
-                                      onChange={e => updateSettings(entry.id, { color: e.target.checked })}
-                                    />
-                                  </div>
-                                  <div className={styles.settingRow}>
-                                    <label>طباعة وجهين</label>
-                                    <input
-                                      type="checkbox"
-                                      checked={entry.settings.doubleSided}
-                                      onChange={e => updateSettings(entry.id, { doubleSided: e.target.checked })}
-                                    />
-                                  </div>
-                                  <div className={styles.settingRow}>
-                                    <label>صفحات في الورقة</label>
-                                    <select
-                                      value={entry.settings.pagesPerSheet}
-                                      onChange={e =>
-                                        updateSettings(entry.id, {
-                                          pagesPerSheet: Number(e.target.value) as 1 | 2 | 4,
-                                        })
-                                      }
-                                      className={styles.select}
-                                    >
-                                      <option value={1}>1</option>
-                                      <option value={2}>2</option>
-                                      <option value={4}>4</option>
-                                    </select>
-                                  </div>
-                                  <div className={styles.settingRow}>
-                                    <label>نطاق الصفحات</label>
-                                    <input
-                                      type="text"
-                                      placeholder="مثال: 1-5,7"
-                                      value={entry.settings.pageRange}
-                                      onChange={e => updateSettings(entry.id, { pageRange: e.target.value })}
-                                      className={styles.textInput}
-                                      dir="ltr"
-                                    />
-                                  </div>
+                                  <div className={styles.fileOptionsNote}>هذه الإعدادات تخص هذا الملف فقط، ويمكن تعديلها قبل الإرسال مباشرة.</div>
                                 </div>
                               )}
                             </li>
-                          ))}
+                            );
+                          })}
                         </ul>
                       )}
                     </div>
@@ -680,6 +1002,7 @@ export default function UploadPage() {
                     >
                       إرسال الطلب إلى المكتبة
                     </button>
+                    <p className={styles.footerNote}>بعد الإرسال ستظهر لك التذكرة ورمز الاستلام مباشرة، مع تتبع حي للحالة داخل صفحة النجاح.</p>
                   </div>
                 </div>
               </>
@@ -706,6 +1029,18 @@ export default function UploadPage() {
                   <span>حالة الإرسال</span>
                   <strong className={styles.sideValue}>{readinessValue}</strong>
                   <p className={styles.sideHint}>{readinessHint}</p>
+                </div>
+
+                <div className={styles.summaryItem}>
+                  <span>عدد الصفحات</span>
+                  <strong className={styles.sideValue}>{estimatedPagesLabel}</strong>
+                  <p className={styles.sideHint}>{estimatedPagesHint}</p>
+                </div>
+
+                <div className={styles.summaryItem}>
+                  <span>السعر التقديري</span>
+                  <strong className={styles.sideValue}>{estimatedPriceLabel}</strong>
+                  <p className={styles.sideHint}>{estimatedPriceHint}</p>
                 </div>
 
                 <div className={styles.summaryItem}>
@@ -750,6 +1085,7 @@ function SuccessPanel({
   ticket,
   pin,
   requestId,
+  initialTotalPages,
   warning,
   telegramEnabled,
   onNew,
@@ -757,6 +1093,7 @@ function SuccessPanel({
   ticket: string;
   pin: string;
   requestId: string;
+  initialTotalPages?: number;
   warning?: string;
   telegramEnabled?: boolean;
   onNew: () => void;
@@ -764,6 +1101,11 @@ function SuccessPanel({
   const [copiedField, setCopiedField] = useState<'ticket' | 'pin' | null>(null);
   const [status, setStatus] = useState<string>('pending');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date>(new Date());
+  const [totalPages, setTotalPages] = useState<number>(initialTotalPages ?? 0);
+  const [priceIqd, setPriceIqd] = useState<number>(0);
+  const [deskReceivedAt, setDeskReceivedAt] = useState<string | null>(null);
+  const [finalPriceConfirmedAt, setFinalPriceConfirmedAt] = useState<string | null>(null);
+  const [readyFlash, setReadyFlash] = useState(false);
   const { deepLink, webLink } = buildTelegramLinks(ticket);
 
   type TrackerState = '' | 'done' | 'current' | 'warn';
@@ -801,27 +1143,59 @@ function SuccessPanel({
     },
   };
 
-  const meta = (statusMeta[status] ?? statusMeta.pending)!;
+  const meta = status === 'pending' && deskReceivedAt
+    ? {
+        badge: 'تم استلامه بالمكتبة',
+        title: 'استلمت المكتبة الطلب وجرى إدخاله إلى الداشبورد',
+        text: 'أصبح التنفيذ الآن من داخل المكتبة. سيظهر هنا بدء الطباعة ثم حالة الجاهزية والتسليم.',
+      }
+    : (statusMeta[status] ?? statusMeta.pending)!;
 
   useEffect(() => {
     let timer: number | null = null;
     let active = true;
 
+    const applyRequestSnapshot = (data: any) => {
+      const nextStatus = String(data?.status ?? 'pending');
+      setStatus(nextStatus);
+
+      const updated = data?.updated_at;
+      setLastUpdatedAt(updated ? new Date(updated) : new Date());
+
+      if (typeof data?.price_iqd === 'number') {
+        setPriceIqd(data.price_iqd);
+      }
+
+      if (typeof data?.total_pages === 'number') {
+        setTotalPages(data.total_pages);
+      }
+
+      setDeskReceivedAt(typeof data?.desk_received_at === 'string' ? data.desk_received_at : null);
+      setFinalPriceConfirmedAt(typeof data?.final_price_confirmed_at === 'string' ? data.final_price_confirmed_at : null);
+
+      return nextStatus;
+    };
+
     const poll = async () => {
       try {
-        const { data, error } = await supabase
+        let result = await supabase
           .from('print_requests')
-          .select('status, updated_at')
+          .select('status, updated_at, price_iqd, total_pages, desk_received_at, final_price_confirmed_at')
           .eq('id', requestId)
           .single();
 
-        if (!active) return;
-        if (error) return;
+        if (result.error && /total_pages|desk_received_at|final_price_confirmed_at/i.test(result.error.message ?? '')) {
+          result = await supabase
+            .from('print_requests')
+            .select('status, updated_at, price_iqd, total_pages')
+            .eq('id', requestId)
+            .single();
+        }
 
-        const nextStatus = String((data as any)?.status ?? 'pending');
-        setStatus(nextStatus);
-        const updated = (data as any)?.updated_at;
-        setLastUpdatedAt(updated ? new Date(updated) : new Date());
+        if (!active) return;
+        if (result.error) return;
+
+        const nextStatus = applyRequestSnapshot(result.data as any);
 
         if (['done', 'canceled', 'blocked'].includes(nextStatus)) {
           return;
@@ -832,13 +1206,33 @@ function SuccessPanel({
       }
     };
 
+    const channel = supabase
+      .channel(`web-request-${requestId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'print_requests', filter: `id=eq.${requestId}` },
+        payload => {
+          if (!active) return;
+          applyRequestSnapshot(payload.new as any);
+        },
+      )
+      .subscribe();
+
     void poll();
 
     return () => {
       active = false;
       if (timer) window.clearTimeout(timer);
+      void supabase.removeChannel(channel);
     };
   }, [requestId]);
+
+  useEffect(() => {
+    if (status !== 'ready') return;
+    setReadyFlash(true);
+    const timer = window.setTimeout(() => setReadyFlash(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [status]);
 
   const formatUpdatedStamp = (value: Date) => {
     const diffMs = Date.now() - value.getTime();
@@ -864,6 +1258,14 @@ function SuccessPanel({
         label: 'رفع الملفات',
         text: 'اكتمل رفع الملفات إلى المكتبة بنجاح.',
         state: 'done' as const,
+        readyStep: false,
+      },
+      {
+        label: deskReceivedAt ? 'استلام المكتبة' : 'بانتظار استلام المكتبة',
+        text: deskReceivedAt
+          ? 'تم استلام الطلب داخل المكتبة وأصبح التنفيذ من الداشبورد.'
+          : 'بانتظار أن يستلم الداشبورد الطلب ويبدأ التنفيذ من داخل المكتبة.',
+        state: ((status === 'printing' || status === 'ready' || status === 'done') ? 'done' : 'current') as TrackerState,
         readyStep: false,
       },
     ];
@@ -966,7 +1368,7 @@ function SuccessPanel({
         </div>
       </div>
 
-      <div className={styles.statusSummary}>
+      <div className={`${styles.statusSummary} ${status === 'ready' ? styles.statusSummaryReadyArrived : ''} ${readyFlash ? styles.statusSummaryReadyFlash : ''}`}>
         <strong>{meta.title}</strong>
         <p>{meta.text}</p>
       </div>
@@ -989,6 +1391,20 @@ function SuccessPanel({
           <p className={styles.pinNote}>
             أبقِ هذا الرمز سرياً — ستُطلب منك إدخاله عند استلام طباعتك
           </p>
+        </div>
+      </div>
+
+      <div className={styles.requestInsights}>
+        <div className={`${styles.insightCard} ${finalPriceConfirmedAt ? styles.insightCardReady : ''}`}>
+          <strong>السعر النهائي</strong>
+          <div className={styles.insightValue}>{finalPriceConfirmedAt ? formatPriceValue(priceIqd) : 'بانتظار اعتماد المكتبة'}</div>
+          <span className={styles.insightHint}>{finalPriceConfirmedAt ? 'تم اعتماد السعر النهائي من الداشبورد.' : 'لن يظهر السعر النهائي هنا حتى تعتمده المكتبة من الداشبورد.'}</span>
+        </div>
+
+        <div className={`${styles.insightCard} ${totalPages > 0 ? styles.insightCardReady : ''}`}>
+          <strong>عدد الصفحات</strong>
+          <div className={styles.insightValue}>{formatPagesValue(totalPages)}</div>
+          <span className={styles.insightHint}>{deskReceivedAt ? 'القيمة الظاهرة تعكس آخر عدد صفحات معتمد في المكتبة.' : 'قد يتحدث العدد بعد استلام الطلب داخل المكتبة.'}</span>
         </div>
       </div>
 

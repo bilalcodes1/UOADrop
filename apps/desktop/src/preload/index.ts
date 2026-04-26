@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { PrinterStatus, PrintRequest, RequestFile, RequestStatus } from '@uoadrop/shared';
+import type {
+  OnlineImportState,
+  PrinterStatus,
+  PrintRequest,
+  RequestEvent,
+  RequestFile,
+  RequestSourceOfTruth,
+  RequestStatus,
+} from '@uoadrop/shared';
 
 export interface PrinterStatusPayload {
   status: PrinterStatus;
@@ -39,11 +47,35 @@ export const api = {
   setRequestPrice: (id: string, priceIqd: number): Promise<{ ok: true }> =>
     ipcRenderer.invoke('requests:setPrice', id, priceIqd),
 
+  setRequestWorkflowMeta: (args: {
+    id: string;
+    sourceOfTruth?: RequestSourceOfTruth;
+    importState?: OnlineImportState | null;
+    deskReceivedAt?: string | null;
+    printedAt?: string | null;
+    pickedUpAt?: string | null;
+    finalPriceConfirmedAt?: string | null;
+    onlineFilesCleanupAt?: string | null;
+  }): Promise<{ ok: true }> =>
+    ipcRenderer.invoke('requests:setWorkflowMeta', args),
+
   listRequestFiles: (requestId: string): Promise<{ items: RequestFile[] }> =>
     ipcRenderer.invoke('requests:files', requestId),
 
+  listRequestEvents: (requestId: string, limit?: number): Promise<{ items: RequestEvent[] }> =>
+    ipcRenderer.invoke('requests:events', requestId, limit),
+
   setRequestFileOptions: (fileId: string, options: RequestFile['options']): Promise<{ ok: true }> =>
     ipcRenderer.invoke('requests:setFileOptions', fileId, options),
+
+  queueRequestPrint: (id: string): Promise<{ ok: boolean; error?: string; hint?: string }> =>
+    ipcRenderer.invoke('requests:queuePrint', id),
+
+  repairOnlineFiles: (id: string): Promise<{ ok: boolean; request?: PrintRequest; error?: string; repairedFiles?: number }> =>
+    ipcRenderer.invoke('requests:repairOnlineFiles', id),
+
+  completeRequestPickup: (id: string, pin: string): Promise<{ ok: boolean; request?: PrintRequest; error?: string; locked?: boolean; remaining?: number; lockoutMinutes?: number }> =>
+    ipcRenderer.invoke('requests:completePickup', id, pin),
 
   deleteRequest: (id: string): Promise<{ deletedFiles: number }> =>
     ipcRenderer.invoke('requests:delete', id),
@@ -61,9 +93,6 @@ export const api = {
 
   chooseFile: (): Promise<{ canceled: boolean; filePaths: string[] }> =>
     ipcRenderer.invoke('file:choose'),
-
-  downloadOnlineFile: (url: string, filename: string): Promise<string> =>
-    ipcRenderer.invoke('online:downloadFile', url, filename),
 
   printerStatus: (): Promise<PrinterStatusPayload> =>
     ipcRenderer.invoke('printer:status'),

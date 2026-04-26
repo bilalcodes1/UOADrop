@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase, type SupabaseRequestRow, type OnlineEntry, type SupabaseFileRow } from '../lib/supabase';
 import uoadropLogo from './icons/uoadrop-logo.png';
 import universityOfAnbarLogo from './icons/university-of-anbar.svg';
 import csCollegeLogo from './icons/cs-college.svg';
-import type { PrintRequest, PrinterStatus, RequestFile, RequestStatus } from '@uoadrop/shared';
+import {
+  canMarkDone,
+  canMoveToReady as canMoveToReadyPersisted,
+  getPrintQueueState,
+  getOnlineImportState,
+  getRequestSourceOfTruth,
+  hasFinalPrice,
+  isPrintQueueBusy,
+  type PrintRequest,
+  type PrinterStatus,
+  type RequestFile,
+  type RequestStatus,
+} from '@uoadrop/shared';
 
 const PRINTER_LABEL: Record<PrinterStatus, string> = {
   ready: 'جاهزة',
@@ -61,6 +72,45 @@ function formatStamp(value: string): string {
 function formatPages(value: number): string {
   if (value <= 0) return 'قيد الحساب';
   return `${value.toLocaleString('ar-IQ')} صفحة`;
+}
+
+function formatSourceOfTruthLabel(request: PrintRequest): string {
+  return getRequestSourceOfTruth(request) === 'desktop' ? 'التنفيذ: الديسكتوب' : 'الإدخال: Supabase';
+}
+
+function formatImportStateLabel(request: PrintRequest): string {
+  const state = getOnlineImportState(request);
+  switch (state) {
+    case 'download_started':
+      return 'جارٍ تنزيل الملفات';
+    case 'downloaded':
+      return 'اكتمل التنزيل';
+    case 'imported':
+      return 'تم الاستيراد محلياً';
+    case 'cleanup_pending':
+      return 'بانتظار تنظيف النسخة السحابية';
+    case 'cleanup_done':
+      return 'نُظّفت النسخة السحابية';
+    default:
+      return 'بانتظار الاستلام';
+  }
+}
+
+function formatPrintQueueLabel(request: PrintRequest): string {
+  switch (getPrintQueueState(request)) {
+    case 'queued':
+      return 'في طابور الطباعة';
+    case 'spooling':
+      return 'جارٍ فتح الملفات للطباعة';
+    case 'failed':
+      if (request.printQueueError === 'missing_local_files') return 'فشل الطباعة: بعض الملفات المحلية مفقودة';
+      if (request.printQueueError === 'restart_interrupted') return 'تم إيقاف الطباعة السابقة بسبب إعادة تشغيل التطبيق';
+      if (request.printQueueError === 'NO_PRINTERS_CONFIGURED') return 'فشل الطباعة: لا توجد طابعات مضافة';
+      if (request.printQueueError === 'NO_WINDOW') return 'الطباعة مؤجلة حتى تجهز نافذة التطبيق';
+      return 'فشل آخر محاولة طباعة';
+    default:
+      return request.status === 'printing' ? 'تم تمرير الطلب للطباعة' : 'لم يُرسل إلى الطباعة بعد';
+  }
 }
 
 type FileOptionDraft = {
@@ -373,12 +423,11 @@ export function Dashboard(): JSX.Element {
     printerName: string | null;
   }>({ status: 'unknown', printerName: null });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [fileCounts, setFileCounts] = useState<Record<string, number>>({});
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [filesPanel, setFilesPanel] = useState<{ request: PrintRequest; files: RequestFile[] } | null>(null);
   const [fileOptionDrafts, setFileOptionDrafts] = useState<Record<string, FileOptionDraft>>({});
   const [fileOptionBusy, setFileOptionBusy] = useState<string | null>(null);
-  const [onlineQueue, setOnlineQueue] = useState<OnlineEntry[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTokenRef = useRef(0);
 
@@ -393,18 +442,10 @@ export function Dashboard(): JSX.Element {
     toastTimerRef.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const updateStatus = (id: string, status: RequestStatus): void => {
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === id ? { ...r, status, updatedAt: new Date().toISOString() } : r,
-      ),
-    );
-  };
-
   const updatePrice = (id: string, priceIqd: number): void => {
     setRequests((prev) =>
       prev.map((r) =>
-        r.id === id ? { ...r, priceIqd, updatedAt: new Date().toISOString() } : r,
+        r.id === id ? { ...r, priceIqd, finalPriceConfirmedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : r,
       ),
     );
   };
@@ -460,76 +501,6 @@ export function Dashboard(): JSX.Element {
     return () => clearInterval(id);
   }, [filter, search, page]);
 
-  // ── Helper: download files + produce OnlineEntry ──
-  const processOnlineRequest = useCallback(async (row: SupabaseRequestRow): Promise<OnlineEntry> => {
-    const { data: files } = await supabase
-      .from('request_files')
-      .select('*')
-      .eq('request_id', row.id);
-
-    const localFiles: OnlineEntry['localFiles'] = [];
-    for (const f of (files ?? []) as SupabaseFileRow[]) {
-      const { data: urlData } = await supabase.storage
-        .from('print-files')
-        .createSignedUrl(f.storage_path, 60 * 60 * 24 * 7);
-      if (urlData?.signedUrl) {
-        try {
-          const localPath = await window.api.downloadOnlineFile(urlData.signedUrl, f.filename);
-          localFiles.push({ filename: f.filename, localPath, copies: f.copies, color: f.color });
-        } catch { /* skip failed file */ }
-      }
-    }
-    await supabase.from('print_requests').update({ status: 'received' }).eq('id', row.id);
-    return { ...row, localFiles };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Supabase catch-up: fetch + download + auto-delete on startup ──
-  useEffect(() => {
-    supabase
-      .from('print_requests')
-      .select('*')
-      .eq('source', 'online')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .then(async ({ data }) => {
-        if (!data || data.length === 0) return;
-        showToast(`${data.length} طلب أونلاين جديد — جارٍ التحميل...`);
-        const entries = await Promise.all((data as SupabaseRequestRow[]).map(processOnlineRequest));
-        const valid = entries.filter((e) => e.localFiles.length > 0);
-        setOnlineQueue(valid);
-        if (valid.length > 0) showToast(`${valid.length} طلب أونلاين جاهز للطباعة`);
-      });
-  }, [processOnlineRequest]);
-
-  // ── Supabase Realtime — online requests ──
-  useEffect(() => {
-    const channel = supabase
-      .channel('online-requests')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'print_requests' },
-        async (payload) => {
-          const row = payload.new as SupabaseRequestRow;
-          if (row.source !== 'online') return;
-          if (onlineQueue.some((r) => r.id === row.id)) return;
-          showToast(`طلب أونلاين جديد — ${row.ticket}`);
-          // Wait for files to finish uploading before processing
-          await new Promise((res) => setTimeout(res, 5000));
-          const entry = await processOnlineRequest(row);
-          if (entry.localFiles.length === 0) return;
-          setOnlineQueue((prev) => {
-            if (prev.some((r) => r.id === entry.id)) return prev;
-            return [entry, ...prev];
-          });
-          showToast(`طلب ${entry.ticket} جاهز للطباعة`);
-        },
-      )
-      .subscribe((status, err) => {
-        console.log('[Realtime] status:', status, err ?? '');
-      });
-    return () => { void supabase.removeChannel(channel); };
-  }, [processOnlineRequest]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Real-time updates via direct Electron IPC (zero network hop) ──
   useEffect(() => {
     const unsub = window.api.onRequestsChanged((ev) => {
@@ -539,14 +510,25 @@ export function Dashboard(): JSX.Element {
           return [ev.payload!, ...prev];
         });
         setTotal((t) => t + 1);
+        if (ev.payload.source === 'online') {
+          showToast(`طلب ${ev.payload.ticket} جاهز للطباعة`);
+        }
       }
       if (ev.reason === 'file-added' && ev.requestId) {
-        setFileCounts((prev) => ({
-          ...prev,
-          [ev.requestId!]: (prev[ev.requestId!] ?? 0) + 1,
-        }));
         if (ev.payload) updateRequestSnapshot(ev.payload);
         showToast('ملف جديد — جاهز للطباعة');
+      }
+      if (ev.payload && ['print-queued', 'print-queue-spooling', 'print-queue-complete', 'print-queue-failed', 'print-queue-recovered', 'local-files-missing', 'files-repaired', 'workflow-meta', 'status', 'picked-up'].includes(ev.reason)) {
+        updateRequestSnapshot(ev.payload);
+      }
+      if (ev.reason === 'print-queue-complete' && ev.payload) {
+        showToast(`بدأت طباعة الطلب ${ev.payload.ticket}`);
+      }
+      if ((ev.reason === 'print-queue-failed' || ev.reason === 'local-files-missing') && ev.payload) {
+        showToast(`${ev.payload.ticket}: ${formatPrintQueueLabel(ev.payload)}`);
+      }
+      if (ev.reason === 'files-repaired' && ev.payload) {
+        showToast(`تمت إعادة تنزيل ملفات الطلب ${ev.payload.ticket}`);
       }
       void refreshRef.current();
     });
@@ -567,7 +549,7 @@ export function Dashboard(): JSX.Element {
   }, []);
 
   const getDraftPriceValue = (req: PrintRequest): string =>
-    priceDrafts[req.id] ?? (req.priceIqd > 0 ? String(req.priceIqd) : '');
+    priceDrafts[req.id] ?? (hasFinalPrice(req) ? String(req.priceIqd) : '');
 
   const openFilesPanel = (request: PrintRequest, files: RequestFile[]): void => {
     setFilesPanel({ request, files });
@@ -617,7 +599,7 @@ export function Dashboard(): JSX.Element {
 
   const canMoveToReady = (req: PrintRequest): boolean => {
     const value = Number(getDraftPriceValue(req).trim());
-    return req.status === 'printing' && Number.isFinite(value) && value > 0;
+    return canMoveToReadyPersisted(req) || (req.status === 'printing' && Number.isFinite(value) && value > 0);
   };
 
   const saveManualPrice = async (
@@ -633,15 +615,74 @@ export function Dashboard(): JSX.Element {
     try {
       await window.api.setRequestPrice(req.id, Math.floor(nextPrice));
       updatePrice(req.id, Math.floor(nextPrice));
-      setPriceDrafts((prev) => {
-        const next = { ...prev };
-        delete next[req.id];
-        return next;
-      });
       if (!options?.silent) {
         showToast(`تم حفظ سعر الطلب ${req.ticket}`);
       }
       return Math.floor(nextPrice);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const canRepairOnlineFiles = (req: PrintRequest): boolean => {
+    return req.source === 'online'
+      && req.printQueueError === 'missing_local_files'
+      && !req.onlineFilesCleanupAt;
+  };
+
+  const handleRepairOnlineFiles = async (req: PrintRequest): Promise<void> => {
+    if (!canRepairOnlineFiles(req)) {
+      showToast('لا يمكن إصلاح هذا الطلب حالياً');
+      return;
+    }
+    setBusy(req.id);
+    try {
+      const result = await window.api.repairOnlineFiles(req.id);
+      if (!result.ok || !result.request) {
+        if (result.error === 'remote_cleanup_done') {
+          showToast('لا يمكن الإصلاح بعد تنظيف النسخة السحابية');
+        } else if (result.error === 'remote_files_missing' || result.error === 'remote_request_missing') {
+          showToast('تعذر الإصلاح: النسخة السحابية لم تعد متاحة');
+        } else {
+          showToast('تعذر إعادة تنزيل ملفات الطلب');
+        }
+        return;
+      }
+      updateRequestSnapshot(result.request);
+      showToast(`تم إصلاح ${result.repairedFiles?.toLocaleString('ar-IQ') ?? 'بعض'} ملفات للطلب ${req.ticket}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDone = async (req: PrintRequest): Promise<void> => {
+    if (!canMarkDone(req)) {
+      showToast('لا يمكن تسليم الطلب قبل أن يصبح جاهزاً');
+      return;
+    }
+    const pin = window.prompt(`أدخل رمز الاستلام للطلب ${req.ticket}`)?.trim() ?? '';
+    if (!pin) return;
+
+    setBusy(req.id);
+    try {
+      const result = await window.api.completeRequestPickup(req.id, pin);
+      if (!result.ok || !result.request) {
+        if (result.error === 'pickup_locked' || result.locked) {
+          showToast(`تم تجميد التسليم مؤقتاً لهذا الطلب لمدة ${result.lockoutMinutes ?? 30} دقيقة`);
+        } else if (result.error === 'invalid_pin') {
+          const remainingLabel = typeof result.remaining === 'number'
+            ? ` — المتبقي ${result.remaining.toLocaleString('ar-IQ')} محاولات`
+            : '';
+          showToast(`رمز الاستلام غير صحيح${remainingLabel}`);
+        } else {
+          showToast('تعذر إتمام التسليم');
+        }
+        return;
+      }
+
+      const pickedUpAt = result.request.pickedUpAt ?? new Date().toISOString();
+      updateRequestSnapshot({ ...result.request, sourceOfTruth: 'desktop', pickedUpAt, updatedAt: pickedUpAt });
+      showToast(`تم تسليم الطلب ${req.ticket}`);
     } finally {
       setBusy(null);
     }
@@ -663,41 +704,31 @@ export function Dashboard(): JSX.Element {
 
   const handlePrint = async (req: PrintRequest): Promise<void> => {
     setBusy(req.id);
-    const listing = await window.api.listRequestFiles(req.id);
-    if (listing.items.length === 0) {
-      showToast(`لا توجد ملفات مرفقة بالطلب ${req.ticket}`);
-      setBusy(null);
-      return;
-    }
-
-    let anyOk = false;
-    let lastHint: string | undefined;
-    let lastError: string | undefined;
-    for (const f of listing.items) {
-      if (!f.localPath) continue;
-      const printRes = await window.api.printFile(f.localPath);
-      if (printRes.ok) {
-        anyOk = true;
-        lastHint = printRes.hint ?? lastHint;
-      } else {
-        lastError = printRes.error ?? lastError;
-        lastHint = printRes.hint ?? lastHint;
-        // User cancelled — do not open further dialogs for remaining files.
-        if (printRes.error === 'canceled' || printRes.error === 'cancelled') break;
+    try {
+      const result = await window.api.queueRequestPrint(req.id);
+      if (!result.ok) {
+        if (result.error === 'already_queued') {
+          showToast('الطلب موجود بالفعل في طابور الطباعة');
+        } else if (result.error === 'missing_local_files') {
+          showToast('تعذر الطباعة: بعض الملفات المحلية مفقودة');
+        } else if (result.error === 'invalid_status') {
+          showToast('لا يمكن إرسال هذا الطلب إلى الطباعة بحالته الحالية');
+        } else {
+          showToast('تعذر تنفيذ الطباعة حالياً');
+        }
+        return;
       }
-    }
 
-    if (anyOk) {
-      await window.api.setRequestStatus(req.id, 'printing');
-      updateStatus(req.id, 'printing');
-      showToast(!lastHint || containsEnglish(lastHint) ? `بدأت طباعة الطلب ${req.ticket}` : lastHint);
-    } else if (lastError === 'NO_PRINTERS_CONFIGURED') {
-      showToast('فشل الطباعة: لا توجد طابعات مضافة إلى النظام');
-    } else {
-      const issue = getArabicPrintIssue(lastError, lastHint);
-      showToast(issue === 'تم إلغاء الطباعة' ? issue : `فشل الطباعة: ${issue}`);
+      updateRequestSnapshot({
+        ...req,
+        printQueueState: 'queued',
+        printQueueError: undefined,
+        printQueueUpdatedAt: new Date().toISOString(),
+      });
+      showToast(result.hint ?? `أُضيف الطلب ${req.ticket} إلى طابور الطباعة`);
+    } finally {
+      setBusy(null);
     }
-    setBusy(null);
   };
 
   const handleReady = async (
@@ -719,8 +750,22 @@ export function Dashboard(): JSX.Element {
 
     setBusy(req.id);
     try {
+      const readyAt = new Date().toISOString();
       await window.api.setRequestStatus(req.id, 'ready');
-      updateStatus(req.id, 'ready');
+      await window.api.setRequestWorkflowMeta({
+        id: req.id,
+        printedAt: readyAt,
+        sourceOfTruth: 'desktop',
+      });
+      updateRequestSnapshot({
+        ...req,
+        status: 'ready',
+        priceIqd: Math.floor(finalPrice),
+        finalPriceConfirmedAt: req.finalPriceConfirmedAt ?? readyAt,
+        printedAt: readyAt,
+        sourceOfTruth: 'desktop',
+        updatedAt: readyAt,
+      });
       setSelectedIds((prev) => {
         if (!prev.has(req.id)) return prev;
         const next = new Set(prev);
@@ -903,13 +948,23 @@ export function Dashboard(): JSX.Element {
             </div>
           </div>
 
-          <button
-            className="hero-action"
-            onClick={() => window.open('http://localhost:3737/wall-sign', '_blank')}
-          >
-            <PosterIcon className="hero-action-icon" />
-            <span>طباعة ملصق الحائط</span>
-          </button>
+          <div className="hero-actions">
+            <button
+              className="hero-action hero-action-light"
+              onClick={() => window.open('http://localhost:3737/wall-sign', '_blank')}
+            >
+              <PosterIcon className="hero-action-icon" />
+              <span>ملصق الأوفلاين</span>
+            </button>
+
+            <button
+              className="hero-action hero-action-online"
+              onClick={() => window.open('http://localhost:3737/online-wall-sign', '_blank')}
+            >
+              <PosterIcon className="hero-action-icon" />
+              <span>ملصق الأونلاين</span>
+            </button>
+          </div>
         </div>
 
         <div className="hero-metrics">
@@ -946,56 +1001,7 @@ export function Dashboard(): JSX.Element {
         </button>
       </div>
 
-      {activeTab === 'requests' && onlineQueue.length > 0 && (
-        <div className="online-queue-strip">
-          <div className="online-queue-header">
-            <span className="online-queue-dot" />
-            <span className="online-queue-title">طلبات أونلاين جديدة</span>
-            <span className="online-queue-count">{onlineQueue.length}</span>
-            <button
-              className="online-queue-clear"
-              onClick={() => setOnlineQueue([])}
-              aria-label="مسح القائمة"
-            >
-              مسح
-            </button>
-          </div>
-          <ul className="online-queue-list">
-            {onlineQueue.map((entry) => (
-              <li key={entry.id} className="online-queue-item">
-                <span className="online-queue-ticket">{entry.ticket}</span>
-                <span className="online-queue-name">{entry.student_name ?? 'طالب'}</span>
-                <span className="online-queue-time">
-                  {new Date(entry.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                <div className="online-queue-files">
-                  {entry.localFiles.map((f) => (
-                    <span key={f.localPath} className="online-queue-file">
-                      <span className="online-queue-filename">{f.filename}</span>
-                      <button
-                        className="online-queue-btn"
-                        onClick={() => void window.api.openFile(f.localPath)}
-                      >فتح</button>
-                      <button
-                        className="online-queue-btn online-queue-btn--print"
-                        onClick={() => void window.api.printFile(f.localPath)}
-                      >طباعة</button>
-                    </span>
-                  ))}
-                  {entry.localFiles.length === 0 && (
-                    <span className="online-queue-no-files">لا توجد ملفات</span>
-                  )}
-                </div>
-                <button
-                  className="online-queue-dismiss"
-                  onClick={() => setOnlineQueue((prev) => prev.filter((r) => r.id !== entry.id))}
-                >✕</button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
+      <div className="dashboard-panel">
       {activeTab === 'about' ? (
         <section className="dashboard-credits">
           <div className="dashboard-credits-main">
@@ -1261,7 +1267,8 @@ export function Dashboard(): JSX.Element {
             </span>
           </div>
         )}
-        {requests.map((req) => (
+        {requests.map((req) => {
+          return (
           <div
             key={req.id}
             className={`request-slot ${matchesLiveSearch(req, normalizedSearchInput) ? 'request-slot-visible' : 'request-slot-hidden'}`}
@@ -1288,9 +1295,12 @@ export function Dashboard(): JSX.Element {
 
                 <div className="card-status-group">
                   <span className={`badge ${STATUS_COLOR[req.status]}`}>{STATUS_LABEL[req.status]}</span>
+                  <span className={`badge ${req.source === 'online' ? 'badge-source-online' : 'badge-source-local'}`}>
+                    {req.source === 'online' ? 'أونلاين' : 'أوفلاين'}
+                  </span>
                   <span className="file-badge">
                     <AttachmentIcon className="file-badge-icon" />
-                    <span>{(fileCounts[req.id] ?? 0).toLocaleString('ar-IQ')} ملفات</span>
+                    <span>{(req.fileCount ?? 0).toLocaleString('ar-IQ')} ملفات</span>
                   </span>
                 </div>
               </div>
@@ -1348,6 +1358,10 @@ export function Dashboard(): JSX.Element {
                   <strong dir="ltr">{req.pickupPin ?? 'غير متاح'}</strong>
                 </span>
                 <span className="meta-pill">عدد الصفحات: {formatPages(req.totalPages)}</span>
+                <span className="meta-pill">{formatSourceOfTruthLabel(req)}</span>
+                {req.source === 'online' && <span className="meta-pill">{formatImportStateLabel(req)}</span>}
+                <span className="meta-pill">{formatPrintQueueLabel(req)}</span>
+                <span className="meta-pill">{hasFinalPrice(req) ? 'السعر معتمد' : 'السعر بانتظار الاعتماد'}</span>
                 <span className="meta-pill">افتراضي: {req.options.copies.toLocaleString('ar-IQ')} نسخ</span>
                 <span className="meta-pill">أُنشئ {formatStamp(req.createdAt)}</span>
               </div>
@@ -1361,16 +1375,28 @@ export function Dashboard(): JSX.Element {
                   className={`btn btn-print ${req.status === 'printing' ? 'btn-print-repeat' : ''}`}
                   disabled={
                     busy === req.id ||
+                    isPrintQueueBusy(req) ||
                     req.status === 'done' ||
                     req.status === 'canceled' ||
                     req.status === 'blocked'
                   }
                   onClick={() => void handlePrint(req)}
-                  title={req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}
+                  title={isPrintQueueBusy(req) ? 'الطلب داخل طابور الطباعة' : req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}
                 >
                   <PrintIcon className="btn-icon" />
-                  <span>{req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}</span>
+                  <span>{isPrintQueueBusy(req) ? 'بالانتظار' : req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}</span>
                 </button>
+                {canRepairOnlineFiles(req) && (
+                  <button
+                    className="btn btn-open"
+                    disabled={busy === req.id}
+                    onClick={() => void handleRepairOnlineFiles(req)}
+                    title="إعادة تنزيل الملفات المحلية المفقودة"
+                  >
+                    <EyeIcon className="btn-icon" />
+                    <span>إصلاح الملفات</span>
+                  </button>
+                )}
                 <button
                   className="btn btn-ready"
                   disabled={busy === req.id || !canMoveToReady(req)}
@@ -1380,6 +1406,15 @@ export function Dashboard(): JSX.Element {
                   <CheckIcon className="btn-icon" />
                   <span>جاهز</span>
                 </button>
+                <button
+                  className="btn btn-ready"
+                  disabled={busy === req.id || !canMarkDone(req)}
+                  onClick={() => void handleDone(req)}
+                  title={canMarkDone(req) ? 'تسليم الطلب بعد التحقق من PIN' : 'يتاح بعد الجاهزية فقط'}
+                >
+                  <CheckIcon className="btn-icon" />
+                  <span>تم التسليم</span>
+                </button>
                 <button className="btn btn-delete" disabled={busy === req.id} onClick={() => void handleDelete(req)}>
                   <TrashIcon className="btn-icon" />
                   <span>حذف</span>
@@ -1387,7 +1422,7 @@ export function Dashboard(): JSX.Element {
               </div>
             </article>
           </div>
-        ))}
+        );})}
       </main>
 
       {total > PAGE_SIZE && (
@@ -1505,6 +1540,8 @@ export function Dashboard(): JSX.Element {
           </section>
         </div>
       )}
+
+      </div>
 
       {toast && <div className="toast">{toast}</div>}
     </div>

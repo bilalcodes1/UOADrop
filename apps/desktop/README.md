@@ -33,3 +33,32 @@ This package currently contains the running desktop application:
 pnpm --filter @uoadrop/desktop dev
 pnpm --filter @uoadrop/desktop build
 ```
+
+## Packaging
+
+Do not commit production secrets into the repository.
+
+1. Create a runtime config file from environment variables:
+
+```bash
+VITE_SUPABASE_URL='https://your-project.supabase.co' \
+VITE_SUPABASE_ANON_KEY='your-anon-key' \
+SUPABASE_SERVICE_ROLE_KEY='your-service-role-key' \
+pnpm --filter @uoadrop/desktop runtime-config:write
+```
+
+This writes `resources/runtime-config.json` for local packaging only. The file is gitignored.
+
+2. Build desktop artifacts:
+
+```bash
+pnpm --filter @uoadrop/desktop run pack
+pnpm --filter @uoadrop/desktop run dist:mac
+pnpm --filter @uoadrop/desktop run dist:win
+```
+
+Notes:
+
+- Packaged desktop builds require `SUPABASE_SERVICE_ROLE_KEY` for the online workflow service.
+- The app also looks for `runtime-config.json` in `userData`, next to the packaged executable, or under Electron resources.
+- Local mac packaging is configured unsigned by default. Production signing/notarization should be added as a separate release step.

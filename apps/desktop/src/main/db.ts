@@ -1,9 +1,18 @@
 import Database from 'better-sqlite3';
 import { mkdirSync, unlinkSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { randomUUID } from 'node:crypto';
-import type { PrintRequest, RequestFile, RequestStatus } from '@uoadrop/shared';
-import { PIN_BCRYPT_ROUNDS, PIN_LENGTH } from '@uoadrop/shared';
+import { createHash, randomUUID } from 'node:crypto';
+import type {
+  OnlineImportState,
+  PrintQueueState,
+  PrintRequest,
+  RequestEvent,
+  RequestEventType,
+  RequestFile,
+  RequestSourceOfTruth,
+  RequestStatus,
+} from '@uoadrop/shared';
+import { PIN_BCRYPT_ROUNDS, PIN_LENGTH, PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
 import bcrypt from 'bcryptjs';
 
 let db: Database.Database | null = null;
@@ -44,6 +53,21 @@ function parsePrintOptionsJson(raw?: string | null): Partial<PrintRequest['optio
   }
 }
 
+function parseJsonRecord(raw?: string | null): Record<string, unknown> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function getPrintRequestsColumnNames(d: Database.Database): string[] {
+  const rows = d.prepare(`PRAGMA table_info(print_requests)`).all() as Array<{ name: string }>;
+  return rows.map((row) => row.name);
+}
+
 function getRequestFilesColumnNames(d: Database.Database): string[] {
   const rows = d.prepare(`PRAGMA table_info(request_files)`).all() as Array<{ name: string }>;
   return rows.map((row) => row.name);
@@ -64,10 +88,100 @@ function ensureRequestFilesOptionsColumn(d: Database.Database): void {
 }
 
 function ensurePrintRequestsPickupPinColumn(d: Database.Database): void {
-  const rows = d.prepare(`PRAGMA table_info(print_requests)`).all() as Array<{ name: string }>;
-  const columns = rows.map((row) => row.name);
+  const columns = getPrintRequestsColumnNames(d);
   if (!columns.includes('pickup_pin')) {
     d.exec(`ALTER TABLE print_requests ADD COLUMN pickup_pin TEXT`);
+  }
+}
+
+function ensurePrintRequestsSourceColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('source')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN source TEXT NOT NULL DEFAULT 'local'`);
+  }
+}
+
+function ensurePrintRequestsDeskReceivedColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('desk_received_at')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN desk_received_at TEXT`);
+  }
+}
+
+function ensurePrintRequestsPrintedAtColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('printed_at')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN printed_at TEXT`);
+  }
+}
+
+function ensurePrintRequestsPickedUpAtColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('picked_up_at')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN picked_up_at TEXT`);
+  }
+}
+
+function ensurePrintRequestsSourceOfTruthColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('source_of_truth')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN source_of_truth TEXT NOT NULL DEFAULT 'desktop'`);
+  }
+}
+
+function ensurePrintRequestsImportStateColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('import_state')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN import_state TEXT`);
+  }
+}
+
+function ensurePrintRequestsFinalPriceConfirmedAtColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('final_price_confirmed_at')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN final_price_confirmed_at TEXT`);
+  }
+}
+
+function ensurePrintRequestsOnlineFilesCleanupAtColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('online_files_cleanup_at')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN online_files_cleanup_at TEXT`);
+  }
+}
+
+function ensurePrintRequestsPrintQueueStateColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('print_queue_state')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN print_queue_state TEXT NOT NULL DEFAULT 'idle'`);
+  }
+}
+
+function ensurePrintRequestsPrintQueueErrorColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('print_queue_error')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN print_queue_error TEXT`);
+  }
+}
+
+function ensurePrintRequestsPrintQueueUpdatedAtColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('print_queue_updated_at')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN print_queue_updated_at TEXT`);
+  }
+}
+
+function ensurePrintRequestsStudentEmailColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('student_email')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN student_email TEXT`);
+  }
+}
+
+function ensurePrintRequestsTelegramChatIdColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('telegram_chat_id')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN telegram_chat_id TEXT`);
   }
 }
 
@@ -99,11 +213,24 @@ function initSchema(d: Database.Database): void {
       id TEXT PRIMARY KEY,
       ticket TEXT NOT NULL UNIQUE,
       student_name TEXT,
+      student_email TEXT,
+      telegram_chat_id TEXT,
+      source TEXT NOT NULL DEFAULT 'local',
       pin_hash TEXT NOT NULL,
       status TEXT NOT NULL,
       options_json TEXT NOT NULL,
       total_pages INTEGER NOT NULL,
       price_iqd INTEGER NOT NULL,
+      desk_received_at TEXT,
+      printed_at TEXT,
+      picked_up_at TEXT,
+      source_of_truth TEXT NOT NULL DEFAULT 'desktop',
+      import_state TEXT,
+      final_price_confirmed_at TEXT,
+      online_files_cleanup_at TEXT,
+      print_queue_state TEXT NOT NULL DEFAULT 'idle',
+      print_queue_error TEXT,
+      print_queue_updated_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -144,15 +271,39 @@ function initSchema(d: Database.Database): void {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS request_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      actor TEXT NOT NULL,
+      status TEXT,
+      details_json TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_request_files_request_id ON request_files(request_id);
     CREATE INDEX IF NOT EXISTS idx_print_requests_status ON print_requests(status);
     CREATE INDEX IF NOT EXISTS idx_pin_attempts_scope_time ON pin_attempts(scope, created_at);
     CREATE INDEX IF NOT EXISTS idx_printer_events_created_at ON printer_events(created_at);
+    CREATE INDEX IF NOT EXISTS idx_request_events_request_id_created_at ON request_events(request_id, created_at DESC);
   `);
 
   ensureRequestFilesPagesColumn(d);
   ensureRequestFilesOptionsColumn(d);
   ensurePrintRequestsPickupPinColumn(d);
+  ensurePrintRequestsSourceColumn(d);
+  ensurePrintRequestsDeskReceivedColumn(d);
+  ensurePrintRequestsPrintedAtColumn(d);
+  ensurePrintRequestsPickedUpAtColumn(d);
+  ensurePrintRequestsSourceOfTruthColumn(d);
+  ensurePrintRequestsImportStateColumn(d);
+  ensurePrintRequestsFinalPriceConfirmedAtColumn(d);
+  ensurePrintRequestsOnlineFilesCleanupAtColumn(d);
+  ensurePrintRequestsPrintQueueStateColumn(d);
+  ensurePrintRequestsPrintQueueErrorColumn(d);
+  ensurePrintRequestsPrintQueueUpdatedAtColumn(d);
+  ensurePrintRequestsStudentEmailColumn(d);
+  ensurePrintRequestsTelegramChatIdColumn(d);
 }
 
 export interface PrinterEventRow {
@@ -208,6 +359,131 @@ export function listPrinterEvents(limit = 50): PrinterEventRow[] {
     details: r.details_json ? (JSON.parse(r.details_json) as Record<string, unknown>) : null,
     createdAt: r.created_at,
   }));
+}
+
+type RequestRow = {
+  id: string;
+  ticket: string;
+  student_name: string | null;
+  student_email: string | null;
+  telegram_chat_id: string | null;
+  source: 'local' | 'online';
+  pickup_pin: string | null;
+  pin_hash: string;
+  status: RequestStatus;
+  options_json: string;
+  total_pages: number;
+  price_iqd: number;
+  desk_received_at: string | null;
+  printed_at: string | null;
+  picked_up_at: string | null;
+  source_of_truth: RequestSourceOfTruth | null;
+  import_state: OnlineImportState | null;
+  final_price_confirmed_at: string | null;
+  online_files_cleanup_at: string | null;
+  print_queue_state: PrintQueueState | null;
+  print_queue_error: string | null;
+  print_queue_updated_at: string | null;
+  file_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+function buildPrintRequest(row: RequestRow): PrintRequest {
+  return {
+    id: row.id,
+    ticket: row.ticket,
+    source: row.source,
+    studentName: row.student_name ?? undefined,
+    studentEmail: row.student_email ?? undefined,
+    telegramChatId: row.telegram_chat_id ?? undefined,
+    pickupPin: row.pickup_pin ?? undefined,
+    pinHash: row.pin_hash,
+    status: row.status,
+    options: normalizePrintOptions(parsePrintOptionsJson(row.options_json)),
+    totalPages: row.total_pages,
+    priceIqd: row.price_iqd,
+    sourceOfTruth: row.source_of_truth ?? undefined,
+    importState: row.import_state ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deskReceivedAt: row.desk_received_at ?? undefined,
+    printedAt: row.printed_at ?? undefined,
+    pickedUpAt: row.picked_up_at ?? undefined,
+    finalPriceConfirmedAt: row.final_price_confirmed_at ?? undefined,
+    onlineFilesCleanupAt: row.online_files_cleanup_at ?? undefined,
+    fileCount: row.file_count ?? 0,
+    printQueueState: row.print_queue_state ?? 'idle',
+    printQueueError: row.print_queue_error ?? undefined,
+    printQueueUpdatedAt: row.print_queue_updated_at ?? undefined,
+  };
+}
+
+export function logRequestEvent(args: {
+  requestId: string;
+  type: RequestEventType;
+  actor: 'system' | 'student' | 'librarian';
+  status?: RequestStatus;
+  details?: Record<string, unknown> | null;
+}): void {
+  const d = getDb();
+  d.prepare(
+    `INSERT INTO request_events(request_id, event_type, actor, status, details_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(
+    args.requestId,
+    args.type,
+    args.actor,
+    args.status ?? null,
+    args.details ? JSON.stringify(args.details) : null,
+    new Date().toISOString(),
+  );
+}
+
+export function listRequestEvents(requestId: string, limit = 50): RequestEvent[] {
+  const d = getDb();
+  const rows = d
+    .prepare(
+      `SELECT id, request_id, event_type, actor, status, details_json, created_at
+       FROM request_events
+       WHERE request_id = ?
+       ORDER BY id DESC
+       LIMIT ?`,
+    )
+    .all(requestId, limit) as Array<{
+    id: number;
+    request_id: string;
+    event_type: RequestEventType;
+    actor: 'system' | 'student' | 'librarian';
+    status: RequestStatus | null;
+    details_json: string | null;
+    created_at: string;
+  }>;
+
+  return rows.map((row) => ({
+    id: row.id,
+    requestId: row.request_id,
+    type: row.event_type,
+    actor: row.actor,
+    status: row.status ?? undefined,
+    details: parseJsonRecord(row.details_json),
+    createdAt: row.created_at,
+  }));
+}
+
+function matchesStoredPinHash(pin: string, storedHash: string): boolean {
+  if (!storedHash) return false;
+  if (storedHash.startsWith('sha256:')) {
+    const [, saltHex = '', hashHex = ''] = storedHash.split(':');
+    if (!saltHex || !hashHex) return false;
+    const digest = createHash('sha256').update(pin + saltHex).digest('hex');
+    return digest === hashHex;
+  }
+  try {
+    return bcrypt.compareSync(pin, storedHash);
+  } catch {
+    return false;
+  }
 }
 
 function getSetting(key: string): string | null {
@@ -268,7 +544,7 @@ export function verifyStudentPinByTicket(
     .prepare('SELECT id, pin_hash, status FROM print_requests WHERE ticket = ?')
     .get(ticket) as { id: string; pin_hash: string; status: RequestStatus } | undefined;
   if (!row) return { ok: false, requestId: null, status: null };
-  const ok = bcrypt.compareSync(pin, row.pin_hash);
+  const ok = matchesStoredPinHash(pin, row.pin_hash);
   return { ok, requestId: row.id, status: row.status };
 }
 
@@ -328,13 +604,15 @@ export function createRequest(args: {
 
   d.prepare(
     `INSERT INTO print_requests (
-      id, ticket, student_name, pickup_pin, pin_hash, status, options_json,
-      total_pages, price_iqd, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      id, ticket, student_name, source, pickup_pin, pin_hash, status, options_json,
+      total_pages, price_iqd, desk_received_at, printed_at, picked_up_at, source_of_truth,
+      import_state, final_price_confirmed_at, online_files_cleanup_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     ticket,
     args.studentName ?? null,
+    'local',
     pin,
     pinHash,
     status,
@@ -342,12 +620,20 @@ export function createRequest(args: {
     args.totalPages,
     args.priceIqd,
     now,
+    null,
+    null,
+    'desktop',
+    null,
+    args.priceIqd > 0 ? now : null,
+    null,
+    now,
     now,
   );
 
   const request: PrintRequest = {
     id,
     ticket,
+    source: 'local',
     studentName: args.studentName,
     pickupPin: pin,
     pinHash,
@@ -355,9 +641,20 @@ export function createRequest(args: {
     options: normalizedOptions,
     totalPages: args.totalPages,
     priceIqd: args.priceIqd,
+    sourceOfTruth: 'desktop',
     createdAt: now,
     updatedAt: now,
+    deskReceivedAt: now,
+    finalPriceConfirmedAt: args.priceIqd > 0 ? now : undefined,
   };
+
+  logRequestEvent({
+    requestId: id,
+    type: 'request_created',
+    actor: 'student',
+    status,
+    details: { source: 'local' },
+  });
 
   return { request, pin };
 }
@@ -402,39 +699,20 @@ export function listRequestsPaged(args: {
 
   const rows = d
     .prepare(
-      `SELECT id, ticket, student_name, pickup_pin, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
-       FROM print_requests
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+              r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
+              r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
+              r.print_queue_error, r.print_queue_updated_at,
+              (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
+              r.created_at, r.updated_at
+       FROM print_requests r
        ${whereSql}
        ORDER BY datetime(created_at) DESC
        LIMIT ? OFFSET ?`,
     )
-    .all(...params, limit, offset) as Array<{
-    id: string;
-    ticket: string;
-    student_name: string | null;
-    pickup_pin: string | null;
-    pin_hash: string;
-    status: RequestStatus;
-    options_json: string;
-    total_pages: number;
-    price_iqd: number;
-    created_at: string;
-    updated_at: string;
-  }>;
+    .all(...params, limit, offset) as RequestRow[];
 
-  const items: PrintRequest[] = rows.map((r) => ({
-    id: r.id,
-    ticket: r.ticket,
-    studentName: r.student_name ?? undefined,
-    pickupPin: r.pickup_pin ?? undefined,
-    pinHash: r.pin_hash,
-    status: r.status,
-    options: normalizePrintOptions(parsePrintOptionsJson(r.options_json)),
-    totalPages: r.total_pages,
-    priceIqd: r.price_iqd,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-  }));
+  const items: PrintRequest[] = rows.map(buildPrintRequest);
 
   return { items, total: totalRow.c };
 }
@@ -443,77 +721,189 @@ export function listRequests(): PrintRequest[] {
   const d = getDb();
   const rows = d
     .prepare(
-      `SELECT id, ticket, student_name, pickup_pin, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
-       FROM print_requests
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+              r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
+              r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
+              r.print_queue_error, r.print_queue_updated_at,
+              (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
+              r.created_at, r.updated_at
+       FROM print_requests r
        ORDER BY datetime(created_at) DESC`,
     )
-    .all() as Array<{
-    id: string;
-    ticket: string;
-    student_name: string | null;
-    pickup_pin: string | null;
-    pin_hash: string;
-    status: RequestStatus;
-    options_json: string;
-    total_pages: number;
-    price_iqd: number;
-    created_at: string;
-    updated_at: string;
-  }>;
+    .all() as RequestRow[];
 
-  return rows.map((r) => ({
-    id: r.id,
-    ticket: r.ticket,
-    studentName: r.student_name ?? undefined,
-    pickupPin: r.pickup_pin ?? undefined,
-    pinHash: r.pin_hash,
-    status: r.status,
-    options: normalizePrintOptions(parsePrintOptionsJson(r.options_json)),
-    totalPages: r.total_pages,
-    priceIqd: r.price_iqd,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-  }));
+  return rows.map(buildPrintRequest);
 }
 
 export function getRequestById(id: string): PrintRequest | null {
   const d = getDb();
   const row = d
     .prepare(
-      `SELECT id, ticket, student_name, pickup_pin, pin_hash, status, options_json, total_pages, price_iqd, created_at, updated_at
-       FROM print_requests
-       WHERE id = ?
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+              r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
+              r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
+              r.print_queue_error, r.print_queue_updated_at,
+              (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
+              r.created_at, r.updated_at
+       FROM print_requests r
+       WHERE r.id = ?
        LIMIT 1`,
     )
-    .get(id) as {
-    id: string;
-    ticket: string;
-    student_name: string | null;
-    pickup_pin: string | null;
-    pin_hash: string;
-    status: RequestStatus;
-    options_json: string;
-    total_pages: number;
-    price_iqd: number;
-    created_at: string;
-    updated_at: string;
-  } | undefined;
+    .get(id) as RequestRow | undefined;
 
   if (!row) return null;
 
-  return {
-    id: row.id,
-    ticket: row.ticket,
-    studentName: row.student_name ?? undefined,
-    pickupPin: row.pickup_pin ?? undefined,
-    pinHash: row.pin_hash,
-    status: row.status,
-    options: normalizePrintOptions(parsePrintOptionsJson(row.options_json)),
-    totalPages: row.total_pages,
-    priceIqd: row.price_iqd,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+  return row ? buildPrintRequest(row) : null;
+}
+
+export function getRequestByTicket(ticket: string): PrintRequest | null {
+  const d = getDb();
+  const normalizedTicket = ticket.trim().toUpperCase();
+  if (!normalizedTicket) return null;
+  const row = d
+    .prepare(
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+              r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
+              r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
+              r.print_queue_error, r.print_queue_updated_at,
+              (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
+              r.created_at, r.updated_at
+       FROM print_requests r
+       WHERE r.ticket = ?
+       LIMIT 1`,
+    )
+    .get(normalizedTicket) as RequestRow | undefined;
+  return row ? buildPrintRequest(row) : null;
+}
+
+export function linkRequestTelegramChat(requestId: string, telegramChatId: string): PrintRequest {
+  const d = getDb();
+  const now = new Date().toISOString();
+  d.prepare(
+    `UPDATE print_requests
+     SET telegram_chat_id = ?,
+         updated_at = ?
+     WHERE id = ?`,
+  ).run(telegramChatId.trim(), now, requestId);
+  const request = getRequestById(requestId);
+  if (!request) throw new Error(`Request not found: ${requestId}`);
+  logRequestEvent({
+    requestId,
+    type: 'status_changed',
+    actor: 'student',
+    status: request.status,
+    details: { telegramLinked: true },
+  });
+  return request;
+}
+
+export function importOnlineRequest(args: {
+  request: {
+    id: string;
+    ticket: string;
+    studentName?: string | null;
+    pinHash?: string | null;
+    status: RequestStatus;
+    createdAt: string;
+    updatedAt: string;
+    priceIqd?: number;
+    options?: Partial<PrintRequest['options']>;
+    totalPages?: number;
   };
+  files: Array<{
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    localPath: string;
+    sha256: string;
+    magicByteVerified?: boolean;
+    pages?: number;
+    options?: Partial<PrintRequest['options']>;
+  }>;
+}): PrintRequest {
+  const d = getDb();
+  const normalizedOptions = normalizePrintOptions(args.request.options);
+  const optionsJson = JSON.stringify(normalizedOptions);
+  const now = new Date().toISOString();
+  const importState: OnlineImportState = 'imported';
+
+  d.prepare(
+    `INSERT INTO print_requests (
+      id, ticket, student_name, source, pickup_pin, pin_hash, status, options_json,
+      total_pages, price_iqd, desk_received_at, printed_at, picked_up_at, source_of_truth,
+      import_state, final_price_confirmed_at, online_files_cleanup_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      ticket = excluded.ticket,
+      student_name = excluded.student_name,
+      source = excluded.source,
+      pin_hash = excluded.pin_hash,
+      status = excluded.status,
+      options_json = excluded.options_json,
+      total_pages = excluded.total_pages,
+      price_iqd = excluded.price_iqd,
+      desk_received_at = excluded.desk_received_at,
+      source_of_truth = excluded.source_of_truth,
+      import_state = excluded.import_state,
+      final_price_confirmed_at = excluded.final_price_confirmed_at,
+      online_files_cleanup_at = excluded.online_files_cleanup_at,
+      created_at = excluded.created_at,
+      updated_at = excluded.updated_at`
+  ).run(
+    args.request.id,
+    args.request.ticket,
+    args.request.studentName ?? null,
+    'online',
+    null,
+    args.request.pinHash ?? '',
+    args.request.status,
+    optionsJson,
+    args.request.totalPages ?? 0,
+    args.request.priceIqd ?? 0,
+    now,
+    args.request.status === 'ready' ? now : null,
+    args.request.status === 'done' ? now : null,
+    'desktop',
+    importState,
+    args.request.priceIqd && args.request.priceIqd > 0 ? now : null,
+    null,
+    args.request.createdAt,
+    args.request.updatedAt || now,
+  );
+
+  d.prepare('DELETE FROM request_files WHERE request_id = ?').run(args.request.id);
+
+  const insertFile = d.prepare(
+    `INSERT INTO request_files (
+      id, request_id, filename, mime_type, size_bytes, local_path, sha256, magic_byte_verified, pages, options_json, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+
+  for (const file of args.files) {
+    insertFile.run(
+      randomUUID(),
+      args.request.id,
+      file.filename,
+      file.mimeType,
+      file.sizeBytes,
+      file.localPath,
+      file.sha256,
+      file.magicByteVerified ? 1 : 0,
+      file.pages ?? 0,
+      JSON.stringify(normalizePrintOptions(file.options, normalizedOptions)),
+      args.request.createdAt,
+    );
+  }
+
+  recalcRequestPages(args.request.id);
+  logRequestEvent({
+    requestId: args.request.id,
+    type: 'desk_received',
+    actor: 'system',
+    status: args.request.status,
+    details: { source: 'online' },
+  });
+  return getRequestById(args.request.id)!;
 }
 
 function getRequestDefaultOptions(requestId: string): PrintRequest['options'] {
@@ -527,15 +917,202 @@ function getRequestDefaultOptions(requestId: string): PrintRequest['options'] {
 export function setRequestStatus(id: string, status: RequestStatus): { ok: true } {
   const d = getDb();
   const now = new Date().toISOString();
-  d.prepare('UPDATE print_requests SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
+  d.prepare(
+    `UPDATE print_requests
+     SET status = ?,
+         updated_at = ?,
+         print_queue_state = CASE WHEN ? = 'printing' THEN 'idle' ELSE print_queue_state END,
+         print_queue_error = CASE WHEN ? = 'printing' THEN NULL ELSE print_queue_error END,
+         print_queue_updated_at = CASE WHEN ? = 'printing' THEN ? ELSE print_queue_updated_at END,
+         printed_at = CASE WHEN ? = 'ready' AND printed_at IS NULL THEN ? ELSE printed_at END,
+         picked_up_at = CASE WHEN ? = 'done' AND picked_up_at IS NULL THEN ? ELSE picked_up_at END
+     WHERE id = ?`,
+  ).run(status, now, status, status, status, now, status, now, status, now, id);
+  logRequestEvent({
+    requestId: id,
+    type: status === 'printing' ? 'printing_started' : status === 'ready' ? 'ready' : status === 'done' ? 'picked_up' : 'status_changed',
+    actor: 'librarian',
+    status,
+  });
   return { ok: true };
+}
+
+export function setRequestPrintQueueState(args: {
+  id: string;
+  state: PrintQueueState;
+  error?: string | null;
+}): { ok: true } {
+  const d = getDb();
+  const now = new Date().toISOString();
+  d.prepare(
+    `UPDATE print_requests
+     SET print_queue_state = ?,
+         print_queue_error = ?,
+         print_queue_updated_at = ?,
+         updated_at = ?
+     WHERE id = ?`,
+  ).run(args.state, args.error ?? null, now, now, args.id);
+  return { ok: true };
+}
+
+export function listRequestsNeedingQueueRecovery(): PrintRequest[] {
+  const d = getDb();
+  const rows = d
+    .prepare(
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+              r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
+              r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
+              r.print_queue_error, r.print_queue_updated_at,
+              (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
+              r.created_at, r.updated_at
+       FROM print_requests r
+       WHERE r.print_queue_state IN ('queued', 'spooling')
+       ORDER BY datetime(updated_at) ASC`,
+    )
+    .all() as RequestRow[];
+  return rows.map(buildPrintRequest);
+}
+
+export function listRequestsWithMissingLocalFiles(): Array<PrintRequest & { missingFiles: number }> {
+  const d = getDb();
+  const rows = d
+    .prepare(
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+              r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
+              r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
+              r.print_queue_error, r.print_queue_updated_at, COUNT(f.id) as file_count, r.created_at, r.updated_at,
+              SUM(CASE WHEN f.local_path IS NOT NULL AND f.local_path != '' THEN 0 ELSE 1 END) as missing_files
+       FROM print_requests r
+       JOIN request_files f ON f.request_id = r.id
+       GROUP BY r.id
+       HAVING missing_files > 0
+       ORDER BY datetime(r.updated_at) DESC`,
+    )
+    .all() as Array<RequestRow & { missing_files: number }>;
+  return rows.map((row) => ({ ...buildPrintRequest(row), missingFiles: row.missing_files }));
 }
 
 export function setRequestPrice(id: string, priceIqd: number): { ok: true } {
   const d = getDb();
   const now = new Date().toISOString();
-  d.prepare('UPDATE print_requests SET price_iqd = ?, updated_at = ? WHERE id = ?').run(priceIqd, now, id);
+  d.prepare(
+    'UPDATE print_requests SET price_iqd = ?, final_price_confirmed_at = ?, updated_at = ? WHERE id = ?',
+  ).run(priceIqd, now, now, id);
+  logRequestEvent({
+    requestId: id,
+    type: 'price_set',
+    actor: 'librarian',
+    details: { priceIqd },
+  });
   return { ok: true };
+}
+
+export function setRequestWorkflowMeta(args: {
+  id: string;
+  sourceOfTruth?: RequestSourceOfTruth;
+  importState?: OnlineImportState | null;
+  deskReceivedAt?: string | null;
+  printedAt?: string | null;
+  pickedUpAt?: string | null;
+  finalPriceConfirmedAt?: string | null;
+  onlineFilesCleanupAt?: string | null;
+}): { ok: true } {
+  const d = getDb();
+  const current = getRequestById(args.id);
+  if (!current) return { ok: true };
+  const now = new Date().toISOString();
+  d.prepare(
+    `UPDATE print_requests
+     SET source_of_truth = ?,
+         import_state = ?,
+         desk_received_at = ?,
+         printed_at = ?,
+         picked_up_at = ?,
+         final_price_confirmed_at = ?,
+         online_files_cleanup_at = ?,
+         updated_at = ?
+     WHERE id = ?`,
+  ).run(
+    args.sourceOfTruth ?? current.sourceOfTruth ?? 'desktop',
+    args.importState ?? current.importState ?? null,
+    args.deskReceivedAt ?? current.deskReceivedAt ?? null,
+    args.printedAt ?? current.printedAt ?? null,
+    args.pickedUpAt ?? current.pickedUpAt ?? null,
+    args.finalPriceConfirmedAt ?? current.finalPriceConfirmedAt ?? null,
+    args.onlineFilesCleanupAt ?? current.onlineFilesCleanupAt ?? null,
+    now,
+    args.id,
+  );
+  return { ok: true };
+}
+
+export function completeRequestPickup(id: string, pin: string): {
+  ok: boolean;
+  request?: PrintRequest;
+  error?: string;
+  locked?: boolean;
+  remaining?: number;
+  lockoutMinutes?: number;
+} {
+  const request = getRequestById(id);
+  if (!request) return { ok: false, error: 'not_found' };
+  if (request.status !== 'ready') return { ok: false, error: 'invalid_status' };
+  const scope = `pickup:${id}`;
+  const windowMs = PIN_LOCKOUT_MINUTES * 60 * 1000;
+  const failures = recentFailedPinAttempts(scope, windowMs);
+  if (failures >= PIN_MAX_ATTEMPTS) {
+    logRequestEvent({
+      requestId: id,
+      type: 'pickup_pin_locked',
+      actor: 'librarian',
+      status: request.status,
+      details: { failures, lockoutMinutes: PIN_LOCKOUT_MINUTES },
+    });
+    return {
+      ok: false,
+      error: 'pickup_locked',
+      locked: true,
+      remaining: 0,
+      lockoutMinutes: PIN_LOCKOUT_MINUTES,
+    };
+  }
+
+  const pinOk = matchesStoredPinHash(pin.trim(), request.pinHash);
+  recordPinAttempt(scope, pinOk);
+  if (!pinOk) {
+    const nextFailures = failures + 1;
+    const remaining = Math.max(0, PIN_MAX_ATTEMPTS - nextFailures);
+    const locked = nextFailures >= PIN_MAX_ATTEMPTS;
+    logRequestEvent({
+      requestId: id,
+      type: locked ? 'pickup_pin_locked' : 'pickup_pin_failed',
+      actor: 'librarian',
+      status: request.status,
+      details: { remaining, failures: nextFailures, lockoutMinutes: locked ? PIN_LOCKOUT_MINUTES : undefined },
+    });
+    return {
+      ok: false,
+      error: locked ? 'pickup_locked' : 'invalid_pin',
+      locked,
+      remaining,
+      ...(locked ? { lockoutMinutes: PIN_LOCKOUT_MINUTES } : {}),
+    };
+  }
+
+  const now = new Date().toISOString();
+  const d = getDb();
+  d.prepare(
+    `UPDATE print_requests
+     SET status = 'done', picked_up_at = ?, updated_at = ?
+     WHERE id = ?`,
+  ).run(now, now, id);
+  logRequestEvent({
+    requestId: id,
+    type: 'picked_up',
+    actor: 'librarian',
+    status: 'done',
+  });
+  return { ok: true, request: getRequestById(id)!, remaining: PIN_MAX_ATTEMPTS };
 }
 
 export function addRequestFile(args: {
@@ -572,6 +1149,13 @@ export function addRequestFile(args: {
     JSON.stringify(options),
     now,
   );
+
+  logRequestEvent({
+    requestId: args.requestId,
+    type: 'file_added',
+    actor: 'student',
+    details: { filename: args.filename, pages },
+  });
 
   return {
     id,
@@ -658,12 +1242,22 @@ export function setRequestFilePages(id: string, pages: number): { ok: true } {
 
 export function deleteRequest(id: string): { deletedFiles: number } {
   const d = getDb();
+  const request = getRequestById(id);
   const files = listRequestFiles(id);
   const tx = d.transaction(() => {
     d.prepare('DELETE FROM request_files WHERE request_id = ?').run(id);
     d.prepare('DELETE FROM print_requests WHERE id = ?').run(id);
   });
   tx();
+  if (request) {
+    logRequestEvent({
+      requestId: id,
+      type: 'deleted',
+      actor: 'librarian',
+      status: request.status,
+      details: { deletedFiles: files.length },
+    });
+  }
   // Best-effort disk cleanup (ignore errors)
   for (const f of files) {
     if (f.localPath) {

@@ -3,6 +3,10 @@ import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { registerIpcHandlers } from './ipc';
+import { startOnlineWorkflowService } from './online-workflow';
+import { startPrintQueueService } from './print-queue';
+import { startTelegramNotificationService } from './telegram';
+import { getSupabaseRuntimeConfig } from './runtime-config';
 import { startLocalServer } from './server';
 import { startPrinterPolling } from './printer';
 import { subscribe as subscribeBus, type AppEvent } from './events';
@@ -54,6 +58,21 @@ if (!gotLock) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+function getConnectSrcValues(): string[] {
+  const values = ["'self'", 'ws://localhost:*', 'http://localhost:*'];
+  const { url } = getSupabaseRuntimeConfig();
+  if (!url) return values;
+  try {
+    const origin = new URL(url).origin;
+    values.push(origin);
+    if (origin.startsWith('https://')) {
+      values.push(origin.replace('https://', 'wss://'));
+    }
+  } catch {
+  }
+  return [...new Set(values)];
+}
 
 function createMainWindow(): void {
   mainWindow = new BrowserWindow({
@@ -115,7 +134,7 @@ app.whenReady().then(() => {
     }
     headers['Content-Security-Policy'] = [
       "default-src 'self'; " +
-      "connect-src 'self' https://ypyqdvpzwvqkbdkiamqz.supabase.co wss://ypyqdvpzwvqkbdkiamqz.supabase.co ws://localhost:* http://localhost:*; " +
+      `connect-src ${getConnectSrcValues().join(' ')}; ` +
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
       "style-src 'self' 'unsafe-inline'; " +
       "img-src 'self' data: blob:; " +
@@ -132,6 +151,9 @@ app.whenReady().then(() => {
   });
 
   startPrinterPolling();
+  startTelegramNotificationService();
+  startOnlineWorkflowService();
+  startPrintQueueService();
 
   // Native OS notifications on new requests / new uploaded files.
   // Uses system default notification sound (macOS, Windows, Linux).

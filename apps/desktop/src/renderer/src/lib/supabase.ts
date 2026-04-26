@@ -15,11 +15,17 @@ export type SupabaseRequestRow = {
   pickup_pin_hash: string | null;
   status: string;
   price_iqd: number;
+  total_pages: number;
   source: 'local' | 'online';
+  desk_received_at: string | null;
+  source_of_truth: 'supabase_intake' | 'desktop' | null;
+  import_state: 'pending' | 'download_started' | 'downloaded' | 'imported' | 'cleanup_pending' | 'cleanup_done' | null;
   created_at: string;
   updated_at: string;
   printed_at: string | null;
   picked_up_at: string | null;
+  final_price_confirmed_at: string | null;
+  online_files_cleanup_at: string | null;
 };
 
 export type SupabaseFileRow = {
@@ -34,8 +40,4 @@ export type SupabaseFileRow = {
   double_sided: boolean;
   pages_per_sheet: number;
   page_range: string | null;
-};
-
-export type OnlineEntry = SupabaseRequestRow & {
-  localFiles: Array<{ filename: string; localPath: string; copies: number; color: boolean }>;
 };
