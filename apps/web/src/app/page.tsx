@@ -43,7 +43,7 @@ const ALLOWED_TYPES = [
 ];
 
 const MAX_FILES = 10;
-const TELEGRAM_BOT_USERNAME = 'UOADropBot';
+const TELEGRAM_BOT_USERNAME = 'uoadrop_bot';
 const FORM_PREFS_KEY = 'uoadrop:web:upload-form-prefs';
 
 function generateTicket(): string {
