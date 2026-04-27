@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { mkdirSync, unlinkSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { app } from 'electron';
 import { createHash, randomUUID } from 'node:crypto';
 import type {
   OnlineImportState,
@@ -186,9 +187,10 @@ function ensurePrintRequestsTelegramChatIdColumn(d: Database.Database): void {
 }
 
 function getDbPath(): string {
-  // Dev-only (Option A): relative path in repo
   const configured = process.env.DESKTOP_DB_PATH;
-  return resolve(process.cwd(), configured ?? './data/uoadrop.db');
+  if (configured) return resolve(process.cwd(), configured);
+  if (app.isPackaged) return join(app.getPath('userData'), 'data', 'uoadrop.db');
+  return resolve(process.cwd(), './data/uoadrop.db');
 }
 
 export function getDb(): Database.Database {
@@ -503,10 +505,15 @@ export function ensureLibrarianPin(): { generatedPin: string | null } {
   const existing = getSetting(LIBRARIAN_PIN_KEY);
   if (existing) return { generatedPin: null };
 
-  const pin = generateLibrarianPin();
+  const pin = '12345';
   const hash = bcrypt.hashSync(pin, PIN_BCRYPT_ROUNDS);
   setSetting(LIBRARIAN_PIN_KEY, hash);
   return { generatedPin: pin };
+}
+
+export function resetLibrarianPin(newPin: string): void {
+  const hash = bcrypt.hashSync(newPin, PIN_BCRYPT_ROUNDS);
+  setSetting(LIBRARIAN_PIN_KEY, hash);
 }
 
 export function verifyLibrarianPin(pin: string): { ok: boolean } {

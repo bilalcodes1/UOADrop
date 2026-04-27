@@ -5,7 +5,8 @@ import websocket from '@fastify/websocket';
 import { emit, subscribe } from './events';
 import { createWriteStream, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
-import { basename, extname, resolve } from 'node:path';
+import { basename, extname, join, resolve } from 'node:path';
+import { app } from 'electron';
 import { createHash } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 import QRCode from 'qrcode';
@@ -48,6 +49,7 @@ const DEFAULT_PORT = 3737;
 const PUBLISHED_ONLINE_UPLOAD_URL = 'https://uoadrop.vercel.app/';
 
 function getDataDir(): string {
+  if (app.isPackaged) return join(app.getPath('userData'), 'data');
   return resolve(process.cwd(), './data');
 }
 
