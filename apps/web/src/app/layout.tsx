@@ -12,6 +12,7 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   title: 'UOADrop — رفع ملفات الطباعة',
   description: 'ارفع ملفاتك للطباعة في مكتبة كلية علوم الحاسوب — جامعة الأنبار',
+  icons: { icon: '/uoadrop-logo.png', apple: '/uoadrop-logo.png' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

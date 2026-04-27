@@ -75,6 +75,7 @@ function getConnectSrcValues(): string[] {
 }
 
 function createMainWindow(): void {
+  const iconPath = join(__dirname, '../../resources/uoadrop-logo.png');
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -82,6 +83,7 @@ function createMainWindow(): void {
     minHeight: 700,
     show: false,
     autoHideMenuBar: true,
+    icon: iconPath,
     title: 'UOADrop — لوحة المكتبة',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
