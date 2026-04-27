@@ -49,24 +49,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Update chat id if not already set or changed
+    // Update chat id
     await admin
       .from('print_requests')
       .update({ telegram_chat_id: chatId, updated_at: new Date().toISOString() })
       .eq('id', row.id);
 
-    // Send confirmation via notify endpoint (reuse logic)
-    try {
-      const baseUrl = process.env.WEB_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
-      const notifyUrl = baseUrl ? `${baseUrl.replace(/\/$/, '')}/api/notify/telegram` : '';
-      if (notifyUrl) {
-        await fetch(notifyUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ requestId: row.id, event: 'linked' }),
-        });
-      }
-    } catch {}
+    // Send confirmation directly
+    const name = (row.student_name ?? '').trim() || 'الطالب';
+    const lines = [
+      '✅ تم ربط إشعارات UOADrop بنجاح',
+      `مرحباً ${name}`,
+      `رقم التذكرة: ${row.ticket}`,
+      'سنرسل لك تحديثاً عندما يصبح الطلب جاهزاً للاستلام.',
+    ];
+
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: lines.join('\n') }),
+    });
+
+    // If request is already ready, send ready notification too
+    if (row.status === 'ready') {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: [
+            '📦 طلبك جاهز للاستلام',
+            `مرحباً ${name}`,
+            `رقم التذكرة: ${row.ticket}`,
+            'يرجى مراجعة المكتبة لاستلام الطلب.',
+          ].join('\n'),
+        }),
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

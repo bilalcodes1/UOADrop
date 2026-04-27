@@ -181,10 +181,10 @@ export function startTelegramNotificationService(): void {
     return;
   }
 
-  void pollTelegramUpdates();
-  pollTimer = setInterval(() => {
-    void pollTelegramUpdates();
-  }, 5_000);
+  // Polling disabled — /start linking is handled by Vercel webhook.
+  // Notifications (linked, ready) are sent via notifyServerUrl → Vercel API.
+  // eslint-disable-next-line no-console
+  console.log('[UOADrop] Telegram configured — notifications routed via Vercel webhook.');
 }
 
 export function stopTelegramNotificationService(): void {
