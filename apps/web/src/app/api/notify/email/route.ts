@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
 type RequestRow = {
   id: string;
@@ -11,14 +11,17 @@ type RequestRow = {
   final_price_confirmed_at: string | null;
 };
 
-const SUPABASE_URL = process.env.SUPABASE_URL as string;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
-const RESEND_API_KEY = process.env.RESEND_API_KEY as string;
-const EMAIL_FROM = process.env.EMAIL_FROM || 'UOADrop <onboarding@resend.dev>';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const EMAIL_HOST = process.env.EMAIL_HOST || 'smtp-relay.brevo.com';
+const EMAIL_PORT = Number(process.env.EMAIL_PORT || 587);
+const EMAIL_USER = process.env.EMAIL_USER || '';
+const EMAIL_PASS = process.env.EMAIL_PASS || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'UOADrop <noreply@uoadrop.app>';
 
 function assertEnv() {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Missing Supabase server env');
-  if (!RESEND_API_KEY) throw new Error('Missing RESEND_API_KEY');
+  if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Missing Supabase server env');
+  if (!EMAIL_USER || !EMAIL_PASS) throw new Error('Missing EMAIL_USER/EMAIL_PASS');
 }
 
 function formatName(name?: string | null): string {
@@ -82,6 +85,21 @@ function buildHtml(event: EmailEvent, row: RequestRow): string {
   `;
 }
 
+async function supaRest(path: string) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`Supabase GET ${path}: ${res.status} ${t.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
 export async function POST(req: NextRequest) {
   try {
     assertEnv();
@@ -93,28 +111,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'missing requestId/event' }, { status: 400 });
     }
 
-    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { persistSession: false },
-    });
-
-    const { data, error } = await admin
-      .from('print_requests')
-      .select(
-        [
-          'id',
-          'ticket',
-          'student_name',
-          'student_email',
-          'status',
-          'price_iqd',
-          'final_price_confirmed_at',
-        ].join(', '),
-      )
-      .eq('id', requestId)
-      .single();
-
-    const row = data as unknown as RequestRow | null;
-    if (error || !row) {
+    const rows = await supaRest(
+      `/print_requests?id=eq.${encodeURIComponent(requestId)}&select=id,ticket,student_name,student_email,status,price_iqd,final_price_confirmed_at&limit=1`,
+    );
+    const row = (rows as RequestRow[])?.[0];
+    if (!row) {
       return NextResponse.json({ ok: false, error: 'not found' }, { status: 404 });
     }
 
@@ -126,30 +127,23 @@ export async function POST(req: NextRequest) {
     const subject = buildSubject(event, row.ticket);
     const html = buildHtml(event, row);
 
-    const resp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: EMAIL_FROM,
-        to: email,
-        subject,
-        html,
-      }),
+    const transporter = nodemailer.createTransport({
+      host: EMAIL_HOST,
+      port: EMAIL_PORT,
+      secure: EMAIL_PORT === 465,
+      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
     });
 
-    if (!resp.ok) {
-      const t = await resp.text().catch(() => '');
-      return NextResponse.json(
-        { ok: false, error: 'email_failed', details: t.slice(0, 200) },
-        { status: 502 },
-      );
-    }
+    await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: email,
+      subject,
+      html,
+    });
 
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    return NextResponse.json({ ok: false, error: 'server_error' }, { status: 500 });
+  } catch (err: any) {
+    console.error('[email-notify] error:', err?.message ?? err);
+    return NextResponse.json({ ok: false, error: 'server_error', details: String(err?.message ?? '').slice(0, 200) }, { status: 500 });
   }
 }
