@@ -14,7 +14,7 @@ type RequestRow = {
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 const RESEND_API_KEY = process.env.RESEND_API_KEY as string;
-const EMAIL_FROM = process.env.EMAIL_FROM || 'UOADrop <noreply@uoadrop.app>';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'UOADrop <onboarding@resend.dev>';
 
 function assertEnv() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Missing Supabase server env');
