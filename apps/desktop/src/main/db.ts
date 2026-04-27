@@ -186,6 +186,13 @@ function ensurePrintRequestsTelegramChatIdColumn(d: Database.Database): void {
   }
 }
 
+function ensurePrintRequestsNotesColumn(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('notes')) {
+    d.exec(`ALTER TABLE print_requests ADD COLUMN notes TEXT`);
+  }
+}
+
 function getDbPath(): string {
   const configured = process.env.DESKTOP_DB_PATH;
   if (configured) return resolve(process.cwd(), configured);
@@ -306,6 +313,7 @@ function initSchema(d: Database.Database): void {
   ensurePrintRequestsPrintQueueUpdatedAtColumn(d);
   ensurePrintRequestsStudentEmailColumn(d);
   ensurePrintRequestsTelegramChatIdColumn(d);
+  ensurePrintRequestsNotesColumn(d);
 }
 
 export interface PrinterEventRow {
@@ -369,6 +377,7 @@ type RequestRow = {
   student_name: string | null;
   student_email: string | null;
   telegram_chat_id: string | null;
+  notes: string | null;
   source: 'local' | 'online';
   pickup_pin: string | null;
   pin_hash: string;
@@ -399,6 +408,7 @@ function buildPrintRequest(row: RequestRow): PrintRequest {
     studentName: row.student_name ?? undefined,
     studentEmail: row.student_email ?? undefined,
     telegramChatId: row.telegram_chat_id ?? undefined,
+    notes: row.notes ?? undefined,
     status: row.status,
     options: normalizePrintOptions(parsePrintOptionsJson(row.options_json)),
     totalPages: row.total_pages,
@@ -556,6 +566,7 @@ function generateTicket(): string {
 
 export function createRequest(args: {
   studentName: string;
+  notes?: string;
   options: PrintRequest['options'];
   totalPages: number;
   priceIqd: number;
@@ -578,14 +589,15 @@ export function createRequest(args: {
 
   d.prepare(
     `INSERT INTO print_requests (
-      id, ticket, student_name, source, pickup_pin, pin_hash, status, options_json,
+      id, ticket, student_name, notes, source, pickup_pin, pin_hash, status, options_json,
       total_pages, price_iqd, desk_received_at, printed_at, picked_up_at, source_of_truth,
       import_state, final_price_confirmed_at, online_files_cleanup_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     ticket,
     args.studentName ?? null,
+    args.notes ?? null,
     'local',
     null,
     '',
@@ -609,6 +621,7 @@ export function createRequest(args: {
     ticket,
     source: 'local',
     studentName: args.studentName,
+    notes: args.notes || undefined,
     status,
     options: normalizedOptions,
     totalPages: args.totalPages,
@@ -776,6 +789,7 @@ export function importOnlineRequest(args: {
     studentName?: string | null;
     studentEmail?: string | null;
     telegramChatId?: string | null;
+    notes?: string | null;
     status: RequestStatus;
     createdAt: string;
     updatedAt: string;
@@ -802,15 +816,16 @@ export function importOnlineRequest(args: {
 
   d.prepare(
     `INSERT INTO print_requests (
-      id, ticket, student_name, student_email, telegram_chat_id, source, pickup_pin, pin_hash, status, options_json,
+      id, ticket, student_name, student_email, telegram_chat_id, notes, source, pickup_pin, pin_hash, status, options_json,
       total_pages, price_iqd, desk_received_at, printed_at, picked_up_at, source_of_truth,
       import_state, final_price_confirmed_at, online_files_cleanup_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       ticket = excluded.ticket,
       student_name = excluded.student_name,
       student_email = excluded.student_email,
       telegram_chat_id = excluded.telegram_chat_id,
+      notes = excluded.notes,
       source = excluded.source,
       pin_hash = excluded.pin_hash,
       status = excluded.status,
@@ -830,6 +845,7 @@ export function importOnlineRequest(args: {
     args.request.studentName ?? null,
     args.request.studentEmail ?? null,
     args.request.telegramChatId ?? null,
+    args.request.notes ?? null,
     'online',
     null,
     '',

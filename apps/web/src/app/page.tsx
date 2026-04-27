@@ -131,6 +131,7 @@ function readStoredFormPrefs(): {
 export default function UploadPage() {
   const [state, setState] = useState<PageState>('form');
   const [name, setName] = useState('');
+  const [notes, setNotes] = useState('');
   const [email, setEmail] = useState('');
   const [notifyEmail, setNotifyEmail] = useState(false);
   const [notifyTelegram, setNotifyTelegram] = useState(false);
@@ -229,10 +230,12 @@ export default function UploadPage() {
 
     try {
       const ticket = generateTicket();
+      const trimmedNotes = notes.trim().slice(0, 500);
       const rawBaseRequestPayload = {
         ticket,
         student_name: name.trim(),
         student_email: emailForNotifications || null,
+        notes: trimmedNotes || null,
         status: 'uploading',
         source: 'online',
       };
@@ -442,6 +445,19 @@ export default function UploadPage() {
                           value={name}
                           onChange={e => setName(e.target.value)}
                           autoComplete="name"
+                        />
+                      </div>
+                      <div className={`${styles.field} ${styles.fieldFull}`}>
+                        <label className={styles.label}>
+                          ملاحظات <span className={styles.optionalHint}>(اختياري)</span>
+                        </label>
+                        <textarea
+                          className={styles.textarea}
+                          placeholder="مثال: طباعة الصفحات الفردية فقط، أو أي تعليمات خاصة..."
+                          value={notes}
+                          onChange={e => setNotes(e.target.value)}
+                          maxLength={500}
+                          rows={2}
                         />
                       </div>
                     </div>

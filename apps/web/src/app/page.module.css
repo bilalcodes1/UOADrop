@@ -442,6 +442,39 @@
   background: #fff;
 }
 
+.textarea {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  background: #fff;
+  resize: vertical;
+  min-height: 52px;
+  max-height: 120px;
+  line-height: 1.6;
+}
+
+.textarea:focus {
+  border-color: rgba(79, 70, 229, 0.34);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  background: #fff;
+}
+
+.textarea::placeholder {
+  color: #94a3b8;
+}
+
+.optionalHint {
+  font-weight: 400;
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
 .autoPagesNote {
   margin-top: 4px;
   margin-bottom: 18px;

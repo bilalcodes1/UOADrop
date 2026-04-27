@@ -1279,6 +1279,7 @@ export function Dashboard(): JSX.Element {
                     {' • '}
                     {req.options.doubleSided ? 'وجهين' : 'وجه واحد'}
                   </p>
+                  {req.notes && <p className="card-notes">{req.notes}</p>}
                 </div>
 
                 <div className="price-box" onClick={(e) => e.stopPropagation()}>

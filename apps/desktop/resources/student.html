@@ -191,7 +191,7 @@
       .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
       .field { display: flex; flex-direction: column; gap: 8px; }
       label { display: block; margin: 0; font-weight: 700; font-size: 14px; }
-      input, select {
+      input, select, textarea {
         width: 100%;
         padding: 13px 14px;
         border: 1px solid var(--border);
@@ -202,11 +202,18 @@
         color: var(--text);
         transition: border-color .15s, box-shadow .15s, background .15s;
       }
-      input:focus, select:focus {
+      input:focus, select:focus, textarea:focus {
         outline: none;
         border-color: rgba(79, 70, 229, 0.34);
         box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
         background: var(--surface);
+      }
+      textarea {
+        line-height: 1.6;
+      }
+      textarea::placeholder {
+        color: var(--muted);
+        opacity: 0.7;
       }
       .footer-note {
         margin-top: 16px;
@@ -1549,6 +1556,10 @@
                       <label for="studentNameInput">اسم الطالب</label>
                       <input id="studentNameInput" name="studentName" placeholder="اكتب اسم الطالب" maxlength="80" autocomplete="name" required />
                     </div>
+                    <div class="field" style="grid-column: 1 / -1;">
+                      <label for="notesInput">ملاحظات <span style="font-weight:400;color:var(--muted);font-size:12px;">(اختياري)</span></label>
+                      <textarea id="notesInput" name="notes" placeholder="مثال: طباعة الصفحات الفردية فقط، أو أي تعليمات خاصة..." maxlength="500" rows="2" style="resize:vertical;min-height:48px;max-height:120px;"></textarea>
+                    </div>
                   </div>
                 </section>
 
@@ -2496,8 +2507,11 @@
         saveFormPrefs();
 
         const defaultOptions = getDefaultFileOptions();
+        const notesVal = String(fd.get('notes') || '').trim().slice(0, 500);
+
         const payload = {
           studentName,
+          notes: notesVal || undefined,
           options: defaultOptions,
           totalPages: 0,
         };

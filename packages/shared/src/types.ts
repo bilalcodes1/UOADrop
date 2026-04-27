@@ -51,6 +51,7 @@ export type PrintRequest = {
   studentName?: string;
   studentEmail?: string;
   telegramChatId?: string;
+  notes?: string;
   status: RequestStatus;
   options: PrintOptions;
   totalPages: number;

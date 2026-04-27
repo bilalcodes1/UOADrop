@@ -359,6 +359,9 @@ export async function startLocalServer(): Promise<{ port: number }> {
         return reply.code(400).send({ ok: false, error: 'student name is required' });
       }
 
+      const rawNotes = typeof body.notes === 'string' ? body.notes.trim() : '';
+      const notes = rawNotes.length > 0 ? rawNotes.slice(0, 500) : undefined;
+
       const options = normalizePrintOptionsPayload((body?.options ?? {}) as Record<string, unknown>);
       const totalPages = clampInt(body.totalPages ?? 0, 0, 500, 0);
 
@@ -368,6 +371,7 @@ export async function startLocalServer(): Promise<{ port: number }> {
 
       const created = createRequest({
         studentName,
+        notes,
         options,
         totalPages,
         priceIqd: 0,
