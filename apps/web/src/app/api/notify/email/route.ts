@@ -17,7 +17,7 @@ const EMAIL_HOST = process.env.EMAIL_HOST || 'smtp-relay.brevo.com';
 const EMAIL_PORT = Number(process.env.EMAIL_PORT || 587);
 const EMAIL_USER = process.env.EMAIL_USER || '';
 const EMAIL_PASS = process.env.EMAIL_PASS || '';
-const EMAIL_FROM = process.env.EMAIL_FROM || 'UOADrop <noreply@uoadrop.app>';
+const EMAIL_FROM = process.env.EMAIL_FROM || `UOADrop <${EMAIL_USER}>`;
 
 function assertEnv() {
   if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Missing Supabase server env');
