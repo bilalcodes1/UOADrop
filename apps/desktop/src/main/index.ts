@@ -10,6 +10,7 @@ import { getSupabaseRuntimeConfig } from './runtime-config';
 import { startLocalServer } from './server';
 import { startPrinterPolling } from './printer';
 import { subscribe as subscribeBus, type AppEvent } from './events';
+import { startAutoBackup } from './backup';
 
 // ─────────────────────────────────────────
 // Cross-platform system "ding" — Electron Notification.silent=false is
@@ -178,6 +179,7 @@ app.whenReady().then(() => {
   startTelegramNotificationService();
   startOnlineWorkflowService();
   startPrintQueueService();
+  startAutoBackup();
 
   // Native OS notifications on new requests / new uploaded files.
   // Uses system default notification sound (macOS, Windows, Linux).
