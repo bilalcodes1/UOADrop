@@ -75,7 +75,9 @@ function getConnectSrcValues(): string[] {
 }
 
 function createMainWindow(): void {
-  const iconPath = join(__dirname, '../../resources/uoadrop-icon.png');
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, 'resources', 'uoadrop-icon.png')
+    : join(__dirname, '../../resources/uoadrop-icon.png');
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(nativeImage.createFromPath(iconPath));
   }
@@ -110,13 +112,30 @@ function createMainWindow(): void {
     }
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.once('ready-to-show', () => {
+    console.log('[UOADrop] ready-to-show fired');
+    mainWindow?.show();
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
+    console.error('[UOADrop] did-fail-load:', code, desc);
+  });
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[UOADrop] render-process-gone:', details);
+  });
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[UOADrop] did-finish-load');
+  });
 
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
     mainWindow.webContents.openDevTools({ mode: 'right' });
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+    const filePath = join(__dirname, '../renderer/index.html');
+    console.log('[UOADrop] loading:', filePath);
+    mainWindow.loadFile(filePath).catch((err) => {
+      console.error('[UOADrop] loadFile error:', err);
+    });
   }
 }
 
