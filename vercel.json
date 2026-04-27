@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/keep-alive",
       "schedule": "0 6 */5 * *"
+    },
+    {
+      "path": "/api/cron/notify-delayed",
+      "schedule": "*/3 * * * *"
     }
   ]
 }
