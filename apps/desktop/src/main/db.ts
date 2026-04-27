@@ -684,7 +684,7 @@ export function listRequestsPaged(args: {
 
   const rows = d
     .prepare(
-      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.notes, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
@@ -706,7 +706,7 @@ export function listRequests(): PrintRequest[] {
   const d = getDb();
   const rows = d
     .prepare(
-      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.notes, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
@@ -724,7 +724,7 @@ export function getRequestById(id: string): PrintRequest | null {
   const d = getDb();
   const row = d
     .prepare(
-      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.notes, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
@@ -747,7 +747,7 @@ export function getRequestByTicket(ticket: string): PrintRequest | null {
   if (!normalizedTicket) return null;
   const row = d
     .prepare(
-      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.notes, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
@@ -952,7 +952,7 @@ export function listRequestsNeedingQueueRecovery(): PrintRequest[] {
   const d = getDb();
   const rows = d
     .prepare(
-      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.notes, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
@@ -970,7 +970,7 @@ export function listRequestsWithMissingLocalFiles(): Array<PrintRequest & { miss
   const d = getDb();
   const rows = d
     .prepare(
-      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
+      `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.notes, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at, COUNT(f.id) as file_count, r.created_at, r.updated_at,
