@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Notification, shell, session } from 'electron';
+import { app, BrowserWindow, nativeImage, Notification, shell, session } from 'electron';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -76,6 +76,9 @@ function getConnectSrcValues(): string[] {
 
 function createMainWindow(): void {
   const iconPath = join(__dirname, '../../resources/uoadrop-logo.png');
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(nativeImage.createFromPath(iconPath));
+  }
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
