@@ -3,7 +3,6 @@ import uoadropLogo from './icons/uoadrop-logo.png';
 import universityOfAnbarLogo from './icons/university-of-anbar.svg';
 import csCollegeLogo from './icons/cs-college.svg';
 import {
-  canMarkDone,
   canMoveToReady as canMoveToReadyPersisted,
   getPrintQueueState,
   getOnlineImportState,
@@ -650,28 +649,6 @@ export function Dashboard(): JSX.Element {
       }
       updateRequestSnapshot(result.request);
       showToast(`تم إصلاح ${result.repairedFiles?.toLocaleString('ar-IQ') ?? 'بعض'} ملفات للطلب ${req.ticket}`);
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const handleDone = async (req: PrintRequest): Promise<void> => {
-    if (!canMarkDone(req)) {
-      showToast('لا يمكن تسليم الطلب قبل أن يصبح جاهزاً');
-      return;
-    }
-
-    setBusy(req.id);
-    try {
-      const result = await window.api.markRequestDone(req.id);
-      if (!result.ok || !result.request) {
-        showToast('تعذر إتمام التسليم');
-        return;
-      }
-
-      const pickedUpAt = result.request.pickedUpAt ?? new Date().toISOString();
-      updateRequestSnapshot({ ...result.request, sourceOfTruth: 'desktop', pickedUpAt, updatedAt: pickedUpAt });
-      showToast(`تم تسليم الطلب ${req.ticket}`);
     } finally {
       setBusy(null);
     }
@@ -1391,15 +1368,6 @@ export function Dashboard(): JSX.Element {
                 >
                   <CheckIcon className="btn-icon" />
                   <span>جاهز</span>
-                </button>
-                <button
-                  className="btn btn-ready"
-                  disabled={busy === req.id || !canMarkDone(req)}
-                  onClick={() => void handleDone(req)}
-                  title={canMarkDone(req) ? 'تسليم الطلب بعد التحقق من PIN' : 'يتاح بعد الجاهزية فقط'}
-                >
-                  <CheckIcon className="btn-icon" />
-                  <span>تم التسليم</span>
                 </button>
                 <button className="btn btn-delete" disabled={busy === req.id} onClick={() => void handleDelete(req)}>
                   <TrashIcon className="btn-icon" />
