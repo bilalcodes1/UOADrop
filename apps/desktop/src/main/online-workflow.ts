@@ -543,6 +543,36 @@ async function runCleanupPass(): Promise<void> {
   }
 }
 
+async function runStartupSync(): Promise<void> {
+  const client = getSupabaseClient();
+  if (!client) return;
+  try {
+    const { data } = await client
+      .from('print_requests')
+      .select('id, status')
+      .eq('source', 'online')
+      .in('status', ['pending', 'printing']);
+
+    const rows = (data ?? []) as Array<{ id: string; status: string }>;
+    let synced = 0;
+    for (const row of rows) {
+      const local = getRequestById(row.id);
+      if (!local || local.source !== 'online') continue;
+      if (local.status !== row.status) {
+        await patchMirror(row.id, buildMirrorPatchFromLocal(local));
+        synced += 1;
+      }
+    }
+    if (synced > 0) {
+      // eslint-disable-next-line no-console
+      console.log(`[UOADrop] Startup sync: updated ${synced} stale online requests in Supabase`);
+    }
+  } catch {
+    // eslint-disable-next-line no-console
+    console.warn('[UOADrop] Startup sync failed (non-fatal)');
+  }
+}
+
 export function startOnlineWorkflowService(): void {
   if (started) return;
   if (app.isPackaged && !hasProductionServiceRoleKey()) {
@@ -556,6 +586,7 @@ export function startOnlineWorkflowService(): void {
     return;
   }
   started = true;
+  void runStartupSync();
   void runIntakePass();
   void runCleanupPass();
   setInterval(() => {
