@@ -90,7 +90,8 @@ export function registerIpcHandlers(): void {
     if (status === 'ready') {
       const req = getRequestById(id);
       if (req) {
-        if (req.telegramChatId) void notifyTelegramReady(req);
+        // Always try Telegram — chat_id may be in Supabase even if not in local DB
+        void notifyTelegramReady(req);
         if (req.studentEmail) void notifyEmailReady(req);
       }
     }
@@ -223,7 +224,6 @@ export function registerIpcHandlers(): void {
         id: args.request.id,
         ticket: args.request.ticket,
         studentName: args.request.studentName,
-        pinHash: args.request.pinHash,
         status: args.request.status as any,
         createdAt: args.request.createdAt,
         updatedAt: args.request.updatedAt,

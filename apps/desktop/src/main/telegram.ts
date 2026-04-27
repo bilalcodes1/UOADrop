@@ -95,9 +95,10 @@ export async function notifyTelegramRequestReceived(request: PrintRequest): Prom
 }
 
 export async function notifyTelegramReady(request: PrintRequest): Promise<void> {
-  if (!request.telegramChatId) return;
   let ok = false;
   const notifyUrl = getNotifyServerUrl();
+  // For online requests, always try Vercel — telegram_chat_id lives in Supabase
+  // (the webhook updates Supabase directly, not the local DB)
   if (notifyUrl) {
     try {
       const res = await fetch(notifyUrl, {
@@ -109,7 +110,7 @@ export async function notifyTelegramReady(request: PrintRequest): Promise<void> 
     } catch {
       ok = false;
     }
-  } else {
+  } else if (request.telegramChatId) {
     const priceLine = request.finalPriceConfirmedAt && request.priceIqd > 0
       ? `السعر النهائي: ${request.priceIqd.toLocaleString('ar-IQ')} د.ع`
       : `السعر النهائي: يتم تأكيده من موظف المكتبة`;
