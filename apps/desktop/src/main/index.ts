@@ -75,7 +75,7 @@ function getConnectSrcValues(): string[] {
 }
 
 function createMainWindow(): void {
-  const iconPath = join(__dirname, '../../resources/uoadrop-logo.png');
+  const iconPath = join(__dirname, '../../resources/uoadrop-icon.png');
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(nativeImage.createFromPath(iconPath));
   }
