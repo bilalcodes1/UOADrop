@@ -1,3 +1,9 @@
 {
-  "installCommand": "pnpm install --ignore-scripts --filter @uoadrop/web..."
+  "installCommand": "pnpm install --ignore-scripts --filter @uoadrop/web...",
+  "crons": [
+    {
+      "path": "/api/cron/keep-alive",
+      "schedule": "0 6 */5 * *"
+    }
+  ]
 }
