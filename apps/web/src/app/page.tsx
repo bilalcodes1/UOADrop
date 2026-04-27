@@ -920,8 +920,12 @@ function SuccessPanel({
         label: deskReceivedAt ? 'استلام المكتبة' : 'بانتظار استلام المكتبة',
         text: deskReceivedAt
           ? 'تم استلام الطلب داخل المكتبة وأصبح التنفيذ من الداشبورد.'
-          : 'بانتظار أن يستلم الداشبورد الطلب ويبدأ التنفيذ من داخل المكتبة.',
-        state: ((status === 'printing' || status === 'ready' || status === 'done') ? 'done' : 'current') as TrackerState,
+          : !deskReceivedAt && status === 'pending' && (Date.now() - lastUpdatedAt.getTime()) > 2 * 60 * 1000
+            ? 'يبدو أن المكتبة غير متصلة حالياً. طلبك محفوظ وسيتم استلامه تلقائياً فور عودة الاتصال.'
+            : 'بانتظار أن يستلم الداشبورد الطلب ويبدأ التنفيذ من داخل المكتبة.',
+        state: ((status === 'printing' || status === 'ready' || status === 'done') ? 'done'
+          : !deskReceivedAt && status === 'pending' && (Date.now() - lastUpdatedAt.getTime()) > 2 * 60 * 1000 ? 'warn'
+          : 'current') as TrackerState,
         readyStep: false,
       },
     ];
