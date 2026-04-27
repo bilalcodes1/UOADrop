@@ -21,6 +21,7 @@ type SupabaseRequestRow = {
   ticket: string;
   student_name: string | null;
   student_email: string | null;
+  telegram_chat_id: string | null;
   status: string;
   price_iqd: number;
   total_pages: number;
@@ -333,6 +334,8 @@ async function importPendingRow(row: SupabaseRequestRow): Promise<PrintRequest |
         id: row.id,
         ticket: row.ticket,
         studentName: row.student_name,
+        studentEmail: row.student_email,
+        telegramChatId: row.telegram_chat_id,
         status: 'pending',
         createdAt: row.created_at,
         updatedAt: row.updated_at,

@@ -767,6 +767,8 @@ export function importOnlineRequest(args: {
     id: string;
     ticket: string;
     studentName?: string | null;
+    studentEmail?: string | null;
+    telegramChatId?: string | null;
     status: RequestStatus;
     createdAt: string;
     updatedAt: string;
@@ -793,13 +795,15 @@ export function importOnlineRequest(args: {
 
   d.prepare(
     `INSERT INTO print_requests (
-      id, ticket, student_name, source, pickup_pin, pin_hash, status, options_json,
+      id, ticket, student_name, student_email, telegram_chat_id, source, pickup_pin, pin_hash, status, options_json,
       total_pages, price_iqd, desk_received_at, printed_at, picked_up_at, source_of_truth,
       import_state, final_price_confirmed_at, online_files_cleanup_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       ticket = excluded.ticket,
       student_name = excluded.student_name,
+      student_email = excluded.student_email,
+      telegram_chat_id = excluded.telegram_chat_id,
       source = excluded.source,
       pin_hash = excluded.pin_hash,
       status = excluded.status,
@@ -817,6 +821,8 @@ export function importOnlineRequest(args: {
     args.request.id,
     args.request.ticket,
     args.request.studentName ?? null,
+    args.request.studentEmail ?? null,
+    args.request.telegramChatId ?? null,
     'online',
     null,
     '',
