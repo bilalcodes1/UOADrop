@@ -34,13 +34,14 @@ export async function POST(req: NextRequest) {
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-    const { data: row } = await admin
+    const { data: row, error: dbErr } = await admin
       .from('print_requests')
       .select('id, ticket, student_name, status, telegram_chat_id')
       .eq('ticket', ticket)
       .single();
 
-    if (!row) {
+    if (dbErr || !row) {
+      console.error('[telegram-webhook] lookup failed:', ticket, dbErr?.message ?? 'no row');
       await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
