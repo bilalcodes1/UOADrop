@@ -1347,7 +1347,7 @@ export function Dashboard(): JSX.Element {
                   title={isPrintQueueBusy(req) ? 'الطلب داخل طابور الطباعة' : req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}
                 >
                   <PrintIcon className="btn-icon" />
-                  <span>{isPrintQueueBusy(req) ? 'بالانتظار' : req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}</span>
+                  <span>{isPrintQueueBusy(req) ? 'بالانتظار' : req.status === 'printing' ? 'إعادة' : 'طباعة'}</span>
                 </button>
                 {canRepairOnlineFiles(req) && (
                   <button
