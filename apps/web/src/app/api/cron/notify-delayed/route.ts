@@ -3,11 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 
 /**
- * Vercel Cron – checks for online requests that have been pending for over
+ * Scheduled cron endpoint – checks for online requests that have been pending for over
  * 3 minutes without being received by the desktop (desk_received_at is null).
  * Sends a one-time delay notification via Email and/or Telegram.
  *
- * Configured in vercel.json → crons (every 3 minutes).
+ * Designed for Supabase pg_cron / external cron. Vercel Hobby keeps a daily fallback.
  */
 
 const DELAY_THRESHOLD_MS = 3 * 60 * 1000;
