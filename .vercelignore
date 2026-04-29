@@ -1,0 +1,17 @@
+node_modules
+.pnpm-store
+.turbo
+.git
+.next
+apps/desktop/release
+apps/desktop/dist
+apps/desktop/dist-electron
+dist
+build
+coverage
+*.log
+*.pem
+*.key
+*.p12
+apps/desktop/resources/runtime-config.json
+supabase/.temp

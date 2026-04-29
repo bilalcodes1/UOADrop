@@ -65,3 +65,4 @@ apps/desktop/release/runtime-config.json
 *.tgz
 .vercel
 .env*.local
+supabase/.temp/
