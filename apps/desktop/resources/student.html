@@ -1965,6 +1965,7 @@
         try {
           const payload = {
             studentName: studentNameInput ? String(studentNameInput.value || '').trim().slice(0, 80) : '',
+            notes: notesInput ? String(notesInput.value || '').trim().slice(0, 500) : '',
             copies: copiesInput ? clampOptionInt(copiesInput.value, 1, 10, 1) : 1,
             color: colorSelect ? colorSelect.value === 'true' : false,
             doubleSided: doubleSidedSelect ? doubleSidedSelect.value === 'true' : true,
@@ -1981,6 +1982,9 @@
 
         if (studentNameInput && typeof stored.studentName === 'string' && stored.studentName.trim()) {
           studentNameInput.value = stored.studentName.trim().slice(0, 80);
+        }
+        if (notesInput && typeof stored.notes === 'string' && stored.notes.trim()) {
+          notesInput.value = stored.notes.trim().slice(0, 500);
         }
         if (copiesInput) {
           copiesInput.value = String(clampOptionInt(stored.copies, 1, 10, 1));

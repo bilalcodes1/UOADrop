@@ -669,9 +669,9 @@ export function listRequestsPaged(args: {
     params.push(...args.statuses);
   }
   if (args.search && args.search.trim().length > 0) {
-    where.push('(ticket LIKE ? OR COALESCE(student_name,"") LIKE ?)');
+    where.push('(ticket LIKE ? OR COALESCE(student_name,"") LIKE ? OR COALESCE(notes,"") LIKE ?)');
     const like = `%${args.search.trim()}%`;
-    params.push(like, like);
+    params.push(like, like, like);
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
