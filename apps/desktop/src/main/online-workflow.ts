@@ -288,13 +288,22 @@ async function cleanupRemoteSource(requestId: string, files: SupabaseFileRow[]):
     const { error: storageErr } = await client.storage
       .from('print-files')
       .remove(storagePaths);
-    if (storageErr) return false;
+    if (storageErr) {
+      // eslint-disable-next-line no-console
+      console.warn(`[UOADrop] Cleanup failed (storage.remove) for ${requestId}: ${storageErr.message}`);
+      return false;
+    }
   }
 
   const { error: filesErr } = await client
     .from('request_files')
     .delete()
     .eq('request_id', requestId);
+
+  if (filesErr) {
+    // eslint-disable-next-line no-console
+    console.warn(`[UOADrop] Cleanup failed (request_files.delete) for ${requestId}: ${filesErr.message}`);
+  }
 
   return !filesErr;
 }
@@ -483,7 +492,9 @@ async function runIntakePass(): Promise<void> {
     for (const row of rows) {
       await importPendingRow(row);
     }
-  } catch {
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[UOADrop] Online intake pass failed (non-fatal)', err);
   } finally {
     intakeBusy = false;
   }
@@ -539,7 +550,9 @@ async function runCleanupPass(): Promise<void> {
       const updated = getRequestById(row.id);
       emitAppEvent({ type: 'requests:changed', reason: 'workflow-meta', requestId: row.id, payload: updated ?? undefined });
     }
-  } catch {
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[UOADrop] Online cleanup pass failed (non-fatal)', err);
   } finally {
     cleanupBusy = false;
   }
