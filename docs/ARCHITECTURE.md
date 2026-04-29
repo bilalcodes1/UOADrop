@@ -8,11 +8,12 @@
 
 ## 1. المبدأ الحالي
 
-**Desktop-first / Local-first**
+**Desktop-first / Local-first مع مسار Online اختياري**
 
 - التطبيق الحالي يعمل بالكامل داخل جهاز أمين المكتبة.
 - الطالب يستخدم **متصفحاً عادياً** لفتح صفحة رفع محلية من نفس الشبكة.
-- لا توجد حالياً حاجة إلى Supabase أو Vercel أو خدمات سحابية لكي يعمل النظام الأساسي.
+- يعمل النظام الأساسي بدون Supabase/Vercel داخل الشبكة المحلية.
+- يوجد الآن مسار Online اختياري عبر Web app + Supabase لاستقبال الطلبات من خارج المكتبة.
 
 ---
 
@@ -69,6 +70,15 @@
 - عدّ الصفحات للأنواع المدعومة.
 - إرسال التحديثات الحية عبر WebSocket.
 
+### 3.2.1 Online workflow service (داخل Electron main)
+
+إضافة إلى الخادم المحلي، يوجد داخل تطبيق الديسكتوب خدمة Online تعمل عند توفر إعدادات Supabase:
+
+- polling لاستيراد الطلبات الأونلاين من Supabase (`online-workflow.ts`)
+- تنزيل الملفات من Supabase Storage إلى مسار محلي دائم
+- تحديث Mirror في Supabase (`desk_received_at`, `total_pages`, `status`, ...)
+- cleanup دوري للملفات الأونلاين من Supabase بعد مدة احتفاظ
+
 ### 3.3 SQLite
 
 قاعدة البيانات المحلية مسؤولة عن:
@@ -104,6 +114,14 @@
 - شعارات الجامعة والكلية مخدومة من الخادم المحلي
 - بطاقات الاعتمادات الأكاديمية وروابط الصفحات الرسمية
 - حفظاً محلياً لاسم الطالب والإعدادات الافتراضية لتسهيل الاستخدام المتكرر
+
+### 3.6 Web app (Online upload)
+
+تطبيق ويب مستقل (Next.js) يستقبل طلبات الأونلاين ويخزنها في Supabase:
+
+- صفحة الرفع: `apps/web/src/app/page.tsx`
+- URL الإنتاج: `https://uoadrop.vercel.app`
+- يقوم بتخزين الطلب في جدول `print_requests` ثم يرفع الملفات إلى Supabase Storage ويضيفها إلى `request_files`.
 
 ---
 
@@ -160,9 +178,15 @@ UOADrop/
 - `id`
 - `ticket`
 - `student_name`
+- `notes`
 - `pickup_pin`
 - `pin_hash`
 - `status`
+- `source` (`local` | `online`)
+- `desk_received_at`
+- `source_of_truth`
+- `import_state`
+- `online_files_cleanup_at`
 - `options_json`
 - `total_pages`
 - `price_iqd`
@@ -322,14 +346,15 @@ UOADrop/
 
 ## 13. ما هو مؤجل
 
-هذه العناصر **ليست جزءاً من التطبيق الحالي**:
+هذه العناصر **ليست جزءاً من التطبيق المحلي الأساسي** لكنها أصبحت جزءاً من النظام عند تفعيل مسار Online:
 
-- Supabase-backed online flow
-- Telegram / Email notifications
-- Vercel deployment
-- web app مستقلة للطلب الخارجي
-- مزامنة cloud للطلبات
+- Web app أونلاين عبر Vercel
+- Supabase tables + Storage لمسار Online
+- إشعار تأخير الطلبات الأونلاين بعد 3 دقائق عبر Supabase `pg_cron`
 
-هذه موثقة كخطط مستقبلية في `ROADMAP.md` و`NOTIFICATIONS.md`.
+ما يزال مؤجلاً أو غير مكتمل بالكامل:
+
+- مزامنة عكسية كاملة (desktop → cloud) خارج mirror الحالي
+- إدارة تنظيف التخزين بالكامل من داخل Supabase بدون الاعتماد على تشغيل الديسكتوب
 
 </div>

@@ -2,7 +2,7 @@
 
 # نظام الإشعارات — Email + Telegram
 
-> **تنبيه مهم:** هذا المستند يصف **النسخة المخططة للـ online notifications**، وليس ما يعمل حالياً داخل التطبيق المحلي. التطبيق الحالي يدعم فقط **إشعارات نظام محلية داخل Electron** عند وصول طلب/ملف جديد.
+> **تنبيه مهم:** هذا المستند يصف نظام الإشعارات لمسار **Online**. داخل التطبيق المحلي (Offline/LAN) ما زالت الإشعارات الأساسية هي **إشعارات نظام محلية داخل Electron** عند وصول طلب/ملف جديد.
 
 إشعارات تلقائية لبلال (Online فقط) عبر البريد الإلكتروني وتيليجرام، عند كل تحوّل في حالة طلبه.
 
@@ -32,6 +32,9 @@
 
 - **Email**: فقط عند `done` (جاهزية) أو `blocked` (مشكلة تحتاج تدخل الطالب) — تقدير أقصى ~600 email/شهر < 3000 quota.
 - **Telegram**: كل الأحداث (مجاني بلا حدود، خفيف وفوري).
+
+> ملاحظة تنفيذية: في النظام الحالي يتم إرسال إشعارات `received` و`ready` عبر APIs داخل تطبيق الويب (`/api/notify/email`, `/api/notify/telegram`).
+> الإشعارات الأخرى المذكورة هنا قد تكون مخططة أو تعتمد على توسعة لاحقة في الداشبورد.
 
 ---
 
@@ -76,20 +79,25 @@
 
 ```
 ┌────────────────────────────────────────────┐
-│  Supabase Postgres                            │
-│  - print_requests (INSERT/UPDATE)             │
-│  - notifications_log (audit)                  │
+│  Web app (Next.js على Vercel)               │
+│  - /api/notify/email                        │
+│  - /api/notify/telegram                     │
+│  - /api/cron/notify-delayed                 │
 └──────────────────┬──────────────────────────┘
-                   │ Database Webhook (C13)
+                   │
                    ▼
 ┌────────────────────────────────────────────┐
-│  Supabase Edge Function: notify              │
-│  - يقرأ الطلب + قناة الإشعار                   │
-│  - يختار template حسب الحدث                    │
-│  - يرسل عبر Resend + Telegram Bot            │
-│  - يسجل النتيجة في notifications_log         │
+│  Supabase Postgres + Storage                │
+│  - print_requests / request_files           │
+│  - pg_cron + pg_net (تنبيه التأخير)         │
 └────────────────────────────────────────────┘
 ```
+
+### 5.1 تنبيه التأخير (3 دقائق)
+
+- يتم تشغيل فحص التأخير كل دقيقة عبر Supabase `pg_cron` (jobname: `uoadrop_notify_delayed_every_minute`).
+- يقوم `pg_net` باستدعاء `https://uoadrop.vercel.app/api/cron/notify-delayed`.
+- هذا التصميم تم اعتماده بسبب قيود Vercel Hobby التي تمنع cron بتكرار أكثر من مرة يومياً.
 
 ### 5.1 إعداد Database Webhook (C13 — مهم جداً)
 

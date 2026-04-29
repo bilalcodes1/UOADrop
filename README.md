@@ -77,9 +77,9 @@
 | Local Server | **Fastify** + **better-sqlite3** |
 | Local Assets | شعارات وملفات `resources/` تُخدم محلياً من Fastify وتُضمّن مع نسخة التطبيق |
 | Page Counting | **pdf-lib** + تحليل PPTX محلي + الصور = صفحة واحدة |
-| Cloud / Web | **مؤجل لمرحلة لاحقة** |
+| Cloud / Web | **Next.js (Vercel)** + **Supabase** لمسار Online اختياري |
 | Monorepo | **pnpm workspaces** + **Turborepo** |
-| Notifications | **Electron Notification API** + صوت النظام |
+| Notifications | إشعارات نظام محلية داخل Electron + (Online) Email/Telegram + تنبيه تأخير عبر Supabase `pg_cron` |
 
 ---
 
@@ -129,6 +129,8 @@ UOADrop/
 
 ✅ **Phase 1 — Desktop Offline MVP** يعمل فعلياً
 
+✅ **Online workflow (اختياري)** يعمل: رفع أونلاين عبر `https://uoadrop.vercel.app` + تخزين Supabase + استيراد داخل الديسكتوب.
+
 المنفّذ حالياً:
 
 - [x] Electron app + React dashboard
@@ -144,9 +146,7 @@ UOADrop/
 
 المؤجل:
 
-- [ ] Online integration
-- [ ] Cloud sync / Supabase flow
-- [ ] Telegram / Email notifications
+- [ ] مزامنة عكسية كاملة (desktop → cloud) خارج mirror الحالي
 - [ ] Production installer + update flow
 
 شوف [`docs/ROADMAP.md`](docs/ROADMAP.md) للتفاصيل.
