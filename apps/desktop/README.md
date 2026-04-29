@@ -44,10 +44,12 @@ Do not commit production secrets into the repository.
 VITE_SUPABASE_URL='https://your-project.supabase.co' \
 VITE_SUPABASE_ANON_KEY='your-anon-key' \
 SUPABASE_SERVICE_ROLE_KEY='your-service-role-key' \
+UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64='base64-private-pem' \
 pnpm --filter @uoadrop/desktop runtime-config:write
 ```
 
 This writes `resources/runtime-config.json` for local packaging only. The file is gitignored.
+`UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` is required only when encrypted online uploads are enabled in the web app.
 
 2. Build desktop artifacts:
 

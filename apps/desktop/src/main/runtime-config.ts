@@ -9,6 +9,8 @@ type DesktopRuntimeConfig = {
   telegramBotToken?: string;
   notifyServerUrl?: string; // e.g. https://uoadrop.example.com/api/notify/telegram
   webBaseUrl?: string; // e.g. https://uoadrop.example.com
+  onlineEncryptionPrivateKey?: string;
+  onlineEncryptionPrivateKeyBase64?: string;
 };
 
 let cachedConfig: DesktopRuntimeConfig | null | undefined;
@@ -88,4 +90,19 @@ export function getNotifyServerUrl(): string {
 export function getWebBaseUrl(): string {
   const runtimeConfig = getDesktopRuntimeConfig();
   return String(process.env.UOADROP_WEB_BASE_URL ?? runtimeConfig.webBaseUrl ?? '').trim().replace(/\/$/, '');
+}
+
+export function getOnlineEncryptionPrivateKey(): string {
+  const runtimeConfig = getDesktopRuntimeConfig();
+  const raw = String(process.env.UOADROP_ENCRYPTION_PRIVATE_KEY ?? runtimeConfig.onlineEncryptionPrivateKey ?? '').trim();
+  if (raw) return raw.replace(/\\n/g, '\n');
+
+  const encoded = String(process.env.UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64 ?? runtimeConfig.onlineEncryptionPrivateKeyBase64 ?? '').trim();
+  if (!encoded) return '';
+
+  try {
+    return Buffer.from(encoded, 'base64').toString('utf8').trim().replace(/\\n/g, '\n');
+  } catch {
+    return '';
+  }
 }

@@ -167,6 +167,21 @@
 1. تأكد أن Supabase مهيأ (الجداول + Storage bucket `print-files`).
 2. في Vercel، ضع متغيرات البيئة الخاصة بـ Supabase و Email/Telegram.
 3. في جهاز المكتبة، جهّز `runtime-config.json` لكي يستطيع الديسكتوب استيراد الطلبات الأونلاين.
+4. إذا أردت تشفير ملفات Online، شغّل migration: `supabase/migrations/add_request_file_encryption_metadata.sql`.
+
+### تشفير ملفات Online بالمفتاح العام/الخاص
+
+لإنشاء مفاتيح RSA:
+
+```bash
+openssl genrsa -out uoadrop-online-private.pem 4096
+openssl rsa -in uoadrop-online-private.pem -pubout -out uoadrop-online-public.pem
+```
+
+- ضع محتوى `uoadrop-online-public.pem` في Vercel داخل `NEXT_PUBLIC_UOADROP_ENCRYPTION_PUBLIC_KEY`.
+- ضع المفتاح الخاص فقط في جهاز المكتبة عبر `UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` أو `onlineEncryptionPrivateKeyBase64` داخل `runtime-config.json`.
+- لا ترفع المفتاح الخاص إلى GitHub أو Vercel.
+- الطلبات الجديدة فقط تُشفّر عند وجود المفتاح العام في الويب، والطلبات القديمة غير المشفرة تبقى قابلة للاستيراد.
 
 ### اختبار Online بسرعة
 
@@ -208,6 +223,7 @@
 | المشكلة | السبب المرجّح | الحل |
 |---------|---------------|------|
 | الطلب الأونلاين لا يصل للداشبورد | `runtime-config.json` ناقص أو مفتاح غير صحيح | تأكد من وجود `SUPABASE_SERVICE_ROLE_KEY` في إعدادات الديسكتوب |
+| الطلب الأونلاين المشفر لا يصل | المفتاح الخاص غير موجود أو لا يطابق المفتاح العام | تأكد من `UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` وشاهد logs الديسكتوب |
 | تنبيه التأخير لا يعمل | `pg_cron` غير مفعّل/غير مجدول | تأكد من وجود job `uoadrop_notify_delayed_every_minute` داخل Supabase |
 | ملفات Supabase لا تنحذف | ما مرّت 48 ساعة أو الديسكتوب مطفي أو فشل حذف | افحص `online_files_cleanup_at` وراقب logs الديسكتوب بعد آخر تحديث |
 

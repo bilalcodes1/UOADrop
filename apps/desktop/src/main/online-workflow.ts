@@ -1,10 +1,10 @@
 import { app } from 'electron';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { createHash } from 'node:crypto';
+import { constants as cryptoConstants, createDecipheriv, createHash, privateDecrypt } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import type { PrintRequest } from '@uoadrop/shared';
-import { getSupabaseRuntimeConfig, hasProductionServiceRoleKey } from './runtime-config';
+import { getOnlineEncryptionPrivateKey, getSupabaseRuntimeConfig, hasProductionServiceRoleKey } from './runtime-config';
 import {
   getRequestById,
   importOnlineRequest,
@@ -50,6 +50,11 @@ type SupabaseFileRow = {
   double_sided: boolean;
   pages_per_sheet: number;
   page_range: string | null;
+  encryption_algorithm: string | null;
+  encryption_key_id: string | null;
+  encryption_iv: string | null;
+  encrypted_key: string | null;
+  encrypted_size_bytes: number | null;
 };
 
 type SupabaseMirrorPatch = Partial<Pick<
@@ -90,6 +95,8 @@ const FILE_LIST_DELAY_MS = 1_200;
 const DOWNLOAD_RETRIES = 8;
 const DOWNLOAD_DELAY_MS = 1_000;
 const ONLINE_FILE_RETENTION_HOURS = 48;
+const ONLINE_FILE_ENCRYPTION_ALGORITHM = 'AES-256-GCM+RSA-OAEP-SHA256';
+const AES_GCM_AUTH_TAG_BYTES = 16;
 
 let supabase: SupabaseClient | null = null;
 let started = false;
@@ -161,6 +168,52 @@ export async function downloadOnlineFileToRequestStore(args: {
   const buffer = Buffer.from(await res.arrayBuffer());
   await writeFile(dest, buffer);
   return dest;
+}
+
+function decodeBase64Buffer(value: string): Buffer {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/').replace(/\s+/g, '');
+  const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+  return Buffer.from(padded, 'base64');
+}
+
+function isEncryptedOnlineFile(file: SupabaseFileRow): boolean {
+  return Boolean(file.encryption_algorithm || file.encrypted_key || file.encryption_iv);
+}
+
+async function decryptOnlineFileAtPath(file: SupabaseFileRow, localPath: string): Promise<void> {
+  if (!isEncryptedOnlineFile(file)) return;
+  if (file.encryption_algorithm !== ONLINE_FILE_ENCRYPTION_ALGORITHM) {
+    throw new Error(`Unsupported online file encryption algorithm: ${file.encryption_algorithm ?? 'missing'}`);
+  }
+  if (!file.encrypted_key || !file.encryption_iv) {
+    throw new Error('Encrypted online file is missing encryption metadata');
+  }
+
+  const privateKey = getOnlineEncryptionPrivateKey();
+  if (!privateKey) {
+    throw new Error('Missing UOADROP_ENCRYPTION_PRIVATE_KEY for encrypted online file import');
+  }
+
+  const encrypted = await readFile(localPath);
+  if (encrypted.length <= AES_GCM_AUTH_TAG_BYTES) {
+    throw new Error('Encrypted online file payload is too small');
+  }
+
+  const aesKey = privateDecrypt(
+    {
+      key: privateKey,
+      padding: cryptoConstants.RSA_PKCS1_OAEP_PADDING,
+      oaepHash: 'sha256',
+    },
+    decodeBase64Buffer(file.encrypted_key),
+  );
+  const iv = decodeBase64Buffer(file.encryption_iv);
+  const ciphertext = encrypted.subarray(0, encrypted.length - AES_GCM_AUTH_TAG_BYTES);
+  const authTag = encrypted.subarray(encrypted.length - AES_GCM_AUTH_TAG_BYTES);
+  const decipher = createDecipheriv('aes-256-gcm', aesKey, iv);
+  decipher.setAuthTag(authTag);
+  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  await writeFile(localPath, decrypted);
 }
 
 function buildMirrorPatchFromLocal(request: PrintRequest): SupabaseMirrorPatch {
@@ -239,7 +292,11 @@ async function prepareLocalFiles(requestId: string, files: SupabaseFileRow[]): P
             fileId: file.id,
             filename: file.filename,
           });
-        } catch {
+          await decryptOnlineFileAtPath(file, localPath);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          // eslint-disable-next-line no-console
+          console.warn(`[UOADrop] Online file download/decrypt failed for ${requestId}/${file.id}: ${message}`);
           localPath = null;
         }
       }

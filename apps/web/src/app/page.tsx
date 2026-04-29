@@ -45,10 +45,100 @@ const ALLOWED_TYPES = [
 const MAX_FILES = 10;
 const TELEGRAM_BOT_USERNAME = 'uoadrop_bot';
 const FORM_PREFS_KEY = 'uoadrop:web:upload-form-prefs';
+const ONLINE_ENCRYPTION_PUBLIC_KEY = String(process.env.NEXT_PUBLIC_UOADROP_ENCRYPTION_PUBLIC_KEY ?? '').trim();
+const ONLINE_FILE_ENCRYPTION_ALGORITHM = 'AES-256-GCM+RSA-OAEP-SHA256';
+
+type OnlineEncryptionRecipient = {
+  key: CryptoKey;
+  keyId: string;
+};
+
+type EncryptedOnlineFile = {
+  blob: Blob;
+  iv: string;
+  encryptedKey: string;
+  encryptedSizeBytes: number;
+};
+
+let onlineEncryptionRecipientPromise: Promise<OnlineEncryptionRecipient> | null = null;
 
 function generateTicket(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+function decodeBase64Bytes(value: string): Uint8Array {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/').replace(/\s+/g, '');
+  const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+  const binary = window.atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function encodeBase64(buffer: ArrayBuffer | Uint8Array): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return window.btoa(binary);
+}
+
+function extractPublicKeyDer(input: string): ArrayBuffer {
+  const trimmed = input.trim().replace(/\\n/g, '\n');
+  if (/-----BEGIN PUBLIC KEY-----/.test(trimmed)) {
+    const body = trimmed.replace(/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\s+/g, '');
+    return bytesToArrayBuffer(decodeBase64Bytes(body));
+  }
+
+  const decoded = decodeBase64Bytes(trimmed);
+  const decodedText = new TextDecoder().decode(decoded);
+  if (/-----BEGIN PUBLIC KEY-----/.test(decodedText)) {
+    const body = decodedText.replace(/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\s+/g, '');
+    return bytesToArrayBuffer(decodeBase64Bytes(body));
+  }
+
+  return bytesToArrayBuffer(decoded);
+}
+
+async function getOnlineEncryptionRecipient(): Promise<OnlineEncryptionRecipient> {
+  if (!onlineEncryptionRecipientPromise) {
+    onlineEncryptionRecipientPromise = (async () => {
+      const publicKeyDer = extractPublicKeyDer(ONLINE_ENCRYPTION_PUBLIC_KEY);
+      const key = await crypto.subtle.importKey(
+        'spki',
+        publicKeyDer,
+        { name: 'RSA-OAEP', hash: 'SHA-256' },
+        false,
+        ['encrypt'],
+      );
+      const keyDigest = await crypto.subtle.digest('SHA-256', publicKeyDer);
+      return { key, keyId: encodeBase64(keyDigest).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '').slice(0, 32) };
+    })();
+  }
+  return onlineEncryptionRecipientPromise;
+}
+
+async function encryptOnlineFile(file: File, recipient: OnlineEncryptionRecipient): Promise<EncryptedOnlineFile> {
+  const aesKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, await file.arrayBuffer());
+  const rawKey = await crypto.subtle.exportKey('raw', aesKey);
+  const encryptedKey = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, recipient.key, rawKey);
+  return {
+    blob: new Blob([encrypted], { type: 'application/octet-stream' }),
+    iv: encodeBase64(iv),
+    encryptedKey: encodeBase64(encryptedKey),
+    encryptedSizeBytes: encrypted.byteLength,
+  };
 }
 
 
@@ -233,6 +323,7 @@ export default function UploadPage() {
     setCurrentFile(0);
 
     try {
+      const encryptionRecipient = ONLINE_ENCRYPTION_PUBLIC_KEY ? await getOnlineEncryptionRecipient() : null;
       const ticket = generateTicket();
       const trimmedNotes = notes.trim().slice(0, 500);
       const rawBaseRequestPayload = {
@@ -309,15 +400,20 @@ export default function UploadPage() {
         setCurrentFile(i + 1);
         const entry = files[i]!;
         const safeName = entry.file.name.replace(/\s+/g, '_').replace(/[^\w.\-]/g, '_');
-        const storagePath = `${requestId}/${Date.now()}-${safeName}`;
+        const encrypted = encryptionRecipient ? await encryptOnlineFile(entry.file, encryptionRecipient) : null;
+        const uploadBody = encrypted ? encrypted.blob : entry.file;
+        const storagePath = `${requestId}/${Date.now()}-${safeName}${encrypted ? '.enc' : ''}`;
 
         const { error: uploadErr } = await supabase.storage
           .from('print-files')
-          .upload(storagePath, entry.file, { upsert: false });
+          .upload(storagePath, uploadBody, {
+            upsert: false,
+            contentType: encrypted ? 'application/octet-stream' : entry.file.type,
+          });
 
         if (uploadErr) throw uploadErr;
 
-        const filePayload = {
+        const baseFilePayload = {
           request_id: requestId,
           filename: entry.file.name,
           mime_type: entry.file.type,
@@ -327,9 +423,25 @@ export default function UploadPage() {
           color: entry.settings.color,
           double_sided: entry.settings.doubleSided,
         };
+        const filePayload = encrypted
+          ? {
+              ...baseFilePayload,
+              encryption_algorithm: ONLINE_FILE_ENCRYPTION_ALGORITHM,
+              encryption_key_id: encryptionRecipient!.keyId,
+              encryption_iv: encrypted.iv,
+              encrypted_key: encrypted.encryptedKey,
+              encrypted_size_bytes: encrypted.encryptedSizeBytes,
+            }
+          : baseFilePayload;
 
         const { error: fileErr } = await supabase.from('request_files').insert(filePayload);
-        if (fileErr) throw fileErr;
+        if (fileErr) {
+          await supabase.storage.from('print-files').remove([storagePath]);
+          if (encrypted && /encryption_/i.test(fileErr.message ?? '')) {
+            throw new Error('تشفير الملفات مفعّل في الواجهة، لكن حقول التشفير غير مضافة في Supabase. شغّل migration الخاص بتشفير request_files أولاً.');
+          }
+          throw fileErr;
+        }
 
         setProgress(Math.round(((i + 1) / files.length) * 100));
       }

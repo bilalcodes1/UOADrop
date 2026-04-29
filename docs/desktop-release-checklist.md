@@ -28,11 +28,13 @@
   - `supabaseUrl`
   - `supabaseAnonKey`
   - `supabaseServiceRoleKey`
+  - `onlineEncryptionPrivateKeyBase64` when encrypted online uploads are enabled
 
 ## Validate on the target machine
 
 - App launches successfully
 - Online workflow starts without the service-role-key error
+- Encrypted online uploads import successfully when encryption is enabled
 - Online request mirror sync works
 - Cleanup/repair works
 - Local SQLite DB and `online-requests` storage are writable

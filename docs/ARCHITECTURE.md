@@ -76,6 +76,7 @@
 
 - polling لاستيراد الطلبات الأونلاين من Supabase (`online-workflow.ts`)
 - تنزيل الملفات من Supabase Storage إلى مسار محلي دائم
+- فك تشفير ملفات Online المشفرة عند وجود metadata ومفتاح خاص في `runtime-config`
 - تحديث Mirror في Supabase (`desk_received_at`, `total_pages`, `status`, ...)
 - cleanup دوري للملفات الأونلاين من Supabase بعد مدة احتفاظ
 
@@ -122,6 +123,8 @@
 - صفحة الرفع: `apps/web/src/app/page.tsx`
 - URL الإنتاج: `https://uoadrop.vercel.app`
 - يقوم بتخزين الطلب في جدول `print_requests` ثم يرفع الملفات إلى Supabase Storage ويضيفها إلى `request_files`.
+- عند ضبط `NEXT_PUBLIC_UOADROP_ENCRYPTION_PUBLIC_KEY`، تُشفّر ملفات الطلب داخل المتصفح قبل رفعها إلى Supabase.
+- يستخدم التشفير `AES-256-GCM` لكل ملف، ويتم تشفير مفتاح AES باستخدام `RSA-OAEP-SHA256` بالمفتاح العام.
 
 ---
 
@@ -341,6 +344,8 @@ UOADrop/
 - whitelist للملفات + فحص `magic bytes`
 - SQLite WAL mode + pragmas للحماية
 - PIN خاص بالمكتبة لقفل الواجهة الإدارية
+- تشفير اختياري لملفات Online قبل رفعها إلى Supabase Storage عند تفعيل مفاتيح `RSA-OAEP-SHA256`
+- المفتاح العام فقط يوضع في Vercel، والمفتاح الخاص يبقى فقط داخل إعدادات الديسكتوب الموثوق
 
 ---
 
