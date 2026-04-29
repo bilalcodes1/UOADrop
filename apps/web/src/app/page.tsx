@@ -42,6 +42,16 @@ const ALLOWED_TYPES = [
   'image/png',
 ];
 
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+};
+
 const MAX_FILES = 10;
 const TELEGRAM_BOT_USERNAME = 'uoadrop_bot';
 const FORM_PREFS_KEY = 'uoadrop:web:upload-form-prefs';
@@ -61,6 +71,13 @@ type EncryptedOnlineFile = {
 };
 
 let onlineEncryptionRecipientPromise: Promise<OnlineEncryptionRecipient> | null = null;
+
+function getSupportedMimeType(file: File): string | null {
+  if (ALLOWED_TYPES.includes(file.type)) return file.type;
+  const extension = file.name.toLowerCase().split('.').pop() ?? '';
+  const mimeType = MIME_BY_EXTENSION[extension];
+  return mimeType && ALLOWED_TYPES.includes(mimeType) ? mimeType : null;
+}
 
 function generateTicket(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -127,14 +144,14 @@ async function getOnlineEncryptionRecipient(): Promise<OnlineEncryptionRecipient
   return onlineEncryptionRecipientPromise;
 }
 
-async function encryptOnlineFile(file: File, recipient: OnlineEncryptionRecipient): Promise<EncryptedOnlineFile> {
+async function encryptOnlineFile(file: File, recipient: OnlineEncryptionRecipient, mimeType: string): Promise<EncryptedOnlineFile> {
   const aesKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, await file.arrayBuffer());
   const rawKey = await crypto.subtle.exportKey('raw', aesKey);
   const encryptedKey = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, recipient.key, rawKey);
   return {
-    blob: new Blob([encrypted], { type: 'application/octet-stream' }),
+    blob: new Blob([encrypted], { type: mimeType }),
     iv: encodeBase64(iv),
     encryptedKey: encodeBase64(encryptedKey),
     encryptedSizeBytes: encrypted.byteLength,
@@ -267,7 +284,7 @@ export default function UploadPage() {
   }, [name, notes, email, notifyEmail, notifyTelegram, defaultSettings]);
 
   const addFiles = useCallback((incoming: File[]) => {
-    const valid = incoming.filter(f => ALLOWED_TYPES.includes(f.type));
+    const valid = incoming.filter(f => Boolean(getSupportedMimeType(f)));
     const invalid = incoming.length - valid.length;
     setFiles(prev => {
       const remainingSlots = Math.max(0, MAX_FILES - prev.length);
@@ -399,8 +416,10 @@ export default function UploadPage() {
       for (let i = 0; i < files.length; i++) {
         setCurrentFile(i + 1);
         const entry = files[i]!;
+        const mimeType = getSupportedMimeType(entry.file);
+        if (!mimeType) throw new Error(`نوع الملف غير مدعوم: ${entry.file.name}`);
         const safeName = entry.file.name.replace(/\s+/g, '_').replace(/[^\w.\-]/g, '_');
-        const encrypted = encryptionRecipient ? await encryptOnlineFile(entry.file, encryptionRecipient) : null;
+        const encrypted = encryptionRecipient ? await encryptOnlineFile(entry.file, encryptionRecipient, mimeType) : null;
         const uploadBody = encrypted ? encrypted.blob : entry.file;
         const storagePath = `${requestId}/${Date.now()}-${safeName}${encrypted ? '.enc' : ''}`;
 
@@ -408,7 +427,7 @@ export default function UploadPage() {
           .from('print-files')
           .upload(storagePath, uploadBody, {
             upsert: false,
-            contentType: encrypted ? 'application/octet-stream' : entry.file.type,
+            contentType: mimeType,
           });
 
         if (uploadErr) throw uploadErr;
@@ -416,7 +435,7 @@ export default function UploadPage() {
         const baseFilePayload = {
           request_id: requestId,
           filename: entry.file.name,
-          mime_type: entry.file.type,
+          mime_type: mimeType,
           size_bytes: entry.file.size,
           storage_path: storagePath,
           copies: entry.settings.copies,
