@@ -4,13 +4,13 @@ import nodemailer from 'nodemailer';
 
 /**
  * Vercel Cron – checks for online requests that have been pending for over
- * 2 minutes without being received by the desktop (desk_received_at is null).
+ * 3 minutes without being received by the desktop (desk_received_at is null).
  * Sends a one-time delay notification via Email and/or Telegram.
  *
  * Configured in vercel.json → crons (every 3 minutes).
  */
 
-const DELAY_THRESHOLD_MS = 2 * 60 * 1000;
+const DELAY_THRESHOLD_MS = 3 * 60 * 1000;
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -99,8 +99,9 @@ async function sendEmailDelay(row: StaleRow): Promise<boolean> {
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
+  const isVercelCron = request.headers.get('x-vercel-cron') === '1';
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}` && !isVercelCron) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

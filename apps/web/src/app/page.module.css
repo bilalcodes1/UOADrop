@@ -475,6 +475,12 @@
   font-size: 0.75rem;
 }
 
+.fieldHelp {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
 .autoPagesNote {
   margin-top: 4px;
   margin-bottom: 18px;

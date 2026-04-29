@@ -149,7 +149,8 @@ function matchesLiveSearch(req: PrintRequest, query: string): boolean {
   if (!query) return true;
   const ticket = normalizeSearchValue(req.ticket);
   const studentName = normalizeSearchValue(req.studentName);
-  return ticket.includes(query) || studentName.includes(query);
+  const notes = normalizeSearchValue(req.notes);
+  return ticket.includes(query) || studentName.includes(query) || notes.includes(query);
 }
 
 function projectSearchText(value: string): { normalized: string; indexMap: number[] } {
@@ -1279,7 +1280,12 @@ export function Dashboard(): JSX.Element {
                     {' • '}
                     {req.options.doubleSided ? 'وجهين' : 'وجه واحد'}
                   </p>
-                  {req.notes && <p className="card-notes">{req.notes}</p>}
+                  {req.notes && (
+                    <div className="student-notes">
+                      <span>ملاحظات الطالب</span>
+                      <p>{req.notes}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="price-box" onClick={(e) => e.stopPropagation()}>

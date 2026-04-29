@@ -101,6 +101,7 @@ function formatQueueCountLabel(count: number): string {
 
 function readStoredFormPrefs(): {
   studentName: string;
+  notes: string;
   email: string;
   notifyEmail: boolean;
   notifyTelegram: boolean;
@@ -114,6 +115,7 @@ function readStoredFormPrefs(): {
 
     return {
       studentName: typeof parsed.studentName === 'string' ? parsed.studentName.trim().slice(0, 80) : '',
+      notes: typeof parsed.notes === 'string' ? parsed.notes.trim().slice(0, 500) : '',
       email: typeof parsed.email === 'string' ? parsed.email.trim().slice(0, 120) : '',
       notifyEmail: Boolean(parsed.notifyEmail),
       notifyTelegram: Boolean(parsed.notifyTelegram),
@@ -149,6 +151,7 @@ export default function UploadPage() {
     if (!stored) return;
 
     setName(stored.studentName);
+    setNotes(stored.notes);
     setEmail(stored.email);
     setNotifyEmail(stored.notifyEmail);
     setNotifyTelegram(stored.notifyTelegram);
@@ -161,6 +164,7 @@ export default function UploadPage() {
         FORM_PREFS_KEY,
         JSON.stringify({
           studentName: name.trim().slice(0, 80),
+          notes: notes.trim().slice(0, 500),
           email: email.trim().slice(0, 120),
           notifyEmail,
           notifyTelegram,
@@ -170,7 +174,7 @@ export default function UploadPage() {
     } catch {
       // Ignore storage errors.
     }
-  }, [name, email, notifyEmail, notifyTelegram, defaultSettings]);
+  }, [name, notes, email, notifyEmail, notifyTelegram, defaultSettings]);
 
   const addFiles = useCallback((incoming: File[]) => {
     const valid = incoming.filter(f => ALLOWED_TYPES.includes(f.type));
@@ -449,7 +453,7 @@ export default function UploadPage() {
                       </div>
                       <div className={`${styles.field} ${styles.fieldFull}`}>
                         <label className={styles.label}>
-                          ملاحظات <span className={styles.optionalHint}>(اختياري)</span>
+                          ملاحظات الطالب <span className={styles.optionalHint}>(اختياري)</span>
                         </label>
                         <textarea
                           className={styles.textarea}
@@ -459,6 +463,7 @@ export default function UploadPage() {
                           maxLength={500}
                           rows={2}
                         />
+                        <span className={styles.fieldHelp}>اكتب أي تعليمات خاصة حتى تظهر مباشرة لصاحب المكتبة داخل لوحة الطلبات.</span>
                       </div>
                     </div>
                   </section>
