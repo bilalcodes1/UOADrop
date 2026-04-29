@@ -7,7 +7,7 @@
     },
     {
       "path": "/api/cron/notify-delayed",
-      "schedule": "*/3 * * * *"
+      "schedule": "* * * * *"
     }
   ]
 }
