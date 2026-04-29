@@ -22,7 +22,11 @@
     "desktop:runtime-config:write": "pnpm --filter @uoadrop/desktop runtime-config:write",
     "desktop:pack": "pnpm --filter @uoadrop/desktop pack",
     "desktop:dist:mac": "pnpm --filter @uoadrop/desktop dist:mac",
-    "desktop:dist:win": "pnpm --filter @uoadrop/desktop dist:win"
+    "desktop:dist:mac:arm64": "pnpm --filter @uoadrop/desktop dist:mac:arm64",
+    "desktop:dist:mac:x64": "pnpm --filter @uoadrop/desktop dist:mac:x64",
+    "desktop:dist:win": "pnpm --filter @uoadrop/desktop dist:win",
+    "desktop:dist:win:x64": "pnpm --filter @uoadrop/desktop dist:win:x64",
+    "desktop:dist:win:arm64": "pnpm --filter @uoadrop/desktop dist:win:arm64"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

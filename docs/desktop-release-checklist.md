@@ -11,9 +11,12 @@
 
 - macOS local build:
   - `pnpm --filter @uoadrop/desktop run dist:mac`
+  - Builds both Apple Silicon (`arm64`) and Intel (`x64`) artifacts.
 - Windows build:
   - `pnpm --filter @uoadrop/desktop run dist:win`
-  - Prefer running on Windows or CI
+  - Builds Windows `x64` artifacts by default.
+  - Prefer running on Windows or CI for final Windows validation.
+  - Use `pnpm --filter @uoadrop/desktop run dist:win:arm64` only for Windows ARM devices.
 
 ## After packaging
 

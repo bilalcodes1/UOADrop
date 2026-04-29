@@ -16,8 +16,12 @@
     "postinstall": "electron-builder install-app-deps",
     "runtime-config:write": "node ./scripts/write-runtime-config.mjs",
     "pack": "pnpm build && electron-builder --dir",
-    "dist:mac": "pnpm build && electron-builder --mac dmg zip",
-    "dist:win": "pnpm build && electron-builder --win nsis portable"
+    "dist:mac": "pnpm build && electron-builder --mac dmg zip --arm64 --x64",
+    "dist:mac:arm64": "pnpm build && electron-builder --mac dmg zip --arm64",
+    "dist:mac:x64": "pnpm build && electron-builder --mac dmg zip --x64",
+    "dist:win": "pnpm build && electron-builder --win nsis portable --x64",
+    "dist:win:x64": "pnpm build && electron-builder --win nsis portable --x64",
+    "dist:win:arm64": "pnpm build && electron-builder --win nsis portable --arm64"
   },
   "dependencies": {
     "@fastify/multipart": "^9.4.0",

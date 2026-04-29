@@ -59,6 +59,8 @@ pnpm --filter @uoadrop/desktop run dist:win
 
 Notes:
 
+- `dist:mac` builds both Apple Silicon (`arm64`) and Intel (`x64`) macOS artifacts.
+- `dist:win` builds Windows `x64` artifacts. Use `dist:win:arm64` only for Windows ARM devices.
 - Packaged desktop builds require `SUPABASE_SERVICE_ROLE_KEY` for the online workflow service.
 - The app also looks for `runtime-config.json` in `userData`, next to the packaged executable, or under Electron resources.
 - Local mac packaging is configured unsigned by default. Production signing/notarization should be added as a separate release step.
