@@ -53,6 +53,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 };
 
 const MAX_FILES = 10;
+const ONLINE_UPLOAD_CONCURRENCY = 3;
 const TELEGRAM_BOT_USERNAME = 'uoadrop_bot';
 const FORM_PREFS_KEY = 'uoadrop:web:upload-form-prefs';
 const ONLINE_ENCRYPTION_PUBLIC_KEY = String(process.env.NEXT_PUBLIC_UOADROP_ENCRYPTION_PUBLIC_KEY ?? '').trim();
@@ -156,6 +157,23 @@ async function encryptOnlineFile(file: File, recipient: OnlineEncryptionRecipien
     encryptedKey: encodeBase64(encryptedKey),
     encryptedSizeBytes: encrypted.byteLength,
   };
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  let nextIndex = 0;
+  const workerCount = Math.min(concurrency, items.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      await worker(items[index]!, index);
+    }
+  });
+  await Promise.all(workers);
 }
 
 
@@ -413,15 +431,14 @@ export default function UploadPage() {
         throw lastRequestError ?? new Error('تعذر إنشاء الطلب');
       }
 
-      for (let i = 0; i < files.length; i++) {
-        setCurrentFile(i + 1);
-        const entry = files[i]!;
+      let completedFiles = 0;
+      await runWithConcurrency(files, ONLINE_UPLOAD_CONCURRENCY, async (entry, index) => {
         const mimeType = getSupportedMimeType(entry.file);
         if (!mimeType) throw new Error(`نوع الملف غير مدعوم: ${entry.file.name}`);
         const safeName = entry.file.name.replace(/\s+/g, '_').replace(/[^\w.\-]/g, '_');
         const encrypted = encryptionRecipient ? await encryptOnlineFile(entry.file, encryptionRecipient, mimeType) : null;
         const uploadBody = encrypted ? encrypted.blob : entry.file;
-        const storagePath = `${requestId}/${Date.now()}-${safeName}${encrypted ? '.enc' : ''}`;
+        const storagePath = `${requestId}/${Date.now()}-${index}-${entry.id}-${safeName}${encrypted ? '.enc' : ''}`;
 
         const { error: uploadErr } = await supabase.storage
           .from('print-files')
@@ -462,8 +479,10 @@ export default function UploadPage() {
           throw fileErr;
         }
 
-        setProgress(Math.round(((i + 1) / files.length) * 100));
-      }
+        completedFiles += 1;
+        setCurrentFile(completedFiles);
+        setProgress(Math.round((completedFiles / files.length) * 100));
+      });
 
       const { error: readyErr } = await supabase
         .from('print_requests')
