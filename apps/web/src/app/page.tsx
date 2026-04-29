@@ -23,7 +23,6 @@ type PageState = 'form' | 'uploading' | 'success';
 type SuccessInfo = {
   ticket: string;
   requestId: string;
-  submittedAt: number;
   warning?: string;
   telegramEnabled?: boolean;
 };
@@ -46,7 +45,6 @@ const ALLOWED_TYPES = [
 const MAX_FILES = 10;
 const TELEGRAM_BOT_USERNAME = 'uoadrop_bot';
 const FORM_PREFS_KEY = 'uoadrop:web:upload-form-prefs';
-const DELAYED_NOTIFY_FALLBACK_MS = 3 * 60 * 1000 + 5000;
 
 function generateTicket(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -235,7 +233,6 @@ export default function UploadPage() {
     setCurrentFile(0);
 
     try {
-      const submittedAt = Date.now();
       const ticket = generateTicket();
       const trimmedNotes = notes.trim().slice(0, 500);
       const rawBaseRequestPayload = {
@@ -347,7 +344,6 @@ export default function UploadPage() {
       setSuccess({
         ticket,
         requestId,
-        submittedAt,
         warning: warning || undefined,
         telegramEnabled: notifyTelegram,
       });
@@ -422,7 +418,6 @@ export default function UploadPage() {
               <SuccessPanel
                 ticket={success.ticket}
                 requestId={success.requestId}
-                submittedAt={success.submittedAt}
                 warning={success.warning}
                 telegramEnabled={success.telegramEnabled}
                 onNew={resetForm}
@@ -770,14 +765,12 @@ function UploadingScreen({
 function SuccessPanel({
   ticket,
   requestId,
-  submittedAt,
   warning,
   telegramEnabled,
   onNew,
 }: {
   ticket: string;
   requestId: string;
-  submittedAt: number;
   warning?: string;
   telegramEnabled?: boolean;
   onNew: () => void;
@@ -917,21 +910,6 @@ function SuccessPanel({
     const timer = window.setTimeout(() => setReadyFlash(false), 1500);
     return () => window.clearTimeout(timer);
   }, [status]);
-
-  useEffect(() => {
-    if (status !== 'pending' || deskReceivedAt) return;
-
-    const waitMs = Math.max(1000, submittedAt + DELAYED_NOTIFY_FALLBACK_MS - Date.now());
-    const timer = window.setTimeout(() => {
-      void fetch('/api/notify/delayed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId, ticket }),
-      }).catch(() => undefined);
-    }, waitMs);
-
-    return () => window.clearTimeout(timer);
-  }, [deskReceivedAt, requestId, status, submittedAt, ticket]);
 
   const formatUpdatedStamp = (value: Date) => {
     const diffMs = Date.now() - value.getTime();
