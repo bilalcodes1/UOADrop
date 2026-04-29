@@ -63,3 +63,5 @@ apps/desktop/release/runtime-config.json
 
 # Archives
 *.tgz
+.vercel
+.env*.local
