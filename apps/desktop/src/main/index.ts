@@ -60,6 +60,16 @@ if (!gotLock) {
 
 let mainWindow: BrowserWindow | null = null;
 
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) {
+    mainWindow.center();
+    mainWindow.show();
+  }
+  mainWindow.focus();
+}
+
 function getConnectSrcValues(): string[] {
   const values = ["'self'", 'ws://localhost:*', 'http://localhost:*'];
   const { url } = getSupabaseRuntimeConfig();
@@ -115,7 +125,7 @@ function createMainWindow(): void {
 
   mainWindow.once('ready-to-show', () => {
     console.log('[UOADrop] ready-to-show fired');
-    mainWindow?.show();
+    showMainWindow();
   });
 
   mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
@@ -126,7 +136,9 @@ function createMainWindow(): void {
   });
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('[UOADrop] did-finish-load');
+    showMainWindow();
   });
+  setTimeout(showMainWindow, 3_000);
 
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -142,8 +154,7 @@ function createMainWindow(): void {
 
 app.on('second-instance', () => {
   if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
+    showMainWindow();
   }
 });
 
@@ -212,8 +223,7 @@ app.whenReady().then(() => {
       });
       n.on('click', () => {
         if (mainWindow) {
-          if (mainWindow.isMinimized()) mainWindow.restore();
-          mainWindow.focus();
+          showMainWindow();
         }
       });
       n.show();
@@ -221,7 +231,11 @@ app.whenReady().then(() => {
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createMainWindow();
+    } else {
+      showMainWindow();
+    }
   });
 });
 
