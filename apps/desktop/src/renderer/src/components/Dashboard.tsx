@@ -470,8 +470,8 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
   const handleSaveAccounts = async (): Promise<void> => {
     setAccountsBusy(true);
     try {
-      await window.api.setPaymentAccounts({ qiCard: qiCard.trim(), zainCash: zainCash.trim() });
-      showToast('تم حفظ أرقام الحسابات');
+      const res = await window.api.setPaymentAccounts({ qiCard: qiCard.trim(), zainCash: zainCash.trim() });
+      showToast(res.synced ? 'تم حفظ أرقام الحسابات ومزامنتها' : 'تم حفظ أرقام الحسابات محلياً فقط');
     } finally {
       setAccountsBusy(false);
     }

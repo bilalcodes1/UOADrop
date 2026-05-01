@@ -133,6 +133,23 @@ function getSupabaseClient(): SupabaseClient | null {
   return supabase;
 }
 
+export async function syncPaymentAccountsToSupabase(accounts: {
+  qiCard: string;
+  zainCash: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const client = getSupabaseClient();
+  if (!client) return { ok: false, error: 'missing_supabase_config' };
+  const now = new Date().toISOString();
+  const { error } = await client
+    .from('payment_settings')
+    .upsert([
+      { key: 'qicard', account_number: accounts.qiCard, updated_at: now },
+      { key: 'zaincash', account_number: accounts.zainCash, updated_at: now },
+    ], { onConflict: 'key' });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 function safeSegment(value: string): string {
   return String(value)
     .trim()

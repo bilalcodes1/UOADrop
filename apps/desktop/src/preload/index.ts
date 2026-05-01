@@ -126,7 +126,7 @@ export const api = {
 
   setPaymentAccounts: (
     accounts: { qiCard?: string; zainCash?: string },
-  ): Promise<{ ok: boolean }> =>
+  ): Promise<{ ok: boolean; synced?: boolean; error?: string }> =>
     ipcRenderer.invoke('settings:setPaymentAccounts', accounts),
 
   setPaymentStatus: (

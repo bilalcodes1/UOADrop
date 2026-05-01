@@ -1992,6 +1992,30 @@
   margin-top: 4px;
 }
 
+.paymentAccountBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #fde68a;
+}
+
+.paymentAccountBox span {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.paymentAccountBox strong {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 14px;
+  color: #1f2937;
+  word-break: break-all;
+}
+
 .paymentLabel {
   font-size: 13px;
   font-weight: 600;

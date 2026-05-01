@@ -27,6 +27,11 @@ type SuccessInfo = {
   telegramEnabled?: boolean;
 };
 
+type PaymentAccounts = {
+  qicard: string;
+  zaincash: string;
+};
+
 const DEFAULT_SETTINGS: PrintSettings = {
   copies: 1,
   color: false,
@@ -940,6 +945,8 @@ function SuccessPanel({
   const [transactionInput, setTransactionInput] = useState('');
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccounts>({ qicard: '', zaincash: '' });
+  const [paymentAccountsLoaded, setPaymentAccountsLoaded] = useState(false);
   const { deepLink, webLink } = buildTelegramLinks(ticket);
 
   type TrackerState = '' | 'done' | 'current' | 'warn';
@@ -984,6 +991,27 @@ function SuccessPanel({
         text: 'أصبح التنفيذ الآن من داخل المكتبة. سيظهر هنا بدء الطباعة ثم حالة الجاهزية والتسليم.',
       }
     : (statusMeta[status] ?? statusMeta.pending)!;
+
+  useEffect(() => {
+    let active = true;
+    const loadPaymentAccounts = async () => {
+      const { data } = await supabase
+        .from('payment_settings')
+        .select('key, account_number')
+        .in('key', ['qicard', 'zaincash']);
+      if (!active) return;
+      const next: PaymentAccounts = { qicard: '', zaincash: '' };
+      for (const row of data ?? []) {
+        const key = String((row as any).key ?? '');
+        const accountNumber = String((row as any).account_number ?? '').trim();
+        if (key === 'qicard' || key === 'zaincash') next[key] = accountNumber;
+      }
+      setPaymentAccounts(next);
+      setPaymentAccountsLoaded(true);
+    };
+    void loadPaymentAccounts();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let timer: number | null = null;
@@ -1183,6 +1211,9 @@ function SuccessPanel({
     window.setTimeout(() => window.clearTimeout(fallbackTimer), 1800);
   };
 
+  const selectedPaymentAccount = selectedPaymentMethod ? paymentAccounts[selectedPaymentMethod] : '';
+  const selectedPaymentLabel = selectedPaymentMethod === 'qicard' ? 'Qi Card' : 'ZainCash';
+
   return (
     <>
       <div className={styles.successHead}>
@@ -1270,6 +1301,16 @@ function SuccessPanel({
 
           {selectedPaymentMethod && (
             <div className={styles.paymentForm}>
+              <div className={styles.paymentAccountBox}>
+                <span>رقم حساب {selectedPaymentLabel}</span>
+                {paymentAccountsLoaded && selectedPaymentAccount ? (
+                  <strong dir="ltr">{selectedPaymentAccount}</strong>
+                ) : paymentAccountsLoaded ? (
+                  <strong>غير متوفر حالياً</strong>
+                ) : (
+                  <strong>جارٍ التحميل...</strong>
+                )}
+              </div>
               <label className={styles.paymentLabel}>رقم عملية التحويل</label>
               <input
                 className={styles.paymentInput}
@@ -1282,9 +1323,10 @@ function SuccessPanel({
               {paymentError && <p className={styles.paymentError}>{paymentError}</p>}
               <button
                 className={styles.paymentSubmitBtn}
-                disabled={paymentBusy}
+                disabled={paymentBusy || !selectedPaymentAccount}
                 onClick={async () => {
                   const ref = transactionInput.trim();
+                  if (!selectedPaymentAccount) { setPaymentError('رقم حساب الدفع غير متوفر حالياً'); return; }
                   if (!ref) { setPaymentError('أدخل رقم عملية التحويل'); return; }
                   if (ref.length < 4) { setPaymentError('رقم العملية قصير جداً'); return; }
                   setPaymentBusy(true);

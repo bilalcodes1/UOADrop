@@ -78,7 +78,7 @@ declare global {
       getPaymentAccounts: () => Promise<{ qiCard: string; zainCash: string }>;
       setPaymentAccounts: (
         accounts: { qiCard?: string; zainCash?: string },
-      ) => Promise<{ ok: boolean }>;
+      ) => Promise<{ ok: boolean; synced?: boolean; error?: string }>;
       setPaymentStatus: (
         id: string,
         status: PaymentStatus,

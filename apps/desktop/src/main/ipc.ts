@@ -30,7 +30,12 @@ import {
 } from './db';
 import { getCachedPrinterStatus } from './printer';
 import { emit as emitAppEvent } from './events';
-import { downloadOnlineFileToRequestStore, repairOnlineRequestLocalFiles, syncOnlineRequestMirrorFromLocal } from './online-workflow';
+import {
+  downloadOnlineFileToRequestStore,
+  repairOnlineRequestLocalFiles,
+  syncOnlineRequestMirrorFromLocal,
+  syncPaymentAccountsToSupabase,
+} from './online-workflow';
 import { enqueueRequestPrint } from './print-queue';
 import { notifyTelegramReady } from './telegram';
 import { notifyEmailReady } from './email-notify';
@@ -353,9 +358,12 @@ export function registerIpcHandlers(): void {
   // settings:setPaymentAccounts — save Qi Card / ZainCash account numbers
   // ─────────────────────────────────────────
   ipcMain.handle('settings:setPaymentAccounts', async (_e, accounts: { qiCard?: string; zainCash?: string }) => {
-    if (typeof accounts?.qiCard === 'string') setSetting('payment_account_qicard', accounts.qiCard.trim());
-    if (typeof accounts?.zainCash === 'string') setSetting('payment_account_zaincash', accounts.zainCash.trim());
-    return { ok: true };
+    const qiCard = typeof accounts?.qiCard === 'string' ? accounts.qiCard.trim() : (getSetting('payment_account_qicard') ?? '');
+    const zainCash = typeof accounts?.zainCash === 'string' ? accounts.zainCash.trim() : (getSetting('payment_account_zaincash') ?? '');
+    setSetting('payment_account_qicard', qiCard);
+    setSetting('payment_account_zaincash', zainCash);
+    const sync = await syncPaymentAccountsToSupabase({ qiCard, zainCash });
+    return { ok: true, synced: sync.ok, error: sync.ok ? undefined : sync.error };
   });
 
   // ─────────────────────────────────────────
