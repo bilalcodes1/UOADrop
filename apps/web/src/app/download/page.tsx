@@ -135,6 +135,14 @@ const capabilities = [
   'بناء إصدارات مستقلة لأنظمة macOS وWindows وLinux',
 ];
 
+const pageLogos = [
+  { src: '/uoadrop-logo.png', alt: 'UOADrop', label: 'UOADrop' },
+  { src: '/university-of-anbar.svg', alt: 'جامعة الأنبار', label: 'جامعة الأنبار' },
+  { src: '/cs-college.svg', alt: 'كلية علوم الحاسوب', label: 'كلية علوم الحاسوب' },
+  { src: '/Qicard.webp', alt: 'Qi Card', label: 'Qi Card' },
+  { src: '/zaincash.webp', alt: 'ZainCash', label: 'ZainCash' },
+];
+
 function MacIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -192,6 +200,127 @@ function platformIcon(type: PlatformInfo['iconType']) {
   return icons[type];
 }
 
+function CreditsActionIcon() {
+  return (
+    <svg className={styles.creditsActionIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7 17L17 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 7h8v8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ProjectCreditsSection() {
+  return (
+    <section className={styles.creditsSection} aria-label="معلومات المشروع والمطور">
+      <details className={styles.creditsPanel}>
+        <summary className={styles.creditsSummary}>
+          <div className={styles.creditsSummaryCopy}>
+            <span className={styles.creditsKicker}>عن UOADrop</span>
+            <strong>معلومات المشروع والجهة الأكاديمية الداعمة</strong>
+            <p>اضغط لعرض تفاصيل المشروع، والجهة الأكاديمية، ووسائل التواصل بشكل منظم ومتناسق مع الهوية البصرية.</p>
+          </div>
+        </summary>
+
+        <div className={styles.creditsBody}>
+          <div className={styles.creditsInstitutions} aria-label="الجهة الأكاديمية">
+            <article className={styles.creditsInstitutionCard}>
+              <div className={styles.creditsInstitutionLogo}>
+                <img src="/university-of-anbar.svg" alt="جامعة الأنبار" />
+              </div>
+              <div className={styles.creditsInstitutionCopy}>
+                <span className={styles.creditsInstitutionLabel}>الجامعة</span>
+                <strong>جامعة الأنبار</strong>
+                <p>الجهة الأكاديمية الحاضنة للمشروع والداعمة لتطوير تجربة الطباعة داخل المكتبة.</p>
+              </div>
+            </article>
+
+            <article className={styles.creditsInstitutionCard}>
+              <div className={styles.creditsInstitutionLogo}>
+                <img src="/cs-college.svg" alt="كلية علوم الحاسوب" />
+              </div>
+              <div className={styles.creditsInstitutionCopy}>
+                <span className={styles.creditsInstitutionLabel}>الكلية</span>
+                <strong>كلية علوم الحاسوب وتكنولوجيا المعلومات</strong>
+                <p>البيئة الأكاديمية التي يستهدفها النظام لتسهيل رفع الملفات والطباعة بسرعة ووضوح.</p>
+              </div>
+            </article>
+          </div>
+
+          <article className={styles.creditsCard}>
+            <span className={styles.creditsLabel}>العميد</span>
+            <h3>أ.د. صلاح عواد سلمان</h3>
+            <p>عميد <span className={styles.creditsInlineEmphasis}>كلية علوم الحاسوب وتكنولوجيا المعلومات</span>، وتأتي الإشارة إليه هنا بوصفه جزءاً من البيئة الأكاديمية الداعمة للمشروع داخل <span className={styles.creditsInlineEmphasis}>جامعة الأنبار</span>.</p>
+            <a className={styles.creditsAction} href="https://www.uoanbar.edu.iq/staff-page.php?ID=1614" target="_blank" rel="noreferrer">
+              <span>الصفحة الرسمية</span>
+              <CreditsActionIcon />
+            </a>
+          </article>
+
+          <article className={styles.creditsCard}>
+            <span className={styles.creditsLabel}>رئيس القسم</span>
+            <h3>د. عصام طه ياسين حسين الهيتي</h3>
+            <p>يُذكر <span className={styles.creditsInlineEmphasis}>د. عصام طه ياسين حسين الهيتي</span> هنا بصفته <span className={styles.creditsInlineEmphasis}>رئيس القسم</span> ضمن البنية الأكاديمية الداعمة لبيئة المشروع في <span className={styles.creditsInlineEmphasis}>كلية علوم الحاسوب وتكنولوجيا المعلومات</span>.</p>
+            <a className={styles.creditsAction} href="https://www.uoanbar.edu.iq/staff-page.php?ID=1673" target="_blank" rel="noreferrer">
+              <span>الصفحة الرسمية</span>
+              <CreditsActionIcon />
+            </a>
+          </article>
+
+          <article className={styles.creditsCard}>
+            <span className={styles.creditsLabel}>الإشراف</span>
+            <h3>د. رقية أياد عبد الجبار عبيد العاني</h3>
+            <p>أشرفت <span className={styles.creditsInlineEmphasis}>د. رقية أياد عبد الجبار عبيد العاني</span> على الجوانب الأكاديمية والتنظيمية للمشروع لضمان انسجامه مع احتياج المكتبة وسهولة استخدامه للطلبة.</p>
+            <a className={styles.creditsAction} href="https://www.uoanbar.edu.iq/staff-page.php?ID=1626" target="_blank" rel="noreferrer">
+              <span>الصفحة الرسمية</span>
+              <CreditsActionIcon />
+            </a>
+          </article>
+
+          <article className={styles.creditsCard}>
+            <span className={styles.creditsLabel}>المشرفة الثانية</span>
+            <h3>د. مكارم عبدالواحد عبدالجبار التركي</h3>
+            <p>تُذكر <span className={styles.creditsInlineEmphasis}>د. مكارم عبدالواحد عبدالجبار التركي</span> ضمن الإطار الأكاديمي المساند للمشروع بوصفها من الكادر التدريسي في <span className={styles.creditsInlineEmphasis}>كلية علوم الحاسوب وتكنولوجيا المعلومات</span>.</p>
+            <a className={styles.creditsAction} href="https://www.uoanbar.edu.iq/staff-page.php?ID=1651" target="_blank" rel="noreferrer">
+              <span>الصفحة الرسمية</span>
+              <CreditsActionIcon />
+            </a>
+          </article>
+
+          <article className={styles.creditsCard}>
+            <span className={styles.creditsLabel}>المطور</span>
+            <h3>بلال زامل احمد</h3>
+            <p>تولّى <span className={styles.creditsInlineEmphasis}>بلال زامل احمد</span> تصميم النظام وتنفيذه وصياغة واجهته وتوحيد هويته البصرية لتظهر منصة <span className={styles.creditsInlineEmphasis}>UOADrop</span> بصورة واضحة واحترافية.</p>
+            <ul className={styles.creditsMeta}>
+              <li>
+                <span>Instagram</span>
+                <a className={styles.creditsLink} href="https://instagram.com/bilalcodes1" target="_blank" rel="noreferrer">bilalcodes1</a>
+              </li>
+              <li>
+                <span>Telegram</span>
+                <a className={styles.creditsLink} href="https://t.me/bilalcodes1" target="_blank" rel="noreferrer">bilalcodes1</a>
+              </li>
+              <li>
+                <span>Email</span>
+                <a className={styles.creditsLink} href="mailto:bil24c1055@uoanbar.edu.iq">bil24c1055@uoanbar.edu.iq</a>
+              </li>
+            </ul>
+          </article>
+
+          <article className={`${styles.creditsCard} ${styles.creditsCardWide}`}>
+            <span className={styles.creditsLabel}>الهدف من المشروع</span>
+            <p>يهدف <span className={styles.creditsInlineEmphasis}>UOADrop</span> إلى تقليل الوقت والجهد في رفع ملفات الطباعة ومتابعة الطلبات داخل المكتبة، عبر تجربة أسرع وأكثر وضوحاً واحترافية لكل من <span className={styles.creditsInlineEmphasis}>الطالب</span> و<span className={styles.creditsInlineEmphasis}>إدارة الطباعة</span>.</p>
+          </article>
+
+          <article className={`${styles.creditsCard} ${styles.creditsCardWide}`}>
+            <span className={styles.creditsLabel}>رسالة شكر</span>
+            <p>شكر خاص إلى <span className={styles.creditsInlineEmphasis}>الطالب عمر عبد الجبار مجبل</span> و<span className={styles.creditsInlineEmphasis}>الطالبة ملاك مازن يوسف</span> على مساعدتهم ودعمهم القيّم خلال مراحل العمل على هذا المشروع.</p>
+          </article>
+        </div>
+      </details>
+    </section>
+  );
+}
+
 export default function DownloadPage() {
   return (
     <main className={styles.pageShell}>
@@ -203,8 +332,8 @@ export default function DownloadPage() {
           <div className={styles.heroGrid}>
             <div className={styles.heroCopy}>
               <div className={styles.brandRow}>
-                <div className={styles.heroLogo}>
-                  <img src="/android-chrome-192x192.png" alt="UOADrop" />
+                <div className={styles.brandMark}>
+                  <img className={styles.brandMarkLogo} src="/uoadrop-logo.png" alt="UOADrop" />
                 </div>
                 <div>
                   <span className={styles.kicker}>UOADrop Desktop</span>
@@ -258,6 +387,20 @@ export default function DownloadPage() {
               <p>{item.detail}</p>
             </div>
           ))}
+        </section>
+
+        <section className={styles.logoStripSection} aria-label="الشعارات المستخدمة">
+          <div className={styles.logoStripCard}>
+            <span className={styles.cardEyebrow}>الهوية والشعارات</span>
+            <div className={styles.logoStrip}>
+              {pageLogos.map((logo) => (
+                <div key={logo.src} className={styles.logoStripItem}>
+                  <img src={logo.src} alt={logo.alt} />
+                  <span>{logo.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className={styles.storySection}>
@@ -417,14 +560,7 @@ export default function DownloadPage() {
           </div>
         </section>
 
-        <footer className={styles.footer}>
-          <strong>UOADrop</strong>
-          <span>كلية علوم الحاسوب وتكنولوجيا المعلومات — جامعة الأنبار</span>
-          <div className={styles.footerLinks}>
-            <a href="/">رفع ملفات الطباعة</a>
-            <a href="/download/file" download>تحميل مباشر</a>
-          </div>
-        </footer>
+        <ProjectCreditsSection />
       </div>
     </main>
   );

@@ -494,6 +494,31 @@
   margin-bottom: 18px;
 }
 
+.brandMark {
+  width: 118px;
+  height: 118px;
+  border-radius: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.1) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.brandMarkLogo {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+  display: block;
+  transform: scale(2.6);
+  transform-origin: center;
+  filter: drop-shadow(0 12px 16px rgba(79, 70, 229, 0.2));
+}
+
 .heroLogo {
   width: 72px;
   height: 72px;
@@ -714,6 +739,7 @@
 .statCard,
 .storyCardLarge,
 .developerCard,
+.logoStripCard,
 .partnerCard,
 .capabilityItem,
 .timelineItem,
@@ -757,6 +783,7 @@
 }
 
 .storySection,
+.logoStripSection,
 .partnersSection,
 .capabilitySection,
 .timelineSection,
@@ -827,6 +854,43 @@
 
 .storyCardLarge p + p {
   margin-top: 12px;
+}
+
+.logoStripCard {
+  padding: 20px;
+  border-radius: 28px;
+}
+
+.logoStrip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.logoStripItem {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-height: 128px;
+  padding: 14px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.logoStripItem img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  display: block;
+}
+
+.logoStripItem span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+  line-height: 1.5;
 }
 
 .developerCard {
@@ -1120,6 +1184,274 @@
   white-space: nowrap;
 }
 
+.creditsSection {
+  margin-top: 20px;
+}
+
+.creditsPanel {
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(79, 70, 229, 0.12);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+.creditsPanel[open] {
+  border-color: rgba(79, 70, 229, 0.18);
+  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.1);
+}
+
+.creditsSummary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 22px 24px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+  color: #fff;
+}
+
+.creditsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.creditsSummary::after {
+  content: '⌄';
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.creditsPanel[open] .creditsSummary::after {
+  transform: rotate(180deg);
+}
+
+.creditsSummaryCopy {
+  min-width: 0;
+}
+
+.creditsKicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.creditsSummary strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.creditsSummary p {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.creditsBody {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 22px;
+}
+
+.creditsInstitutions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.creditsInstitutionCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.creditsInstitutionLogo {
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(79, 70, 229, 0.08) 0%, rgba(34, 197, 94, 0.08) 100%);
+  border: 1px solid rgba(79, 70, 229, 0.12);
+}
+
+.creditsInstitutionLogo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.creditsInstitutionCopy {
+  display: grid;
+  gap: 6px;
+}
+
+.creditsInstitutionLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.creditsInstitutionCopy strong {
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.creditsInstitutionCopy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.creditsCard {
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  display: grid;
+  gap: 12px;
+}
+
+.creditsCardWide {
+  grid-column: 1 / -1;
+}
+
+.creditsLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.creditsCard h3 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.creditsCard p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.creditsInlineEmphasis {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.creditsMeta {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.creditsMeta li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.creditsMeta span {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.creditsLink {
+  color: #4f46e5;
+  font-weight: 800;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.creditsLink:hover {
+  text-decoration: underline;
+}
+
+.creditsAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: #4338ca;
+  text-decoration: none;
+  font-weight: 800;
+  border: 1px solid rgba(79, 70, 229, 0.12);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.creditsAction:hover {
+  transform: translateY(-1px);
+  background: rgba(79, 70, 229, 0.12);
+  border-color: rgba(79, 70, 229, 0.2);
+}
+
+.creditsActionIcon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
 .footer {
   display: flex;
   align-items: center;
@@ -1164,6 +1496,7 @@
   }
 
   .statsGrid,
+  .logoStrip,
   .partnerGrid,
   .capabilityGrid,
   .timeline,
@@ -1190,15 +1523,17 @@
     align-items: flex-start;
   }
 
-  .heroLogo {
-    width: 58px;
-    height: 58px;
-    border-radius: 18px;
+  .brandMark {
+    width: 88px;
+    height: 88px;
+    padding: 8px;
+    margin-inline: auto;
   }
 
-  .heroLogo img {
-    width: 38px;
-    height: 38px;
+  .brandMarkLogo {
+    width: 64px;
+    height: 64px;
+    transform: scale(3);
   }
 
   .heroTitle {
@@ -1222,6 +1557,7 @@
   }
 
   .statsGrid,
+  .logoStrip,
   .partnerGrid,
   .capabilityGrid,
   .timeline,
@@ -1247,10 +1583,39 @@
 
   .storyCardLarge,
   .developerCard,
+  .logoStripCard,
   .securitySection,
   .downloadMethodCard,
   .platformCard {
     padding: 20px;
     border-radius: 24px;
+  }
+
+  .creditsSummary {
+    padding: 20px;
+  }
+
+  .creditsSummary,
+  .creditsMeta li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .creditsBody {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .creditsInstitutions,
+  .creditsInstitutionCard {
+    grid-template-columns: 1fr;
+  }
+
+  .creditsInstitutionLogo {
+    margin-inline: auto;
+  }
+
+  .creditsCard {
+    padding: 18px;
   }
 }
