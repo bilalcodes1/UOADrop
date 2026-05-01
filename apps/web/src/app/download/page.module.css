@@ -563,10 +563,43 @@
 
 .heroSub {
   max-width: 720px;
-  margin: 0 0 26px;
+  margin: 0 0 18px;
   color: rgba(226, 232, 240, 0.86);
   font-size: 16px;
   line-height: 2;
+}
+
+.heroProof {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 22px;
+}
+
+.heroProofItem {
+  padding: 12px 14px;
+  border: 1px solid rgba(199, 210, 254, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.heroProofItem strong {
+  display: block;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.1;
+  font-weight: 950;
+  direction: ltr;
+}
+
+.heroProofItem span {
+  display: block;
+  margin-top: 6px;
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.5;
 }
 
 .heroActions {
@@ -709,6 +742,51 @@
   border: 1px solid #e2e8f0;
 }
 
+.releaseConsole {
+  position: absolute;
+  right: 24px;
+  bottom: -22px;
+  width: min(340px, calc(100% - 48px));
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.9);
+  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.32);
+  direction: ltr;
+}
+
+.consoleLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 8px;
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.consoleLine span {
+  color: #22c55e;
+  font-weight: 900;
+}
+
+.consoleLine strong {
+  color: #f8fafc;
+  font-weight: 800;
+}
+
+.releaseConsole code {
+  display: block;
+  padding: 10px;
+  border-radius: 12px;
+  color: #c4b5fd;
+  background: rgba(15, 23, 42, 0.88);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .floatingChip {
   position: absolute;
   left: -16px;
@@ -741,9 +819,12 @@
 .developerCard,
 .logoStripCard,
 .partnerCard,
+.opsIntroCard,
+.opsCard,
 .capabilityItem,
 .timelineItem,
 .securitySection,
+.faqItem,
 .downloadMethodCard,
 .platformCard {
   border: 1px solid rgba(226, 232, 240, 0.9);
@@ -785,9 +866,11 @@
 .storySection,
 .logoStripSection,
 .partnersSection,
+.opsSection,
 .capabilitySection,
 .timelineSection,
 .platformSection,
+.faqSection,
 .downloadMethodSection {
   margin-top: 24px;
 }
@@ -1030,6 +1113,154 @@
   font-weight: 950;
 }
 
+.opsLayout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.22fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.opsIntroCard {
+  position: relative;
+  overflow: hidden;
+  min-height: 100%;
+  padding: 26px;
+  border-radius: 28px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 16% 12%, rgba(34, 197, 94, 0.26), transparent 30%),
+    linear-gradient(135deg, #0f172a, #1e1b4b);
+}
+
+.opsIntroCard::after {
+  content: "";
+  position: absolute;
+  inset: auto -20% -34% auto;
+  width: 240px;
+  height: 240px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.35);
+  filter: blur(10px);
+}
+
+.opsIntroCard .cardEyebrow {
+  color: #a7f3d0;
+}
+
+.opsIntroCard h3 {
+  position: relative;
+  z-index: 1;
+  margin: 8px 0 12px;
+  font-size: clamp(1.55rem, 3vw, 2.5rem);
+  line-height: 1.15;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.opsIntroCard p {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 14px;
+  line-height: 1.95;
+}
+
+.opsStatusList {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.opsStatusList span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  direction: ltr;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.opsStatusList i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.12);
+}
+
+.opsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.opsCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 20px;
+  border-radius: 24px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.opsCard:hover {
+  transform: translateY(-3px);
+  border-color: rgba(79, 70, 229, 0.22);
+  box-shadow: 0 24px 58px rgba(15, 23, 42, 0.1);
+}
+
+.opsIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  color: #4f46e5;
+  background: linear-gradient(135deg, rgba(79,70,229,0.12), rgba(34,197,94,0.12));
+}
+
+.opsIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.opsCard h3 {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.opsCard p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.opsMetric {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 12px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #4338ca;
+  background: rgba(79, 70, 229, 0.08);
+  font-size: 11px;
+  font-weight: 900;
+  direction: ltr;
+}
+
 .capabilityGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1245,6 +1476,73 @@
 
 .downloadMethodCard .primaryAction {
   white-space: nowrap;
+}
+
+.faqGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.faqItem {
+  overflow: hidden;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.faqItem summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  cursor: pointer;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqItem summary i {
+  position: relative;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.faqItem summary i::before,
+.faqItem summary i::after {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 12px;
+  height: 2px;
+  border-radius: 99px;
+  background: #4f46e5;
+  transform: translate(-50%, -50%);
+}
+
+.faqItem summary i::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+  transition: transform 0.18s ease;
+}
+
+.faqItem[open] summary i::after {
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+
+.faqItem p {
+  margin: 0;
+  padding: 0 20px 18px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.9;
 }
 
 .creditsSection {
@@ -1573,6 +1871,7 @@
 @media (max-width: 980px) {
   .heroGrid,
   .storyGrid,
+  .opsLayout,
   .securitySection {
     grid-template-columns: 1fr;
   }
@@ -1580,9 +1879,11 @@
   .statsGrid,
   .logoStrip,
   .partnerGrid,
+  .opsGrid,
   .capabilityGrid,
   .timeline,
-  .platforms {
+  .platforms,
+  .faqGrid {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -1641,9 +1942,12 @@
   .statsGrid,
   .logoStrip,
   .partnerGrid,
+  .heroProof,
+  .opsGrid,
   .capabilityGrid,
   .timeline,
-  .platforms {
+  .platforms,
+  .faqGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1663,10 +1967,19 @@
     width: fit-content;
   }
 
+  .releaseConsole {
+    position: static;
+    width: 100%;
+    margin-top: 12px;
+  }
+
   .storyCardLarge,
   .developerCard,
   .logoStripCard,
+  .opsIntroCard,
+  .opsCard,
   .securitySection,
+  .faqItem,
   .downloadMethodCard,
   .platformCard {
     padding: 20px;

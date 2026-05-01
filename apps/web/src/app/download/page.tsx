@@ -35,6 +35,14 @@ type TimelineItem = {
 };
 
 type PartnerIconType = 'university' | 'college' | 'library' | 'integration';
+type OpsIconType = 'release' | 'secure' | 'updates' | 'analytics' | 'download' | 'support';
+
+type OpsStackItem = {
+  iconType: OpsIconType;
+  title: string;
+  text: string;
+  metric: string;
+};
 
 const downloadFile = (asset: string) => `/download/file?asset=${asset}`;
 
@@ -137,6 +145,70 @@ const capabilities = [
   'بناء إصدارات مستقلة لأنظمة macOS وWindows وLinux',
 ];
 
+const heroProofItems = [
+  { value: '3 أنظمة', label: 'تنزيل مخصص حسب المنصة' },
+  { value: 'Realtime', label: 'مزامنة مباشرة للطلبات' },
+  { value: 'AES + RSA', label: 'حماية ملفات الطلبة' },
+];
+
+const opsStack: OpsStackItem[] = [
+  {
+    iconType: 'release',
+    title: 'إصدار متعدد المنصات',
+    text: 'تجهيز صفحة تنزيل واضحة لنسخ macOS وWindows وLinux مع صيغ مناسبة لكل جهاز.',
+    metric: 'DMG / EXE / AppImage',
+  },
+  {
+    iconType: 'secure',
+    title: 'أمان الملفات',
+    text: 'مسار الطلبات مبني حول تشفير الملفات قبل وصولها إلى لوحة المكتبة وفكها من الداشبورد فقط.',
+    metric: 'AES-256-GCM',
+  },
+  {
+    iconType: 'updates',
+    title: 'أحدث إصدار دائماً',
+    text: 'زر التحميل الرئيسي يوجه المستخدم إلى أحدث ملف مناسب بدون تشتيت أو صفحات خارجية.',
+    metric: '/download/file',
+  },
+  {
+    iconType: 'analytics',
+    title: 'وضوح تقني',
+    text: 'الأرقام والبطاقات تعرض حجم المشروع، مدة العمل، عدد الملفات، والأنظمة المدعومة بطريقة مفهومة.',
+    metric: '21K+ lines',
+  },
+  {
+    iconType: 'download',
+    title: 'اختيار نسخة دقيقة',
+    text: 'كل نظام تشغيل يملك كرت مستقل، متطلبات واضحة، وصيغ تنزيل مناسبة للمعمارية المتوفرة.',
+    metric: 'arm64 + x64',
+  },
+  {
+    iconType: 'support',
+    title: 'مصمم للمكتبة',
+    text: 'التجربة ليست صفحة تسويق فقط، بل شرح لمسار تشغيل فعلي بين الطالب وأمين المكتبة والدفع والطباعة.',
+    metric: 'Library workflow',
+  },
+];
+
+const faqItems = [
+  {
+    question: 'هل زر التحميل يختار النسخة المناسبة تلقائياً؟',
+    answer: 'زر التحميل الرئيسي يمر عبر مسار داخلي يحاول توجيه المستخدم إلى أحدث ملف مناسب، وتبقى أزرار الأنظمة متاحة لمن يريد اختيار نسخة محددة.',
+  },
+  {
+    question: 'أي نسخة أختار لجهازي؟',
+    answer: 'لأجهزة Mac الحديثة اختر Apple Silicon، ولأجهزة Intel اختر x64. على Windows استخدم Installer للتثبيت الكامل أو Portable للتشغيل السريع.',
+  },
+  {
+    question: 'هل النظام مخصص للطلاب فقط؟',
+    answer: 'الطالب يستخدم صفحة الرفع والمتابعة، بينما تطبيق سطح المكتب موجه للمكتبة لإدارة الطلبات، التسعير، الطباعة، الدفع، والإشعارات.',
+  },
+  {
+    question: 'هل الدفع الإلكتروني إجباري؟',
+    answer: 'لا، الدفع الإلكتروني اختياري عبر Qi Card وZainCash، ويبقى الكاش مدعوماً لأن السعر النهائي يحدده الداشبورد داخل المكتبة.',
+  },
+];
+
 const pageLogos = [
   { key: 'uoadrop', src: '/uoadrop-logo.png', alt: 'UOADrop', label: 'UOADrop' },
   { key: 'university', src: '/university-of-anbar.svg', alt: 'جامعة الأنبار', label: 'جامعة الأنبار' },
@@ -193,6 +265,60 @@ function ShieldIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function ReleaseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 8.5L12 4l7 4.5v7L12 20l-7-4.5v-7z" />
+      <path d="M5.5 8.8L12 13l6.5-4.2" />
+      <path d="M12 13v6.5" />
+    </svg>
+  );
+}
+
+function UpdateIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 7v5h-5" />
+      <path d="M4 17v-5h5" />
+      <path d="M18 12a6 6 0 00-10.2-4.2L4 11" />
+      <path d="M6 12a6 6 0 0010.2 4.2L20 13" />
+    </svg>
+  );
+}
+
+function AnalyticsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19V5" />
+      <path d="M4 19h16" />
+      <rect x="7" y="11" width="3" height="5" rx="1" />
+      <rect x="12" y="7" width="3" height="9" rx="1" />
+      <rect x="17" y="9" width="3" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function RouteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z" />
+      <path d="M8 12h8" />
+      <path d="M13 9l3 3-3 3" />
+    </svg>
+  );
+}
+
+function SupportIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12a8 8 0 0116 0" />
+      <path d="M4 12v4a2 2 0 002 2h1v-6H6a2 2 0 00-2 2" />
+      <path d="M20 12v4a2 2 0 01-2 2h-1v-6h1a2 2 0 012 2" />
+      <path d="M9 19h4" />
     </svg>
   );
 }
@@ -282,6 +408,18 @@ function partnerIcon(type: PartnerIconType) {
     college: CollegeIcon,
     library: LibraryIcon,
     integration: IntegrationIcon,
+  };
+  return icons[type];
+}
+
+function opsIcon(type: OpsIconType) {
+  const icons = {
+    release: ReleaseIcon,
+    secure: ShieldIcon,
+    updates: UpdateIcon,
+    analytics: AnalyticsIcon,
+    download: RouteIcon,
+    support: SupportIcon,
   };
   return icons[type];
 }
@@ -415,7 +553,7 @@ export default function DownloadPage() {
       <div className={styles.glowTwo} />
       <div className={styles.container}>
         <section className={styles.hero}>
-          <div className={styles.heroBadge}>Official desktop launch page</div>
+          <div className={styles.heroBadge}>Release, secure and run UOADrop Desktop</div>
           <div className={styles.heroGrid}>
             <div className={styles.heroCopy}>
               <div className={styles.brandRow}>
@@ -430,6 +568,14 @@ export default function DownloadPage() {
               <p className={styles.heroSub}>
                 UOADrop يحوّل تجربة الطباعة داخل المكتبة إلى نظام رقمي كامل: رفع ملفات من الويب، معالجة داخل الداشبورد، تسعير يدوي موثوق، إشعارات لحظية، دفع اختياري، وتوزيع تطبيق سطح مكتب يعمل على macOS وWindows وLinux.
               </p>
+              <div className={styles.heroProof}>
+                {heroProofItems.map((item) => (
+                  <div key={item.value} className={styles.heroProofItem}>
+                    <strong>{item.value}</strong>
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
               <div className={styles.heroActions}>
                 <a href="/download/file" className={styles.primaryAction} download>
                   <DownloadIcon />
@@ -460,6 +606,17 @@ export default function DownloadPage() {
                     <span />
                   </div>
                 </div>
+              </div>
+              <div className={styles.releaseConsole}>
+                <div className={styles.consoleLine}>
+                  <span>release</span>
+                  <strong>latest desktop build ready</strong>
+                </div>
+                <div className={styles.consoleLine}>
+                  <span>targets</span>
+                  <strong>macOS + Windows + Linux</strong>
+                </div>
+                <code>GET /download/file → platform asset</code>
               </div>
               <div className={styles.floatingChip}>Realtime + encrypted uploads</div>
             </div>
@@ -545,6 +702,42 @@ export default function DownloadPage() {
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        <section className={styles.opsSection}>
+          <div className={styles.sectionHead}>
+            <span>Desktop ops stack</span>
+            <h2>صفحة تحميل تشبه منظومة تشغيل كاملة</h2>
+          </div>
+          <div className={styles.opsLayout}>
+            <article className={styles.opsIntroCard}>
+              <span className={styles.cardEyebrow}>تنظيم احترافي للتنزيل</span>
+              <h3>ليس مجرد زر تنزيل</h3>
+              <p>
+                الفكرة الجميلة التي تم تطبيقها هنا هي عرض رحلة التطبيق كاملة: الإصدار، الأمان، الأنظمة، التحميل المباشر، والمتطلبات، حتى يفهم المستخدم ما الذي سيحمّله ولماذا هذه النسخة مناسبة له.
+              </p>
+              <div className={styles.opsStatusList}>
+                <span><i />Builds organized</span>
+                <span><i />Downloads routed</span>
+                <span><i />Security explained</span>
+              </div>
+            </article>
+            <div className={styles.opsGrid}>
+              {opsStack.map((item) => {
+                const Icon = opsIcon(item.iconType);
+                return (
+                  <article key={item.title} className={styles.opsCard}>
+                    <div className={styles.opsIcon}><Icon /></div>
+                    <div>
+                      <h3>{item.title}</h3>
+                      <p>{item.text}</p>
+                      <span className={styles.opsMetric}>{item.metric}</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         </section>
 
@@ -641,6 +834,24 @@ export default function DownloadPage() {
                 </article>
               );
             })}
+          </div>
+        </section>
+
+        <section className={styles.faqSection}>
+          <div className={styles.sectionHead}>
+            <span>Questions & answers</span>
+            <h2>أسئلة سريعة قبل التحميل</h2>
+          </div>
+          <div className={styles.faqGrid}>
+            {faqItems.map((item, index) => (
+              <details key={item.question} className={styles.faqItem} open={index === 0}>
+                <summary>
+                  <span>{item.question}</span>
+                  <i />
+                </summary>
+                <p>{item.answer}</p>
+              </details>
+            ))}
           </div>
         </section>
 
