@@ -710,34 +710,20 @@ export default function DownloadPage() {
             <span>Desktop ops stack</span>
             <h2>صفحة تحميل تشبه منظومة تشغيل كاملة</h2>
           </div>
-          <div className={styles.opsLayout}>
-            <article className={styles.opsIntroCard}>
-              <span className={styles.cardEyebrow}>تنظيم احترافي للتنزيل</span>
-              <h3>ليس مجرد زر تنزيل</h3>
-              <p>
-                الفكرة الجميلة التي تم تطبيقها هنا هي عرض رحلة التطبيق كاملة: الإصدار، الأمان، الأنظمة، التحميل المباشر، والمتطلبات، حتى يفهم المستخدم ما الذي سيحمّله ولماذا هذه النسخة مناسبة له.
-              </p>
-              <div className={styles.opsStatusList}>
-                <span><i />Builds organized</span>
-                <span><i />Downloads routed</span>
-                <span><i />Security explained</span>
-              </div>
-            </article>
-            <div className={styles.opsGrid}>
-              {opsStack.map((item) => {
-                const Icon = opsIcon(item.iconType);
-                return (
-                  <article key={item.title} className={styles.opsCard}>
-                    <div className={styles.opsIcon}><Icon /></div>
-                    <div>
-                      <h3>{item.title}</h3>
-                      <p>{item.text}</p>
-                      <span className={styles.opsMetric}>{item.metric}</span>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+          <div className={styles.opsGrid}>
+            {opsStack.map((item) => {
+              const Icon = opsIcon(item.iconType);
+              return (
+                <article key={item.title} className={styles.opsCard}>
+                  <div className={styles.opsIcon}><Icon /></div>
+                  <div>
+                    <h3>{item.title}</h3>
+                    <p>{item.text}</p>
+                    <span className={styles.opsMetric}>{item.metric}</span>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
 
