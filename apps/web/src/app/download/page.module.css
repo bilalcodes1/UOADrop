@@ -922,12 +922,12 @@
 }
 
 .logoStripMark {
-  width: 96px;
-  height: 78px;
+  width: 112px;
+  height: 84px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .logoStripImage {
@@ -950,13 +950,13 @@
 }
 
 .logoStripItem[data-logo="qicard"] .logoStripImage {
-  width: 76px;
+  width: 96px;
   height: 76px;
 }
 
 .logoStripItem[data-logo="zaincash"] .logoStripImage {
-  width: 88px;
-  height: 56px;
+  width: 112px;
+  height: 72px;
 }
 
 .logoStripItem span {
