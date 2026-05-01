@@ -34,6 +34,8 @@ type TimelineItem = {
   text: string;
 };
 
+type PartnerIconType = 'university' | 'college' | 'library' | 'integration';
+
 const downloadFile = (asset: string) => `/download/file?asset=${asset}`;
 
 const stats: StatItem[] = [
@@ -103,22 +105,22 @@ const timeline: TimelineItem[] = [
 
 const partners = [
   {
-    icon: '🎓',
+    iconType: 'university' as PartnerIconType,
     name: 'جامعة الأنبار',
     role: 'البيئة الأكاديمية التي صُممت التجربة لخدمتها',
   },
   {
-    icon: '💻',
+    iconType: 'college' as PartnerIconType,
     name: 'كلية علوم الحاسوب وتكنولوجيا المعلومات',
     role: 'الجهة المستفيدة من تبسيط إدارة طلبات الطباعة',
   },
   {
-    icon: '📚',
+    iconType: 'library' as PartnerIconType,
     name: 'مكتبة الكلية',
     role: 'مركز التشغيل اليومي: استلام، تسعير، طباعة، وتسليم',
   },
   {
-    icon: '⚙️',
+    iconType: 'integration' as PartnerIconType,
     name: 'تقنيات التكامل',
     role: 'تطبيق سطح مكتب، منصة ويب، قاعدة بيانات لحظية، وإشعارات لخدمة منظومة متكاملة',
   },
@@ -136,11 +138,11 @@ const capabilities = [
 ];
 
 const pageLogos = [
-  { src: '/uoadrop-logo.png', alt: 'UOADrop', label: 'UOADrop' },
-  { src: '/university-of-anbar.svg', alt: 'جامعة الأنبار', label: 'جامعة الأنبار' },
-  { src: '/cs-college.svg', alt: 'كلية علوم الحاسوب', label: 'كلية علوم الحاسوب' },
-  { src: '/Qicard.webp', alt: 'Qi Card', label: 'Qi Card' },
-  { src: '/zaincash.webp', alt: 'ZainCash', label: 'ZainCash' },
+  { key: 'uoadrop', src: '/uoadrop-logo.png', alt: 'UOADrop', label: 'UOADrop' },
+  { key: 'university', src: '/university-of-anbar.svg', alt: 'جامعة الأنبار', label: 'جامعة الأنبار' },
+  { key: 'college', src: '/cs-college.svg', alt: 'كلية علوم الحاسوب', label: 'كلية علوم الحاسوب' },
+  { key: 'qicard', src: '/Qicard.webp', alt: 'Qi Card', label: 'Qi Card' },
+  { key: 'zaincash', src: '/zaincash.webp', alt: 'ZainCash', label: 'ZainCash' },
 ];
 
 function MacIcon() {
@@ -195,6 +197,95 @@ function ShieldIcon() {
   );
 }
 
+function UniversityIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 10.2L12 4l8.5 6.2" />
+      <path d="M5 10h14" />
+      <path d="M7 10v8" />
+      <path d="M11 10v8" />
+      <path d="M15 10v8" />
+      <path d="M19 10v8" />
+      <path d="M4.5 18h15" />
+      <path d="M3.5 21h17" />
+    </svg>
+  );
+}
+
+function CollegeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="4.5" width="17" height="12" rx="2.5" />
+      <path d="M9 20h6" />
+      <path d="M12 16.5V20" />
+      <path d="M10 9l-2 2 2 2" />
+      <path d="M14 9l2 2-2 2" />
+    </svg>
+  );
+}
+
+function LibraryIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 5.5h5.5A2.5 2.5 0 0113 8v11a2.8 2.8 0 00-2.5-1.5H5V5.5z" />
+      <path d="M19 5.5h-5.5A2.5 2.5 0 0011 8v11a2.8 2.8 0 012.5-1.5H19V5.5z" />
+      <path d="M8 9h2" />
+      <path d="M15 9h2" />
+      <path d="M8 12h2" />
+      <path d="M15 12h2" />
+    </svg>
+  );
+}
+
+function IntegrationIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="6" cy="7" r="2.5" />
+      <circle cx="18" cy="7" r="2.5" />
+      <circle cx="12" cy="17" r="2.5" />
+      <path d="M8.2 8.3l2.7 5.7" />
+      <path d="M15.8 8.3L13.1 14" />
+      <path d="M8.6 7h6.8" />
+    </svg>
+  );
+}
+
+function InstagramIcon() {
+  return (
+    <svg className={styles.socialIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="16.7" cy="7.3" r="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function TelegramIcon() {
+  return (
+    <svg className={styles.socialIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M21 5.2L18.1 19c-.2.9-.9 1.1-1.6.7l-4.4-3.3-2.1 2c-.2.2-.4.4-.9.4l.3-4.6 8.4-7.6c.4-.3-.1-.5-.5-.2L7 13.1l-4.5-1.4c-1-.3-1-.9.2-1.4L20.1 3.7c.8-.3 1.4.2.9 1.5z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
+function partnerIcon(type: PartnerIconType) {
+  const icons = {
+    university: UniversityIcon,
+    college: CollegeIcon,
+    library: LibraryIcon,
+    integration: IntegrationIcon,
+  };
+  return icons[type];
+}
+
 function platformIcon(type: PlatformInfo['iconType']) {
   const icons = { mac: MacIcon, windows: WindowsIcon, linux: LinuxIcon };
   return icons[type];
@@ -224,7 +315,7 @@ function ProjectCreditsSection() {
         <div className={styles.creditsBody}>
           <div className={styles.creditsInstitutions} aria-label="الجهة الأكاديمية">
             <article className={styles.creditsInstitutionCard}>
-              <div className={styles.creditsInstitutionLogo}>
+              <div className={styles.creditsInstitutionLogo} data-logo="university">
                 <img src="/university-of-anbar.svg" alt="جامعة الأنبار" />
               </div>
               <div className={styles.creditsInstitutionCopy}>
@@ -235,7 +326,7 @@ function ProjectCreditsSection() {
             </article>
 
             <article className={styles.creditsInstitutionCard}>
-              <div className={styles.creditsInstitutionLogo}>
+              <div className={styles.creditsInstitutionLogo} data-logo="college">
                 <img src="/cs-college.svg" alt="كلية علوم الحاسوب" />
               </div>
               <div className={styles.creditsInstitutionCopy}>
@@ -289,19 +380,15 @@ function ProjectCreditsSection() {
           <article className={styles.creditsCard}>
             <span className={styles.creditsLabel}>المطور</span>
             <h3>بلال زامل احمد</h3>
-            <p>تولّى <span className={styles.creditsInlineEmphasis}>بلال زامل احمد</span> تصميم النظام وتنفيذه وصياغة واجهته وتوحيد هويته البصرية لتظهر منصة <span className={styles.creditsInlineEmphasis}>UOADrop</span> بصورة واضحة واحترافية.</p>
+            <p><span className={styles.creditsInlineEmphasis}>بلال زامل احمد</span> طالب مرحلة ثانية في <span className={styles.creditsInlineEmphasis}>علوم الحاسوب</span>، تولّى تصميم النظام وتنفيذه وصياغة واجهته وتوحيد هويته البصرية لتظهر منصة <span className={styles.creditsInlineEmphasis}>UOADrop</span> بصورة واضحة واحترافية.</p>
             <ul className={styles.creditsMeta}>
               <li>
-                <span>Instagram</span>
+                <span className={styles.creditsMetaLabel}><InstagramIcon /> Instagram</span>
                 <a className={styles.creditsLink} href="https://instagram.com/bilalcodes1" target="_blank" rel="noreferrer">bilalcodes1</a>
               </li>
               <li>
-                <span>Telegram</span>
+                <span className={styles.creditsMetaLabel}><TelegramIcon /> Telegram</span>
                 <a className={styles.creditsLink} href="https://t.me/bilalcodes1" target="_blank" rel="noreferrer">bilalcodes1</a>
-              </li>
-              <li>
-                <span>Email</span>
-                <a className={styles.creditsLink} href="mailto:bil24c1055@uoanbar.edu.iq">bil24c1055@uoanbar.edu.iq</a>
               </li>
             </ul>
           </article>
@@ -394,8 +481,10 @@ export default function DownloadPage() {
             <span className={styles.cardEyebrow}>الهوية والشعارات</span>
             <div className={styles.logoStrip}>
               {pageLogos.map((logo) => (
-                <div key={logo.src} className={styles.logoStripItem}>
-                  <img src={logo.src} alt={logo.alt} />
+                <div key={logo.src} className={styles.logoStripItem} data-logo={logo.key}>
+                  <div className={styles.logoStripMark}>
+                    <img className={styles.logoStripImage} src={logo.src} alt={logo.alt} />
+                  </div>
                   <span>{logo.label}</span>
                 </div>
               ))}
@@ -420,12 +509,20 @@ export default function DownloadPage() {
             </article>
             <article className={styles.developerCard}>
               <span className={styles.cardEyebrow}>المطور</span>
-              <h3>Bilal Codes</h3>
+              <h3>بلال زامل احمد</h3>
               <p>
-                تم تطوير UOADrop كمشروع عملي كامل يجمع بين هندسة الويب، تطبيقات سطح المكتب، قواعد البيانات، التشفير، الطباعة، وتجربة المستخدم العربية.
+                طالب مرحلة ثانية في علوم الحاسوب، طوّر UOADrop كمشروع عملي كامل يجمع بين هندسة الويب، تطبيقات سطح المكتب، قواعد البيانات، التشفير، الطباعة، وتجربة المستخدم العربية.
               </p>
               <div className={styles.developerMeta}>
-                <span>المطور: Bilal Codes</span>
+                <span>المرحلة: الثانية — علوم حاسوب</span>
+                <a href="https://instagram.com/bilalcodes1" target="_blank" rel="noreferrer">
+                  <InstagramIcon />
+                  Instagram: bilalcodes1
+                </a>
+                <a href="https://t.me/bilalcodes1" target="_blank" rel="noreferrer">
+                  <TelegramIcon />
+                  Telegram: bilalcodes1
+                </a>
                 <span>الهدف: خدمة مكتبة الكلية والطلبة</span>
               </div>
             </article>
@@ -438,13 +535,16 @@ export default function DownloadPage() {
             <h2>بيئة العمل والتكامل</h2>
           </div>
           <div className={styles.partnerGrid}>
-            {partners.map((partner) => (
-              <div key={partner.name} className={styles.partnerCard}>
-                <div className={styles.partnerIcon}>{partner.icon}</div>
-                <strong>{partner.name}</strong>
-                <p>{partner.role}</p>
-              </div>
-            ))}
+            {partners.map((partner) => {
+              const Icon = partnerIcon(partner.iconType);
+              return (
+                <div key={partner.name} className={styles.partnerCard}>
+                  <div className={styles.partnerIcon}><Icon /></div>
+                  <strong>{partner.name}</strong>
+                  <p>{partner.role}</p>
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -456,7 +556,7 @@ export default function DownloadPage() {
           <div className={styles.capabilityGrid}>
             {capabilities.map((item) => (
               <div key={item} className={styles.capabilityItem}>
-                <div className={styles.checkMark}>✓</div>
+                <div className={styles.checkMark}><CheckIcon /></div>
                 <span>{item}</span>
               </div>
             ))}
