@@ -3,6 +3,7 @@
 
 import type {
   OnlineImportState,
+  PaymentStatus,
   PrintRequest,
   PrinterStatus,
   RequestEvent,
@@ -70,6 +71,18 @@ declare global {
       onRequestsChanged: (
         cb: (ev: { reason: string; requestId?: string; payload?: PrintRequest; file?: RequestFile }) => void,
       ) => () => void;
+      changePin: (
+        currentPin: string,
+        newPin: string,
+      ) => Promise<{ ok: boolean; error?: string }>;
+      getPaymentAccounts: () => Promise<{ qiCard: string; zainCash: string }>;
+      setPaymentAccounts: (
+        accounts: { qiCard?: string; zainCash?: string },
+      ) => Promise<{ ok: boolean }>;
+      setPaymentStatus: (
+        id: string,
+        status: PaymentStatus,
+      ) => Promise<{ ok: boolean; request?: PrintRequest; error?: string }>;
     };
   }
 }

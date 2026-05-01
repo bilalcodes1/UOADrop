@@ -2515,3 +2515,186 @@ body, html, #root {
   background: rgba(239, 68, 68, 0.14);
   color: #fecaca;
 }
+
+/* ─────── Settings Panel ─────── */
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 28px;
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+
+.settings-section {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  padding: 24px 0;
+}
+
+.settings-section:first-child { padding-top: 0; }
+.settings-section:last-child { padding-bottom: 0; }
+
+.settings-section-head {
+  flex: 0 0 280px;
+  min-width: 0;
+}
+
+.settings-section-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.settings-section-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.settings-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.settings-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-input {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.settings-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.settings-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-error {
+  font-size: 13px;
+  color: var(--danger);
+  margin: 0;
+  padding: 6px 0 0;
+}
+
+.settings-save {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.settings-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0;
+}
+
+/* ─────── Payment verification in request card ─────── */
+.payment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9px;
+}
+
+.payment-badge-pending {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+}
+
+.payment-badge-verified {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.payment-badge-rejected {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+.payment-transaction-ref {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  direction: ltr;
+  unicode-bidi: embed;
+  padding: 4px 8px;
+  background: var(--chip-gray);
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.payment-verify-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.btn-verify-payment {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.btn-verify-accept {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #fff;
+}
+
+.btn-verify-accept:hover { background: linear-gradient(135deg, #15803d, #166534); }
+
+.btn-verify-reject {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.btn-verify-reject:hover { background: rgba(220, 38, 38, 0.18); }
+
+.payment-info-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 2px;
+}

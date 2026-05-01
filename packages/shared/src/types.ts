@@ -20,6 +20,9 @@ export type OnlineImportState =
 
 export type PrintQueueState = 'idle' | 'queued' | 'spooling' | 'failed';
 
+export type PaymentMethod = 'qicard' | 'zaincash';
+export type PaymentStatus = 'pending' | 'verified' | 'rejected';
+
 export type RequestEventType =
   | 'request_created'
   | 'file_added'
@@ -69,6 +72,11 @@ export type PrintRequest = {
   printQueueState?: PrintQueueState;
   printQueueError?: string;
   printQueueUpdatedAt?: string;
+  paymentMethod?: PaymentMethod;
+  paymentTransactionRef?: string;
+  paymentStatus?: PaymentStatus;
+  paymentSubmittedAt?: string;
+  paymentVerifiedAt?: string;
 };
 
 export type RequestFile = {

@@ -36,6 +36,11 @@ type SupabaseRequestRow = {
   picked_up_at: string | null;
   final_price_confirmed_at: string | null;
   online_files_cleanup_at: string | null;
+  payment_method: string | null;
+  payment_transaction_ref: string | null;
+  payment_status: string | null;
+  payment_submitted_at: string | null;
+  payment_verified_at: string | null;
 };
 
 type SupabaseFileRow = {
@@ -69,6 +74,8 @@ type SupabaseMirrorPatch = Partial<Pick<
   | 'import_state'
   | 'final_price_confirmed_at'
   | 'online_files_cleanup_at'
+  | 'payment_status'
+  | 'payment_verified_at'
 >>;
 
 type ImportedLocalFile = {
@@ -228,6 +235,8 @@ function buildMirrorPatchFromLocal(request: PrintRequest): SupabaseMirrorPatch {
     printed_at: request.printedAt ?? null,
     picked_up_at: request.pickedUpAt ?? null,
     online_files_cleanup_at: request.onlineFilesCleanupAt ?? null,
+    payment_status: request.paymentStatus ?? null,
+    payment_verified_at: request.paymentVerifiedAt ?? null,
   };
 }
 

@@ -2,7 +2,7 @@ import { ipcMain, BrowserWindow, shell, dialog } from 'electron';
 import { basename } from 'node:path';
 import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import type { OnlineImportState, PrinterStatus, RequestEvent, RequestSourceOfTruth } from '@uoadrop/shared';
+import type { OnlineImportState, PaymentStatus, PrinterStatus, RequestEvent, RequestSourceOfTruth } from '@uoadrop/shared';
 import { PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
 import {
   addRequestFile,
@@ -10,6 +10,7 @@ import {
   deleteRequest,
   ensureLibrarianPin,
   getRequestById,
+  getSetting,
   importOnlineRequest,
   listPrinterEvents,
   listRequestEvents,
@@ -18,7 +19,10 @@ import {
   listRequestsPaged,
   recentFailedPinAttempts,
   recordPinAttempt,
+  resetLibrarianPin,
+  setSetting,
   setRequestFileOptions,
+  setRequestPaymentStatus,
   setRequestPrice,
   setRequestStatus,
   setRequestWorkflowMeta,
@@ -321,5 +325,48 @@ export function registerIpcHandlers(): void {
       ],
     });
     return { canceled: res.canceled, filePaths: res.filePaths };
+  });
+
+  // ─────────────────────────────────────────
+  // settings:changePin — change librarian PIN (requires current PIN)
+  // ─────────────────────────────────────────
+  ipcMain.handle('settings:changePin', async (_e, currentPin: string, newPin: string) => {
+    const verify = verifyLibrarianPin(String(currentPin ?? ''));
+    if (!verify.ok) return { ok: false, error: 'PIN الحالي غير صحيح' };
+    const trimmed = String(newPin ?? '').trim();
+    if (trimmed.length < 4 || trimmed.length > 12) return { ok: false, error: 'PIN الجديد يجب أن يكون بين 4 و 12 رقم' };
+    resetLibrarianPin(trimmed);
+    return { ok: true };
+  });
+
+  // ─────────────────────────────────────────
+  // settings:getPaymentAccounts — get Qi Card / ZainCash account numbers
+  // ─────────────────────────────────────────
+  ipcMain.handle('settings:getPaymentAccounts', async () => {
+    return {
+      qiCard: getSetting('payment_account_qicard') ?? '',
+      zainCash: getSetting('payment_account_zaincash') ?? '',
+    };
+  });
+
+  // ─────────────────────────────────────────
+  // settings:setPaymentAccounts — save Qi Card / ZainCash account numbers
+  // ─────────────────────────────────────────
+  ipcMain.handle('settings:setPaymentAccounts', async (_e, accounts: { qiCard?: string; zainCash?: string }) => {
+    if (typeof accounts?.qiCard === 'string') setSetting('payment_account_qicard', accounts.qiCard.trim());
+    if (typeof accounts?.zainCash === 'string') setSetting('payment_account_zaincash', accounts.zainCash.trim());
+    return { ok: true };
+  });
+
+  // ─────────────────────────────────────────
+  // requests:setPaymentStatus — verify or reject a payment submission
+  // ─────────────────────────────────────────
+  ipcMain.handle('requests:setPaymentStatus', async (_e, id: string, status: PaymentStatus) => {
+    const res = setRequestPaymentStatus(id, status);
+    if (res.ok) {
+      await syncOnlineMirrorIfNeeded(id);
+      emitAppEvent({ type: 'requests:changed', reason: 'payment-status', requestId: id, payload: res.request });
+    }
+    return res;
   });
 }

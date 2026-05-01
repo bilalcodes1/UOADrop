@@ -5,6 +5,8 @@ import { app } from 'electron';
 import { createHash, randomUUID } from 'node:crypto';
 import type {
   OnlineImportState,
+  PaymentMethod,
+  PaymentStatus,
   PrintQueueState,
   PrintRequest,
   RequestEvent,
@@ -193,6 +195,15 @@ function ensurePrintRequestsNotesColumn(d: Database.Database): void {
   }
 }
 
+function ensurePrintRequestsPaymentColumns(d: Database.Database): void {
+  const columns = getPrintRequestsColumnNames(d);
+  if (!columns.includes('payment_method')) d.exec(`ALTER TABLE print_requests ADD COLUMN payment_method TEXT`);
+  if (!columns.includes('payment_transaction_ref')) d.exec(`ALTER TABLE print_requests ADD COLUMN payment_transaction_ref TEXT`);
+  if (!columns.includes('payment_status')) d.exec(`ALTER TABLE print_requests ADD COLUMN payment_status TEXT`);
+  if (!columns.includes('payment_submitted_at')) d.exec(`ALTER TABLE print_requests ADD COLUMN payment_submitted_at TEXT`);
+  if (!columns.includes('payment_verified_at')) d.exec(`ALTER TABLE print_requests ADD COLUMN payment_verified_at TEXT`);
+}
+
 function getDbPath(): string {
   const configured = process.env.DESKTOP_DB_PATH;
   if (configured) return resolve(process.cwd(), configured);
@@ -314,6 +325,7 @@ function initSchema(d: Database.Database): void {
   ensurePrintRequestsStudentEmailColumn(d);
   ensurePrintRequestsTelegramChatIdColumn(d);
   ensurePrintRequestsNotesColumn(d);
+  ensurePrintRequestsPaymentColumns(d);
 }
 
 export interface PrinterEventRow {
@@ -395,6 +407,11 @@ type RequestRow = {
   print_queue_state: PrintQueueState | null;
   print_queue_error: string | null;
   print_queue_updated_at: string | null;
+  payment_method: string | null;
+  payment_transaction_ref: string | null;
+  payment_status: string | null;
+  payment_submitted_at: string | null;
+  payment_verified_at: string | null;
   file_count: number;
   created_at: string;
   updated_at: string;
@@ -426,6 +443,11 @@ function buildPrintRequest(row: RequestRow): PrintRequest {
     printQueueState: row.print_queue_state ?? 'idle',
     printQueueError: row.print_queue_error ?? undefined,
     printQueueUpdatedAt: row.print_queue_updated_at ?? undefined,
+    paymentMethod: (row.payment_method as PaymentMethod) ?? undefined,
+    paymentTransactionRef: row.payment_transaction_ref ?? undefined,
+    paymentStatus: (row.payment_status as PaymentStatus) ?? undefined,
+    paymentSubmittedAt: row.payment_submitted_at ?? undefined,
+    paymentVerifiedAt: row.payment_verified_at ?? undefined,
   };
 }
 
@@ -481,13 +503,13 @@ export function listRequestEvents(requestId: string, limit = 50): RequestEvent[]
   }));
 }
 
-function getSetting(key: string): string | null {
+export function getSetting(key: string): string | null {
   const d = getDb();
   const row = d.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
   return row?.value ?? null;
 }
 
-function setSetting(key: string, value: string): void {
+export function setSetting(key: string, value: string): void {
   const d = getDb();
   const now = new Date().toISOString();
   d.prepare(
@@ -688,6 +710,7 @@ export function listRequestsPaged(args: {
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
+              r.payment_method, r.payment_transaction_ref, r.payment_status, r.payment_submitted_at, r.payment_verified_at,
               (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
               r.created_at, r.updated_at
        FROM print_requests r
@@ -710,6 +733,7 @@ export function listRequests(): PrintRequest[] {
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
+              r.payment_method, r.payment_transaction_ref, r.payment_status, r.payment_submitted_at, r.payment_verified_at,
               (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
               r.created_at, r.updated_at
        FROM print_requests r
@@ -728,6 +752,7 @@ export function getRequestById(id: string): PrintRequest | null {
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
+              r.payment_method, r.payment_transaction_ref, r.payment_status, r.payment_submitted_at, r.payment_verified_at,
               (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
               r.created_at, r.updated_at
        FROM print_requests r
@@ -751,6 +776,7 @@ export function getRequestByTicket(ticket: string): PrintRequest | null {
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
+              r.payment_method, r.payment_transaction_ref, r.payment_status, r.payment_submitted_at, r.payment_verified_at,
               (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
               r.created_at, r.updated_at
        FROM print_requests r
@@ -956,6 +982,7 @@ export function listRequestsNeedingQueueRecovery(): PrintRequest[] {
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
               r.print_queue_error, r.print_queue_updated_at,
+              r.payment_method, r.payment_transaction_ref, r.payment_status, r.payment_submitted_at, r.payment_verified_at,
               (SELECT COUNT(1) FROM request_files rf WHERE rf.request_id = r.id) as file_count,
               r.created_at, r.updated_at
        FROM print_requests r
@@ -974,7 +1001,9 @@ export function listRequestsWithMissingLocalFiles(): Array<PrintRequest & { miss
       `SELECT r.id, r.ticket, r.student_name, r.student_email, r.telegram_chat_id, r.notes, r.source, r.pickup_pin, r.pin_hash, r.status, r.options_json,
               r.total_pages, r.price_iqd, r.desk_received_at, r.printed_at, r.picked_up_at, r.source_of_truth,
               r.import_state, r.final_price_confirmed_at, r.online_files_cleanup_at, r.print_queue_state,
-              r.print_queue_error, r.print_queue_updated_at, COUNT(f.id) as file_count, r.created_at, r.updated_at,
+              r.print_queue_error, r.print_queue_updated_at,
+              r.payment_method, r.payment_transaction_ref, r.payment_status, r.payment_submitted_at, r.payment_verified_at,
+              COUNT(f.id) as file_count, r.created_at, r.updated_at,
               SUM(CASE WHEN f.local_path IS NOT NULL AND f.local_path != '' THEN 0 ELSE 1 END) as missing_files
        FROM print_requests r
        JOIN request_files f ON f.request_id = r.id
@@ -1067,6 +1096,27 @@ export function markRequestDone(id: string): {
     actor: 'librarian',
     status: 'done',
   });
+  return { ok: true, request: getRequestById(id)! };
+}
+
+export function setRequestPaymentStatus(
+  id: string,
+  status: PaymentStatus,
+): { ok: boolean; request?: PrintRequest; error?: string } {
+  const request = getRequestById(id);
+  if (!request) return { ok: false, error: 'not_found' };
+  if (!request.paymentTransactionRef) return { ok: false, error: 'no_payment_submitted' };
+
+  const now = new Date().toISOString();
+  const d = getDb();
+  d.prepare(
+    `UPDATE print_requests
+     SET payment_status = ?,
+         payment_verified_at = CASE WHEN ? = 'verified' THEN ? ELSE payment_verified_at END,
+         updated_at = ?
+     WHERE id = ?`,
+  ).run(status, status, now, now, id);
+
   return { ok: true, request: getRequestById(id)! };
 }
 

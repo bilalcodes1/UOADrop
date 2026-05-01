@@ -426,13 +426,163 @@ function SpinnerIcon({ className }: IconProps): JSX.Element {
   );
 }
 
+function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX.Element {
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinBusy, setPinBusy] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+
+  const [qiCard, setQiCard] = useState('');
+  const [zainCash, setZainCash] = useState('');
+  const [accountsBusy, setAccountsBusy] = useState(false);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void window.api.getPaymentAccounts().then((res) => {
+      if (!active) return;
+      setQiCard(res.qiCard);
+      setZainCash(res.zainCash);
+      setAccountsLoaded(true);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const handleChangePin = async (): Promise<void> => {
+    setPinError(null);
+    if (!currentPin.trim()) { setPinError('أدخل PIN الحالي'); return; }
+    if (newPin.trim().length < 4) { setPinError('PIN الجديد يجب أن يكون 4 أرقام على الأقل'); return; }
+    if (newPin !== confirmPin) { setPinError('PIN الجديد غير متطابق'); return; }
+    setPinBusy(true);
+    try {
+      const res = await window.api.changePin(currentPin, newPin);
+      if (!res.ok) { setPinError(res.error ?? 'فشل تغيير PIN'); return; }
+      setCurrentPin('');
+      setNewPin('');
+      setConfirmPin('');
+      showToast('تم تغيير PIN بنجاح');
+    } finally {
+      setPinBusy(false);
+    }
+  };
+
+  const handleSaveAccounts = async (): Promise<void> => {
+    setAccountsBusy(true);
+    try {
+      await window.api.setPaymentAccounts({ qiCard: qiCard.trim(), zainCash: zainCash.trim() });
+      showToast('تم حفظ أرقام الحسابات');
+    } finally {
+      setAccountsBusy(false);
+    }
+  };
+
+  return (
+    <section className="settings-panel">
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h2 className="settings-section-title">تغيير PIN الداشبورد</h2>
+          <p className="settings-section-desc">غيّر رمز الدخول المستخدم لفتح الداشبورد من شاشة القفل.</p>
+        </div>
+        <div className="settings-fields">
+          <div className="settings-field">
+            <label className="settings-label">PIN الحالي</label>
+            <input
+              className="settings-input"
+              type="password"
+              inputMode="numeric"
+              placeholder="••••"
+              value={currentPin}
+              onChange={(e) => { setCurrentPin(e.target.value); setPinError(null); }}
+            />
+          </div>
+          <div className="settings-field">
+            <label className="settings-label">PIN الجديد</label>
+            <input
+              className="settings-input"
+              type="password"
+              inputMode="numeric"
+              placeholder="أدخل PIN جديد (4 أرقام على الأقل)"
+              value={newPin}
+              onChange={(e) => { setNewPin(e.target.value); setPinError(null); }}
+            />
+          </div>
+          <div className="settings-field">
+            <label className="settings-label">تأكيد PIN الجديد</label>
+            <input
+              className="settings-input"
+              type="password"
+              inputMode="numeric"
+              placeholder="أعد إدخال PIN الجديد"
+              value={confirmPin}
+              onChange={(e) => { setConfirmPin(e.target.value); setPinError(null); }}
+            />
+          </div>
+          {pinError && <p className="settings-error">{pinError}</p>}
+          <button
+            className="btn btn-ready settings-save"
+            disabled={pinBusy}
+            onClick={() => void handleChangePin()}
+          >
+            {pinBusy ? 'جارٍ التغيير...' : 'تغيير PIN'}
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-divider" />
+
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h2 className="settings-section-title">حسابات الدفع</h2>
+          <p className="settings-section-desc">أرقام الحسابات التي تظهر للطالب عند الدفع. سيتمكن الطالب من تحويل المبلغ إلى أحد هذه الحسابات ثم إرسال رقم العملية للتحقق.</p>
+        </div>
+        <div className="settings-fields">
+          <div className="settings-field">
+            <label className="settings-label">رقم حساب Qi Card</label>
+            <input
+              className="settings-input"
+              type="text"
+              inputMode="numeric"
+              dir="ltr"
+              placeholder={accountsLoaded ? 'أدخل رقم حساب Qi Card' : 'جارٍ التحميل...'}
+              value={qiCard}
+              onChange={(e) => setQiCard(e.target.value)}
+              disabled={!accountsLoaded}
+            />
+          </div>
+          <div className="settings-field">
+            <label className="settings-label">رقم حساب ZainCash</label>
+            <input
+              className="settings-input"
+              type="text"
+              inputMode="numeric"
+              dir="ltr"
+              placeholder={accountsLoaded ? 'أدخل رقم حساب ZainCash' : 'جارٍ التحميل...'}
+              value={zainCash}
+              onChange={(e) => setZainCash(e.target.value)}
+              disabled={!accountsLoaded}
+            />
+          </div>
+          <button
+            className="btn btn-ready settings-save"
+            disabled={accountsBusy || !accountsLoaded}
+            onClick={() => void handleSaveAccounts()}
+          >
+            {accountsBusy ? 'جارٍ الحفظ...' : 'حفظ أرقام الحسابات'}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function Dashboard(): JSX.Element {
   const [requests, setRequests] = useState<PrintRequest[]>([]);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'requests' | 'about'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'about' | 'settings'>('requests');
   const [filter, setFilter] = useState<DashboardFilter>('work');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -762,6 +912,21 @@ export function Dashboard(): JSX.Element {
     }
   };
 
+  const handlePaymentAction = async (req: PrintRequest, action: 'verified' | 'rejected'): Promise<void> => {
+    setBusy(req.id);
+    try {
+      const res = await window.api.setPaymentStatus(req.id, action);
+      if (!res.ok || !res.request) {
+        showToast('تعذر تحديث حالة الدفع');
+        return;
+      }
+      updateRequestSnapshot(res.request);
+      showToast(action === 'verified' ? `تم تأكيد دفع الطلب ${req.ticket}` : `تم رفض دفع الطلب ${req.ticket}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const handleReady = async (
     req: PrintRequest,
     options?: { switchToReadyView?: boolean; silent?: boolean },
@@ -1044,6 +1209,16 @@ export function Dashboard(): JSX.Element {
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === 'settings'}
+          className={`dashboard-tab ${activeTab === 'settings' ? 'dashboard-tab-active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          <span className="dashboard-tab-title">الإعدادات</span>
+          <span className="dashboard-tab-meta">PIN وحسابات الدفع</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === 'about'}
           className={`dashboard-tab ${activeTab === 'about' ? 'dashboard-tab-active' : ''}`}
           onClick={() => setActiveTab('about')}
@@ -1054,7 +1229,9 @@ export function Dashboard(): JSX.Element {
       </div>
 
       <div className="dashboard-panel">
-      {activeTab === 'about' ? (
+      {activeTab === 'settings' ? (
+        <SettingsPanel showToast={showToast} />
+      ) : activeTab === 'about' ? (
         <section className="dashboard-credits">
           <div className="dashboard-credits-main">
             <div className="dashboard-credits-copy">
@@ -1424,6 +1601,34 @@ export function Dashboard(): JSX.Element {
                 <span className="meta-pill">افتراضي: {req.options.copies.toLocaleString('ar-IQ')} نسخ</span>
                 <span className="meta-pill">أُنشئ {formatStamp(req.createdAt)}</span>
               </div>
+
+              {req.paymentTransactionRef && (
+                <div className="payment-info-row" onClick={(e) => e.stopPropagation()}>
+                  <span className={`payment-badge ${req.paymentStatus === 'verified' ? 'payment-badge-verified' : req.paymentStatus === 'rejected' ? 'payment-badge-rejected' : 'payment-badge-pending'}`}>
+                    {req.paymentStatus === 'verified' ? 'الدفع مؤكد' : req.paymentStatus === 'rejected' ? 'الدفع مرفوض' : 'بانتظار التحقق'}
+                  </span>
+                  <span className="meta-pill">{req.paymentMethod === 'qicard' ? 'Qi Card' : 'ZainCash'}</span>
+                  <span className="payment-transaction-ref">{req.paymentTransactionRef}</span>
+                  {req.paymentStatus === 'pending' && (
+                    <div className="payment-verify-actions">
+                      <button
+                        className="btn-verify-payment btn-verify-accept"
+                        disabled={busy === req.id}
+                        onClick={() => void handlePaymentAction(req, 'verified')}
+                      >
+                        تأكيد الدفع
+                      </button>
+                      <button
+                        className="btn-verify-payment btn-verify-reject"
+                        disabled={busy === req.id}
+                        onClick={() => void handlePaymentAction(req, 'rejected')}
+                      >
+                        رفض
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className={`card-actions ${req.status === 'printing' ? 'card-actions-printing' : ''}`} onClick={(e) => e.stopPropagation()}>
                 <button className="btn btn-open" disabled={busy === req.id} onClick={() => void handleView(req)}>

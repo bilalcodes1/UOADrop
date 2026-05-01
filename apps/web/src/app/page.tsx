@@ -933,6 +933,13 @@ function SuccessPanel({
   const [deskReceivedAt, setDeskReceivedAt] = useState<string | null>(null);
   const [finalPriceConfirmedAt, setFinalPriceConfirmedAt] = useState<string | null>(null);
   const [readyFlash, setReadyFlash] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
+  const [paymentTransactionRef, setPaymentTransactionRef] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qicard' | 'zaincash' | null>(null);
+  const [transactionInput, setTransactionInput] = useState('');
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const { deepLink, webLink } = buildTelegramLinks(ticket);
 
   type TrackerState = '' | 'done' | 'current' | 'warn';
@@ -1000,6 +1007,10 @@ function SuccessPanel({
       setDeskReceivedAt(typeof data?.desk_received_at === 'string' ? data.desk_received_at : null);
       setFinalPriceConfirmedAt(typeof data?.final_price_confirmed_at === 'string' ? data.final_price_confirmed_at : null);
 
+      if (typeof data?.payment_status === 'string') setPaymentStatus(data.payment_status);
+      if (typeof data?.payment_method === 'string') setPaymentMethod(data.payment_method);
+      if (typeof data?.payment_transaction_ref === 'string') setPaymentTransactionRef(data.payment_transaction_ref);
+
       return nextStatus;
     };
 
@@ -1007,7 +1018,7 @@ function SuccessPanel({
       try {
         let result = await supabase
           .from('print_requests')
-          .select('status, updated_at, price_iqd, total_pages, desk_received_at, final_price_confirmed_at')
+          .select('status, updated_at, price_iqd, total_pages, desk_received_at, final_price_confirmed_at, payment_status, payment_method, payment_transaction_ref')
           .eq('id', requestId)
           .single();
 
@@ -1228,6 +1239,103 @@ function SuccessPanel({
           <span className={styles.insightHint}>{deskReceivedAt ? 'القيمة الظاهرة تعكس آخر عدد صفحات معتمد في المكتبة.' : 'قد يتحدث العدد بعد استلام الطلب داخل المكتبة.'}</span>
         </div>
       </div>
+
+      {finalPriceConfirmedAt && priceIqd > 0 && !paymentTransactionRef && !['done', 'canceled', 'blocked'].includes(status) && (
+        <div className={styles.paymentCard}>
+          <strong className={styles.paymentCardTitle}>الدفع الإلكتروني</strong>
+          <p className={styles.paymentCardDesc}>
+            المبلغ المطلوب: <strong dir="ltr">{formatPriceValue(priceIqd)}</strong>
+            <br />
+            اختر وسيلة الدفع، حوّل المبلغ، ثم أدخل رقم عملية التحويل أدناه.
+          </p>
+
+          <div className={styles.paymentMethods}>
+            <button
+              type="button"
+              className={`${styles.paymentMethodBtn} ${selectedPaymentMethod === 'qicard' ? styles.paymentMethodBtnActive : ''}`}
+              onClick={() => { setSelectedPaymentMethod('qicard'); setPaymentError(null); }}
+            >
+              <img src="/Qicard.webp" alt="Qi Card" className={styles.paymentMethodIcon} />
+              <span>Qi Card</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.paymentMethodBtn} ${selectedPaymentMethod === 'zaincash' ? styles.paymentMethodBtnActive : ''}`}
+              onClick={() => { setSelectedPaymentMethod('zaincash'); setPaymentError(null); }}
+            >
+              <img src="/zaincash.webp" alt="ZainCash" className={styles.paymentMethodIcon} />
+              <span>ZainCash</span>
+            </button>
+          </div>
+
+          {selectedPaymentMethod && (
+            <div className={styles.paymentForm}>
+              <label className={styles.paymentLabel}>رقم عملية التحويل</label>
+              <input
+                className={styles.paymentInput}
+                type="text"
+                dir="ltr"
+                placeholder="أدخل رقم العملية بعد التحويل"
+                value={transactionInput}
+                onChange={(e) => { setTransactionInput(e.target.value); setPaymentError(null); }}
+              />
+              {paymentError && <p className={styles.paymentError}>{paymentError}</p>}
+              <button
+                className={styles.paymentSubmitBtn}
+                disabled={paymentBusy}
+                onClick={async () => {
+                  const ref = transactionInput.trim();
+                  if (!ref) { setPaymentError('أدخل رقم عملية التحويل'); return; }
+                  if (ref.length < 4) { setPaymentError('رقم العملية قصير جداً'); return; }
+                  setPaymentBusy(true);
+                  setPaymentError(null);
+                  try {
+                    const { error } = await supabase
+                      .from('print_requests')
+                      .update({
+                        payment_method: selectedPaymentMethod,
+                        payment_transaction_ref: ref,
+                        payment_status: 'pending',
+                        payment_submitted_at: new Date().toISOString(),
+                      })
+                      .eq('id', requestId);
+                    if (error) {
+                      setPaymentError('فشل إرسال بيانات الدفع. حاول مرة أخرى.');
+                      return;
+                    }
+                    setPaymentTransactionRef(ref);
+                    setPaymentMethod(selectedPaymentMethod);
+                    setPaymentStatus('pending');
+                  } finally {
+                    setPaymentBusy(false);
+                  }
+                }}
+              >
+                {paymentBusy ? 'جارٍ الإرسال...' : 'إرسال رقم العملية'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {paymentTransactionRef && (
+        <div className={styles.paymentCard}>
+          <strong className={styles.paymentCardTitle}>حالة الدفع</strong>
+          <div className={styles.paymentStatusRow}>
+            <span className={`${styles.paymentStatusBadge} ${paymentStatus === 'verified' ? styles.paymentStatusVerified : paymentStatus === 'rejected' ? styles.paymentStatusRejected : styles.paymentStatusPending}`}>
+              {paymentStatus === 'verified' ? 'تم تأكيد الدفع' : paymentStatus === 'rejected' ? 'الدفع مرفوض' : 'بانتظار تأكيد المكتبة'}
+            </span>
+            <span className={styles.paymentMethodLabel}>{paymentMethod === 'qicard' ? 'Qi Card' : 'ZainCash'}</span>
+          </div>
+          <div className={styles.paymentRefDisplay} dir="ltr">{paymentTransactionRef}</div>
+          {paymentStatus === 'pending' && (
+            <p className={styles.paymentHint}>سيتم التحقق من عملية التحويل من قبل المكتبة. ستتحدث هذه الحالة تلقائياً.</p>
+          )}
+          {paymentStatus === 'rejected' && (
+            <p className={styles.paymentHint} style={{ color: '#dc2626' }}>تم رفض الدفع. يرجى مراجعة المكتبة أو إعادة الدفع.</p>
+          )}
+        </div>
+      )}
 
       <div className={styles.statusTracker} aria-label="تتبع حالة الطلب">
         {trackerSteps.map((step, index) => (

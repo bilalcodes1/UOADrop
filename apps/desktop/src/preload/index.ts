@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   OnlineImportState,
+  PaymentStatus,
   PrinterStatus,
   PrintRequest,
   RequestEvent,
@@ -113,6 +114,26 @@ export const api = {
     ipcRenderer.on('requests:changed', handler);
     return () => ipcRenderer.removeListener('requests:changed', handler);
   },
+
+  changePin: (
+    currentPin: string,
+    newPin: string,
+  ): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('settings:changePin', currentPin, newPin),
+
+  getPaymentAccounts: (): Promise<{ qiCard: string; zainCash: string }> =>
+    ipcRenderer.invoke('settings:getPaymentAccounts'),
+
+  setPaymentAccounts: (
+    accounts: { qiCard?: string; zainCash?: string },
+  ): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('settings:setPaymentAccounts', accounts),
+
+  setPaymentStatus: (
+    id: string,
+    status: PaymentStatus,
+  ): Promise<{ ok: boolean; request?: PrintRequest; error?: string }> =>
+    ipcRenderer.invoke('requests:setPaymentStatus', id, status),
 };
 
 contextBridge.exposeInMainWorld('api', api);
