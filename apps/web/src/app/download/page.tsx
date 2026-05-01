@@ -34,15 +34,12 @@ type TimelineItem = {
   text: string;
 };
 
-type PartnerIconType = 'university' | 'college' | 'library' | 'integration';
-type OpsIconType = 'release' | 'secure' | 'updates' | 'analytics' | 'download' | 'support';
-
-type OpsStackItem = {
-  iconType: OpsIconType;
+type TechStackItem = {
   title: string;
-  text: string;
-  metric: string;
+  items: string[];
 };
+
+type PartnerIconType = 'university' | 'college' | 'library' | 'integration';
 
 const downloadFile = (asset: string) => `/download/file?asset=${asset}`;
 
@@ -91,23 +88,23 @@ const platforms: PlatformInfo[] = [
 const timeline: TimelineItem[] = [
   {
     phase: '01',
-    title: 'الفكرة',
-    text: 'تحويل طابور الطباعة الورقي إلى تجربة رقمية: الطالب يرفع ملفاته، والمكتبة تدير الطلبات من شاشة واحدة.',
+    title: 'المشكلة اليومية',
+    text: 'بلال لاحظ تأخيراً واضحاً وفوضى أثناء نقل ملفات الطلبة إلى المكتبة: ملفات تصل عبر أكثر من تطبيق، أسئلة متكررة، ووقت يضيع قبل أن تبدأ الطباعة.',
   },
   {
     phase: '02',
-    title: 'النواة',
-    text: 'بناء تطبيق سطح مكتب Electron مع قاعدة بيانات SQLite، طابور طباعة، تسعير يدوي، وأرشفة الطلبات.',
+    title: 'توحيد المسار',
+    text: 'تم تحويل السؤال المتكرر: أين أرسل الملف؟ كم نسخة؟ ملون لو عادي؟ إلى نموذج رفع واضح يجمع معلومات الطلب من البداية.',
   },
   {
     phase: '03',
-    title: 'الأونلاين',
-    text: 'إضافة منصة الرفع عبر الويب، Supabase Realtime، تشفير الملفات، ومزامنة الطلبات إلى الداشبورد.',
+    title: 'داشبورد المكتبة',
+    text: 'بُنيت لوحة تشغيل لأصحاب المكاتب تستقبل الطلبات، تعرض التفاصيل، تحدد السعر، تدير الدفع، وتحدّث حالة الطلب أمام الطالب.',
   },
   {
     phase: '04',
-    title: 'الدفع والتوزيع',
-    text: 'إضافة Qi Card وZainCash، التحقق اليدوي من العمليات، وصفحة تحميل احترافية متعددة المنصات.',
+    title: 'منظومة كاملة',
+    text: 'اكتمل النظام بصفحة رفع، داشبورد سطح مكتب، تشفير، إشعارات، دفع اختياري، وإصدارات لأنظمة macOS وWindows وLinux.',
   },
 ];
 
@@ -135,77 +132,64 @@ const partners = [
 ];
 
 const capabilities = [
-  'رفع ملفات أونلاين من المتصفح مع حفظ الطلب فوراً',
-  'داشبورد سطح مكتب للطباعة والتسعير والتحكم بالحالات',
-  'تشفير ملفات AES-256-GCM مع تغليف RSA-OAEP-SHA256',
-  'إشعارات Telegram والبريد الإلكتروني لحالة الطلب',
-  'تتبع مباشر لحالة الطلب من صفحة الطالب',
+  'استقبال طلبات الطباعة من صفحة رفع منظمة بدل الرسائل المتفرقة',
+  'عرض عدد النسخ ونوع الطباعة والملاحظات والملفات داخل الداشبورد',
+  'تحديد السعر يدوياً من صاحب المكتب قبل بدء التنفيذ',
+  'تحديث حالة الطلب للطالب بدون اتصالات ورسائل متكررة',
+  'تشفير ملفات الطلبة قبل وصولها إلى نظام المكتبة',
   'دفع اختياري عبر Qi Card وZainCash مع تحقق إداري',
-  'إدارة PIN وأرقام حسابات الدفع من لوحة الإعدادات',
-  'بناء إصدارات مستقلة لأنظمة macOS وWindows وLinux',
+  'إدارة حسابات الدفع ورمز PIN من إعدادات الداشبورد',
+  'إصدارات مستقلة لأنظمة macOS وWindows وLinux',
 ];
 
 const heroProofItems = [
-  { value: '3 أنظمة', label: 'تنزيل مخصص حسب المنصة' },
-  { value: 'Realtime', label: 'مزامنة مباشرة للطلبات' },
-  { value: 'AES + RSA', label: 'حماية ملفات الطلبة' },
+  { value: 'داشبورد', label: 'إدارة طلبات المكتبة من شاشة واحدة' },
+  { value: 'Realtime', label: 'متابعة مباشرة بين الطالب والمكتب' },
+  { value: 'AES + RSA', label: 'حماية ملفات الطلبة أثناء النقل' },
 ];
 
-const opsStack: OpsStackItem[] = [
+const workflowProblems = [
+  'أجهزة iPhone لا ترسل الملفات بسهولة عبر Bluetooth.',
+  'الطالب يطلب: افتح لي نت أو وين أرسل الملف؟',
+  'تكرار أسئلة حساب المكتبة وحساب الطالب ولقطة التحويل.',
+  'ضياع تفاصيل الطلب: كم نسخة؟ ملون أم عادي؟ ومتى الاستلام؟',
+];
+
+const techStack: TechStackItem[] = [
   {
-    iconType: 'release',
-    title: 'إصدار متعدد المنصات',
-    text: 'تجهيز صفحة تنزيل واضحة لنسخ macOS وWindows وLinux مع صيغ مناسبة لكل جهاز.',
-    metric: 'DMG / EXE / AppImage',
+    title: 'واجهة الويب',
+    items: ['Next.js', 'React', 'TypeScript', 'CSS Modules'],
   },
   {
-    iconType: 'secure',
-    title: 'أمان الملفات',
-    text: 'مسار الطلبات مبني حول تشفير الملفات قبل وصولها إلى لوحة المكتبة وفكها من الداشبورد فقط.',
-    metric: 'AES-256-GCM',
+    title: 'تطبيق سطح المكتب',
+    items: ['Electron', 'SQLite', 'طابور طلبات', 'إصدارات macOS وWindows وLinux'],
   },
   {
-    iconType: 'updates',
-    title: 'أحدث إصدار دائماً',
-    text: 'زر التحميل الرئيسي يوجه المستخدم إلى أحدث ملف مناسب بدون تشتيت أو صفحات خارجية.',
-    metric: '/download/file',
+    title: 'المزامنة والبيانات',
+    items: ['Supabase', 'Realtime', 'PostgreSQL', 'مسارات API داخل Next.js'],
   },
   {
-    iconType: 'analytics',
-    title: 'وضوح تقني',
-    text: 'الأرقام والبطاقات تعرض حجم المشروع، مدة العمل، عدد الملفات، والأنظمة المدعومة بطريقة مفهومة.',
-    metric: '21K+ lines',
-  },
-  {
-    iconType: 'download',
-    title: 'اختيار نسخة دقيقة',
-    text: 'كل نظام تشغيل يملك كرت مستقل، متطلبات واضحة، وصيغ تنزيل مناسبة للمعمارية المتوفرة.',
-    metric: 'arm64 + x64',
-  },
-  {
-    iconType: 'support',
-    title: 'مصمم للمكتبة',
-    text: 'التجربة ليست صفحة تسويق فقط، بل شرح لمسار تشغيل فعلي بين الطالب وأمين المكتبة والدفع والطباعة.',
-    metric: 'Library workflow',
+    title: 'الأمان والتنبيهات',
+    items: ['AES-256-GCM', 'RSA-OAEP-SHA256', 'Telegram Bot', 'Email Notifications'],
   },
 ];
 
 const faqItems = [
   {
-    question: 'هل زر التحميل يختار النسخة المناسبة تلقائياً؟',
-    answer: 'زر التحميل الرئيسي يمر عبر مسار داخلي يحاول توجيه المستخدم إلى أحدث ملف مناسب، وتبقى أزرار الأنظمة متاحة لمن يريد اختيار نسخة محددة.',
+    question: 'هل الداشبورد مناسب لأصحاب المكاتب؟',
+    answer: 'نعم، الداشبورد مصمم لصاحب المكتب أو أمين المكتبة حتى يستقبل الطلبات، يراجع الملفات، يحدد السعر، يغيّر الحالة، ويتابع الدفع من مكان واحد.',
   },
   {
-    question: 'أي نسخة أختار لجهازي؟',
-    answer: 'لأجهزة Mac الحديثة اختر Apple Silicon، ولأجهزة Intel اختر x64. على Windows استخدم Installer للتثبيت الكامل أو Portable للتشغيل السريع.',
+    question: 'كيف يقلل الفوضى بين الطالب والمكتبة؟',
+    answer: 'بدل إرسال الملفات عبر Bluetooth أو رسائل متعددة، الطالب يرفع الطلب من صفحة واضحة ويكتب عدد النسخ ونوع الطباعة والملاحظات، فتصل كل التفاصيل مرتبة للداشبورد.',
   },
   {
-    question: 'هل النظام مخصص للطلاب فقط؟',
-    answer: 'الطالب يستخدم صفحة الرفع والمتابعة، بينما تطبيق سطح المكتب موجه للمكتبة لإدارة الطلبات، التسعير، الطباعة، الدفع، والإشعارات.',
+    question: 'هل السعر والدفع بيد صاحب المكتب؟',
+    answer: 'نعم، السعر النهائي يحدده صاحب المكتب من الداشبورد. الدفع الإلكتروني اختياري عبر Qi Card وZainCash، والكاش يبقى مدعوماً عند الحاجة.',
   },
   {
-    question: 'هل الدفع الإلكتروني إجباري؟',
-    answer: 'لا، الدفع الإلكتروني اختياري عبر Qi Card وZainCash، ويبقى الكاش مدعوماً لأن السعر النهائي يحدده الداشبورد داخل المكتبة.',
+    question: 'هل يحتاج المكتب خبرة تقنية كبيرة؟',
+    answer: 'لا، الفكرة أن تكون الواجهة قريبة من طريقة العمل اليومية: طلبات، ملفات، سعر، حالة، دفع، وتسليم. التقنية تعمل بالخلفية حتى تبقى التجربة بسيطة.',
   },
 ];
 
@@ -265,60 +249,6 @@ function ShieldIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-  );
-}
-
-function ReleaseIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 8.5L12 4l7 4.5v7L12 20l-7-4.5v-7z" />
-      <path d="M5.5 8.8L12 13l6.5-4.2" />
-      <path d="M12 13v6.5" />
-    </svg>
-  );
-}
-
-function UpdateIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 7v5h-5" />
-      <path d="M4 17v-5h5" />
-      <path d="M18 12a6 6 0 00-10.2-4.2L4 11" />
-      <path d="M6 12a6 6 0 0010.2 4.2L20 13" />
-    </svg>
-  );
-}
-
-function AnalyticsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19V5" />
-      <path d="M4 19h16" />
-      <rect x="7" y="11" width="3" height="5" rx="1" />
-      <rect x="12" y="7" width="3" height="9" rx="1" />
-      <rect x="17" y="9" width="3" height="7" rx="1" />
-    </svg>
-  );
-}
-
-function RouteIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z" />
-      <path d="M8 12h8" />
-      <path d="M13 9l3 3-3 3" />
-    </svg>
-  );
-}
-
-function SupportIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 12a8 8 0 0116 0" />
-      <path d="M4 12v4a2 2 0 002 2h1v-6H6a2 2 0 00-2 2" />
-      <path d="M20 12v4a2 2 0 01-2 2h-1v-6h1a2 2 0 012 2" />
-      <path d="M9 19h4" />
     </svg>
   );
 }
@@ -408,18 +338,6 @@ function partnerIcon(type: PartnerIconType) {
     college: CollegeIcon,
     library: LibraryIcon,
     integration: IntegrationIcon,
-  };
-  return icons[type];
-}
-
-function opsIcon(type: OpsIconType) {
-  const icons = {
-    release: ReleaseIcon,
-    secure: ShieldIcon,
-    updates: UpdateIcon,
-    analytics: AnalyticsIcon,
-    download: RouteIcon,
-    support: SupportIcon,
   };
   return icons[type];
 }
@@ -518,7 +436,7 @@ function ProjectCreditsSection() {
           <article className={styles.creditsCard}>
             <span className={styles.creditsLabel}>المطور</span>
             <h3>بلال زامل احمد</h3>
-            <p><span className={styles.creditsInlineEmphasis}>بلال زامل احمد</span> طالب مرحلة ثانية في <span className={styles.creditsInlineEmphasis}>علوم الحاسوب</span>، تولّى تصميم النظام وتنفيذه وصياغة واجهته وتوحيد هويته البصرية لتظهر منصة <span className={styles.creditsInlineEmphasis}>UOADrop</span> بصورة واضحة واحترافية.</p>
+            <p><span className={styles.creditsInlineEmphasis}>بلال زامل احمد</span> طالب مرحلة ثانية في <span className={styles.creditsInlineEmphasis}>علوم الحاسوب</span>، مهتم بتحويل المشاكل الواقعية إلى حلول برمجية عملية، وبناء أدوات تقنية بسيطة ومفيدة وفي متناول الجميع.</p>
             <ul className={styles.creditsMeta}>
               <li>
                 <span className={styles.creditsMetaLabel}><InstagramIcon /> Instagram</span>
@@ -533,7 +451,7 @@ function ProjectCreditsSection() {
 
           <article className={`${styles.creditsCard} ${styles.creditsCardWide}`}>
             <span className={styles.creditsLabel}>الهدف من المشروع</span>
-            <p>يهدف <span className={styles.creditsInlineEmphasis}>UOADrop</span> إلى تقليل الوقت والجهد في رفع ملفات الطباعة ومتابعة الطلبات داخل المكتبة، عبر تجربة أسرع وأكثر وضوحاً واحترافية لكل من <span className={styles.creditsInlineEmphasis}>الطالب</span> و<span className={styles.creditsInlineEmphasis}>إدارة الطباعة</span>.</p>
+            <p>يهدف <span className={styles.creditsInlineEmphasis}>UOADrop</span> إلى حل مشاكل نقل الملفات بين الطلبة والمكتبة: ضياع الملفات بين التطبيقات، صعوبة إرسال ملفات iPhone، تكرار أسئلة الحسابات والدفع، وعدم وضوح عدد النسخ أو نوع الطباعة. النظام يجمع كل ذلك في طلب واحد منظم يصل مباشرة إلى داشبورد المكتب.</p>
           </article>
 
           <article className={`${styles.creditsCard} ${styles.creditsCardWide}`}>
@@ -553,7 +471,7 @@ export default function DownloadPage() {
       <div className={styles.glowTwo} />
       <div className={styles.container}>
         <section className={styles.hero}>
-          <div className={styles.heroBadge}>Release, secure and run UOADrop Desktop</div>
+          <div className={styles.heroBadge}>حل عملي لتنظيم الطباعة داخل المكتبة</div>
           <div className={styles.heroGrid}>
             <div className={styles.heroCopy}>
               <div className={styles.brandRow}>
@@ -562,11 +480,11 @@ export default function DownloadPage() {
                 </div>
                 <div className={styles.brandText}>
                   <span className={styles.kicker}>UOADrop Desktop</span>
-                  <h1 className={styles.heroTitle}>منصة طباعة جامعية ذكية من الرفع إلى التسليم</h1>
+                  <h1 className={styles.heroTitle}>UOADrop ينظم الطلب من الطالب إلى داشبورد المكتب</h1>
                 </div>
               </div>
               <p className={styles.heroSub}>
-                UOADrop يحوّل تجربة الطباعة داخل المكتبة إلى نظام رقمي كامل: رفع ملفات من الويب، معالجة داخل الداشبورد، تسعير يدوي موثوق، إشعارات لحظية، دفع اختياري، وتوزيع تطبيق سطح مكتب يعمل على macOS وWindows وLinux.
+                النظام صُمم لحل مشاكل نقل ملفات الطباعة: بدل Bluetooth، رسائل متفرقة، حسابات دفع ضائعة، وأسئلة عدد النسخ واللون، يصبح الطلب واضحاً من صفحة الرفع ويصل مرتباً إلى داشبورد صاحب المكتب.
               </p>
               <div className={styles.heroProof}>
                 {heroProofItems.map((item) => (
@@ -647,17 +565,22 @@ export default function DownloadPage() {
             <article className={styles.storyCardLarge}>
               <h3>حل مشكلة يومية بطريقة نظامية</h3>
               <p>
-                الفكرة بدأت من احتياج واضح داخل المكتبة: كثرة طلبات الطباعة، اختلاف الملفات، متابعة الأسعار، وضياع الوقت بين الطالب وأمين المكتبة. لذلك صُمم UOADrop ليجمع كل شيء بمسار واحد: الطالب يرفع الطلب، الداشبورد يستلمه، المكتبة تحدد السعر، والطالب يتابع الحالة بدون رسائل عشوائية أو انتظار غير واضح.
+                بلال لاحظ أن جزءاً كبيراً من وقت الطالب والمكتبة يضيع قبل الطباعة نفسها: طالب يريد إرسال ملف من iPhone ولا يستطيع نقله عبر Bluetooth، طالب يطلب فتح الإنترنت لإرسال الملف، وآخر يسأل أين حساب المكتبة أو أين أرسل لقطة التحويل، ثم تبدأ أسئلة جديدة عن عدد النسخ وهل الطباعة ملونة أم عادية.
               </p>
               <p>
-                النظام لا يستبدل دور المكتبة، بل يجعل عملها أسرع وأكثر دقة. السعر النهائي يبقى بيد الداشبورد، والدفع الإلكتروني يبقى اختيارياً بجانب الكاش.
+                لذلك قرر بناء UOADrop ليجمع هذه التفاصيل في مسار واحد واضح: الطالب يرفع الملف ويكتب تفاصيل الطلب، والداشبورد يستقبل كل شيء مرتباً أمام صاحب المكتب، من الملفات إلى السعر والدفع وحالة التسليم.
               </p>
+              <div className={styles.problemGrid}>
+                {workflowProblems.map((problem) => (
+                  <span key={problem}>{problem}</span>
+                ))}
+              </div>
             </article>
-            <article className={styles.developerCard}>
+            <article className={`${styles.developerCard} ${styles.developerCardWide}`}>
               <span className={styles.cardEyebrow}>المطور</span>
               <h3>بلال زامل احمد</h3>
               <p>
-                طالب مرحلة ثانية في علوم الحاسوب، طوّر UOADrop كمشروع عملي كامل يجمع بين هندسة الويب، تطبيقات سطح المكتب، قواعد البيانات، التشفير، الطباعة، وتجربة المستخدم العربية.
+                طالب مرحلة ثانية في علوم الحاسوب، مهتم بتقديم حلول برمجية لمشاكل واقعية بدل الاكتفاء بالأفكار النظرية. يعمل على استخدام التكنولوجيا بشكل فعلي لبناء أدوات مفهومة، عملية، وفي متناول الجميع، خصوصاً عندما تكون المشكلة قريبة من حياة الطلبة والمؤسسات اليومية.
               </p>
               <div className={styles.developerMeta}>
                 <span>المرحلة: الثانية — علوم حاسوب</span>
@@ -669,7 +592,7 @@ export default function DownloadPage() {
                   <TelegramIcon />
                   Telegram: bilalcodes1
                 </a>
-                <span>الهدف: خدمة مكتبة الكلية والطلبة</span>
+                <span>الهدف: تحويل المشاكل اليومية إلى حلول تقنية عملية</span>
               </div>
             </article>
           </div>
@@ -694,25 +617,22 @@ export default function DownloadPage() {
           </div>
         </section>
 
-        <section className={styles.opsSection}>
+        <section className={styles.techSection}>
           <div className={styles.sectionHead}>
-            <span>Desktop ops stack</span>
-            <h2>صفحة تحميل تشبه منظومة تشغيل كاملة</h2>
+            <span>التقنيات المستخدمة</span>
+            <h2>تقنيات المشروع مرتبة حسب دورها</h2>
           </div>
-          <div className={styles.opsGrid}>
-            {opsStack.map((item) => {
-              const Icon = opsIcon(item.iconType);
-              return (
-                <article key={item.title} className={styles.opsCard}>
-                  <div className={styles.opsIcon}><Icon /></div>
-                  <div>
-                    <h3>{item.title}</h3>
-                    <p>{item.text}</p>
-                    <span className={styles.opsMetric}>{item.metric}</span>
-                  </div>
-                </article>
-              );
-            })}
+          <div className={styles.techGrid}>
+            {techStack.map((group) => (
+              <article key={group.title} className={styles.techCard}>
+                <h3>{group.title}</h3>
+                <div className={styles.techPills}>
+                  {group.items.map((item) => (
+                    <span key={item}>{item}</span>
+                  ))}
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -814,8 +734,8 @@ export default function DownloadPage() {
 
         <section className={styles.faqSection}>
           <div className={styles.sectionHead}>
-            <span>Questions & answers</span>
-            <h2>أسئلة سريعة قبل التحميل</h2>
+            <span>أسئلة أصحاب المكاتب</span>
+            <h2>كيف يساعد الداشبورد في تنظيم العمل؟</h2>
           </div>
           <div className={styles.faqGrid}>
             {faqItems.map((item, index) => (
