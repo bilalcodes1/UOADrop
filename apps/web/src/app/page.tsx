@@ -1286,7 +1286,7 @@ function SuccessPanel({
               className={`${styles.paymentMethodBtn} ${selectedPaymentMethod === 'qicard' ? styles.paymentMethodBtnActive : ''}`}
               onClick={() => { setSelectedPaymentMethod('qicard'); setPaymentError(null); }}
             >
-              <img src="/Qicard.webp" alt="Qi Card" className={styles.paymentMethodIcon} />
+              <img src="/Qicard.png" alt="Qi Card" className={styles.paymentMethodIcon} />
               <span>Qi Card</span>
             </button>
             <button
@@ -1294,7 +1294,7 @@ function SuccessPanel({
               className={`${styles.paymentMethodBtn} ${selectedPaymentMethod === 'zaincash' ? styles.paymentMethodBtnActive : ''}`}
               onClick={() => { setSelectedPaymentMethod('zaincash'); setPaymentError(null); }}
             >
-              <img src="/zaincash.webp" alt="ZainCash" className={styles.paymentMethodIcon} />
+              <img src="/zaincash.png" alt="ZainCash" className={styles.paymentMethodIcon} />
               <span>ZainCash</span>
             </button>
           </div>

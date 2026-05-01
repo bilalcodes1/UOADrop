@@ -213,8 +213,8 @@ const pageLogos = [
   { key: 'uoadrop', src: '/uoadrop-logo.png', alt: 'UOADrop', label: 'UOADrop' },
   { key: 'university', src: '/university-of-anbar.svg', alt: 'جامعة الأنبار', label: 'جامعة الأنبار' },
   { key: 'college', src: '/cs-college.svg', alt: 'كلية علوم الحاسوب', label: 'كلية علوم الحاسوب' },
-  { key: 'qicard', src: '/Qicard.webp', alt: 'Qi Card', label: 'Qi Card' },
-  { key: 'zaincash', src: '/zaincash.webp', alt: 'ZainCash', label: 'ZainCash' },
+  { key: 'qicard', src: '/Qicard.png', alt: 'Qi Card', label: 'Qi Card' },
+  { key: 'zaincash', src: '/zaincash.png', alt: 'ZainCash', label: 'ZainCash' },
 ];
 
 function MacIcon() {
