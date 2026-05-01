@@ -3,6 +3,7 @@ import uoadropLogo from './icons/uoadrop-logo.png';
 import universityOfAnbarLogo from './icons/university-of-anbar.svg';
 import csCollegeLogo from './icons/cs-college.svg';
 import {
+  canMarkDone,
   canMoveToReady as canMoveToReadyPersisted,
   getPrintQueueState,
   getOnlineImportState,
@@ -46,10 +47,22 @@ const STATUS_COLOR: Record<RequestStatus, string> = {
 };
 
 const PAGE_SIZE = 24;
-const DEFAULT_REQUEST_STATUSES: RequestStatus[] = ['pending', 'printing', 'done', 'canceled', 'blocked'];
-const STATUS_FILTERS: Array<{ key: 'all' | RequestStatus; label: string }> = [
-  { key: 'all', label: 'الطلبات' },
-  { key: 'ready', label: 'جاهز' },
+type DashboardFilter = 'work' | 'ready' | 'archive' | 'all';
+
+const ACTIVE_REQUEST_STATUSES: RequestStatus[] = ['pending', 'printing'];
+const ARCHIVE_REQUEST_STATUSES: RequestStatus[] = ['done', 'canceled', 'blocked'];
+const ALL_REQUEST_STATUSES: RequestStatus[] = ['pending', 'printing', 'ready', 'done', 'canceled', 'blocked'];
+const FILTER_STATUS_MAP: Record<DashboardFilter, RequestStatus[]> = {
+  work: ACTIVE_REQUEST_STATUSES,
+  ready: ['ready'],
+  archive: ARCHIVE_REQUEST_STATUSES,
+  all: ALL_REQUEST_STATUSES,
+};
+const STATUS_FILTERS: Array<{ key: DashboardFilter; label: string }> = [
+  { key: 'work', label: 'قيد التنفيذ' },
+  { key: 'ready', label: 'جاهز للاستلام' },
+  { key: 'archive', label: 'الأرشيف' },
+  { key: 'all', label: 'الكل' },
 ];
 
 const DATE_FORMATTER = new Intl.DateTimeFormat('ar-IQ', {
@@ -151,6 +164,14 @@ function matchesLiveSearch(req: PrintRequest, query: string): boolean {
   const studentName = normalizeSearchValue(req.studentName);
   const notes = normalizeSearchValue(req.notes);
   return ticket.includes(query) || studentName.includes(query) || notes.includes(query);
+}
+
+function requestMatchesDashboardFilter(req: PrintRequest, currentFilter: DashboardFilter): boolean {
+  return FILTER_STATUS_MAP[currentFilter].includes(req.status);
+}
+
+function canPrintFromDashboard(req: PrintRequest): boolean {
+  return req.status === 'pending' || req.status === 'printing';
 }
 
 function projectSearchText(value: string): { normalized: string; indexMap: number[] } {
@@ -412,7 +433,7 @@ export function Dashboard(): JSX.Element {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'requests' | 'about'>('requests');
-  const [filter, setFilter] = useState<'all' | RequestStatus>('all');
+  const [filter, setFilter] = useState<DashboardFilter>('work');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -450,14 +471,29 @@ export function Dashboard(): JSX.Element {
     );
   };
 
-  const updateRequestSnapshot = (request: PrintRequest): void => {
-    setRequests((prev) => prev.map((r) => (r.id === request.id ? request : r)));
-  };
+  const updateRequestSnapshot = useCallback((request: PrintRequest): void => {
+    setRequests((prev) => {
+      const exists = prev.some((r) => r.id === request.id);
+      const matchesFilter = requestMatchesDashboardFilter(request, filter);
+      if (!matchesFilter) return prev.filter((r) => r.id !== request.id);
+      if (!exists) return [request, ...prev];
+      return prev.map((r) => (r.id === request.id ? request : r));
+    });
+  }, [filter]);
+
+  const addRequestSnapshot = useCallback((request: PrintRequest): void => {
+    if (!requestMatchesDashboardFilter(request, filter)) return;
+    setRequests((prev) => {
+      if (prev.some((r) => r.id === request.id)) return prev;
+      return [request, ...prev];
+    });
+    setTotal((t) => t + 1);
+  }, [filter]);
 
   const refresh = useCallback(async (): Promise<void> => {
     const requestToken = ++refreshTokenRef.current;
     setListLoading(true);
-    const statuses = filter === 'all' ? DEFAULT_REQUEST_STATUSES : [filter];
+    const statuses = FILTER_STATUS_MAP[filter];
     try {
       const res = await window.api.listRequestsPaged({
         statuses,
@@ -489,6 +525,7 @@ export function Dashboard(): JSX.Element {
 
   useEffect(() => {
     setPage(0);
+    setSelectedIds(new Set());
   }, [filter, search]);
 
   useEffect(() => {
@@ -505,11 +542,7 @@ export function Dashboard(): JSX.Element {
   useEffect(() => {
     const unsub = window.api.onRequestsChanged((ev) => {
       if (ev.reason === 'created' && ev.payload) {
-        setRequests((prev) => {
-          if (prev.some((r) => r.id === ev.payload!.id)) return prev;
-          return [ev.payload!, ...prev];
-        });
-        setTotal((t) => t + 1);
+        addRequestSnapshot(ev.payload);
         if (ev.payload.source === 'online') {
           showToast(`طلب ${ev.payload.ticket} جاهز للطباعة`);
         }
@@ -533,7 +566,7 @@ export function Dashboard(): JSX.Element {
       void refreshRef.current();
     });
     return unsub;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [addRequestSnapshot, showToast, updateRequestSnapshot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     window.api.printerStatus().then((p) =>
@@ -670,6 +703,10 @@ export function Dashboard(): JSX.Element {
   };
 
   const handlePrint = async (req: PrintRequest): Promise<void> => {
+    if (!canPrintFromDashboard(req)) {
+      showToast('هذا الطلب خارج طابور الطباعة الحالي');
+      return;
+    }
     setBusy(req.id);
     try {
       const result = await window.api.queueRequestPrint(req.id);
@@ -693,6 +730,33 @@ export function Dashboard(): JSX.Element {
         printQueueUpdatedAt: new Date().toISOString(),
       });
       showToast(result.hint ?? `أُضيف الطلب ${req.ticket} إلى طابور الطباعة`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDone = async (req: PrintRequest): Promise<void> => {
+    if (!canMarkDone(req)) {
+      showToast('يمكن تسليم الطلبات الجاهزة فقط');
+      return;
+    }
+
+    setBusy(req.id);
+    try {
+      const result = await window.api.markRequestDone(req.id);
+      if (!result.ok || !result.request) {
+        showToast('تعذر نقل الطلب إلى الأرشيف');
+        return;
+      }
+
+      updateRequestSnapshot(result.request);
+      setSelectedIds((prev) => {
+        if (!prev.has(req.id)) return prev;
+        const next = new Set(prev);
+        next.delete(req.id);
+        return next;
+      });
+      showToast(`تم تسليم الطلب ${req.ticket} ونقله إلى الأرشيف`);
     } finally {
       setBusy(null);
     }
@@ -801,7 +865,7 @@ export function Dashboard(): JSX.Element {
     setBulkBusy(true);
     for (const id of ids) {
       const req = requests.find((r) => r.id === id);
-      if (!req || req.status === 'done' || req.status === 'canceled') continue;
+      if (!req || !canPrintFromDashboard(req)) continue;
       await handlePrint(req);
     }
     setBulkBusy(false);
@@ -823,6 +887,27 @@ export function Dashboard(): JSX.Element {
       if (readyCount > 0) {
         moveToReadyView();
         showToast(`تم نقل ${readyCount.toLocaleString('ar-IQ')} طلبات إلى قسم الجاهز`);
+      }
+    } finally {
+      setBulkBusy(false);
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleBulkDone = async (): Promise<void> => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    let doneCount = 0;
+    try {
+      for (const id of ids) {
+        const req = requests.find((r) => r.id === id);
+        if (!req || !canMarkDone(req)) continue;
+        await handleDone(req);
+        doneCount += 1;
+      }
+      if (doneCount > 0) {
+        showToast(`تم تسليم ${doneCount.toLocaleString('ar-IQ')} طلبات ونقلها إلى الأرشيف`);
       }
     } finally {
       setBulkBusy(false);
@@ -1209,6 +1294,10 @@ export function Dashboard(): JSX.Element {
               <CheckIcon className="btn-icon" />
               <span>جاهز الكل</span>
             </button>
+            <button className="btn btn-done" disabled={bulkBusy} onClick={handleBulkDone}>
+              <CheckIcon className="btn-icon" />
+              <span>تم التسليم</span>
+            </button>
             <button className="btn btn-delete" disabled={bulkBusy} onClick={() => void handleBulkDelete()}>
               <TrashIcon className="btn-icon" />
               <span>حذف الكل</span>
@@ -1346,9 +1435,7 @@ export function Dashboard(): JSX.Element {
                   disabled={
                     busy === req.id ||
                     isPrintQueueBusy(req) ||
-                    req.status === 'done' ||
-                    req.status === 'canceled' ||
-                    req.status === 'blocked'
+                    !canPrintFromDashboard(req)
                   }
                   onClick={() => void handlePrint(req)}
                   title={isPrintQueueBusy(req) ? 'الطلب داخل طابور الطباعة' : req.status === 'printing' ? 'إعادة طباعة' : 'طباعة'}
@@ -1376,6 +1463,17 @@ export function Dashboard(): JSX.Element {
                   <CheckIcon className="btn-icon" />
                   <span>جاهز</span>
                 </button>
+                {canMarkDone(req) && (
+                  <button
+                    className="btn btn-done"
+                    disabled={busy === req.id}
+                    onClick={() => void handleDone(req)}
+                    title="تسليم الطلب ونقله إلى الأرشيف"
+                  >
+                    <CheckIcon className="btn-icon" />
+                    <span>تم التسليم</span>
+                  </button>
+                )}
                 <button className="btn btn-delete" disabled={busy === req.id} onClick={() => void handleDelete(req)}>
                   <TrashIcon className="btn-icon" />
                   <span>حذف</span>

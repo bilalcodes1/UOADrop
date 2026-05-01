@@ -166,7 +166,7 @@ async function processNextJob(): Promise<void> {
 export async function enqueueRequestPrint(requestId: string): Promise<QueueRequestResult> {
   const request = getRequestById(requestId);
   if (!request) return { ok: false, error: 'not_found' };
-  if (request.status === 'done' || request.status === 'canceled' || request.status === 'blocked') {
+  if (request.status !== 'pending' && request.status !== 'printing') {
     return { ok: false, error: 'invalid_status' };
   }
   if (request.printQueueState === 'queued' || request.printQueueState === 'spooling' || queue.some((job) => job.requestId === requestId)) {

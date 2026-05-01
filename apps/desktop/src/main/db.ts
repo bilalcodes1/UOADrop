@@ -914,9 +914,9 @@ export function setRequestStatus(id: string, status: RequestStatus): { ok: true 
     `UPDATE print_requests
      SET status = ?,
          updated_at = ?,
-         print_queue_state = CASE WHEN ? = 'printing' THEN 'idle' ELSE print_queue_state END,
-         print_queue_error = CASE WHEN ? = 'printing' THEN NULL ELSE print_queue_error END,
-         print_queue_updated_at = CASE WHEN ? = 'printing' THEN ? ELSE print_queue_updated_at END,
+         print_queue_state = CASE WHEN ? IN ('printing', 'ready', 'done', 'canceled', 'blocked') THEN 'idle' ELSE print_queue_state END,
+         print_queue_error = CASE WHEN ? IN ('printing', 'ready', 'done', 'canceled', 'blocked') THEN NULL ELSE print_queue_error END,
+         print_queue_updated_at = CASE WHEN ? IN ('printing', 'ready', 'done', 'canceled', 'blocked') THEN ? ELSE print_queue_updated_at END,
          printed_at = CASE WHEN ? = 'ready' AND printed_at IS NULL THEN ? ELSE printed_at END,
          picked_up_at = CASE WHEN ? = 'done' AND picked_up_at IS NULL THEN ? ELSE picked_up_at END
      WHERE id = ?`,
@@ -960,6 +960,7 @@ export function listRequestsNeedingQueueRecovery(): PrintRequest[] {
               r.created_at, r.updated_at
        FROM print_requests r
        WHERE r.print_queue_state IN ('queued', 'spooling')
+         AND r.status IN ('pending', 'printing')
        ORDER BY datetime(updated_at) ASC`,
     )
     .all() as RequestRow[];
@@ -1052,9 +1053,14 @@ export function markRequestDone(id: string): {
   const d = getDb();
   d.prepare(
     `UPDATE print_requests
-     SET status = 'done', picked_up_at = ?, updated_at = ?
+     SET status = 'done',
+         picked_up_at = ?,
+         print_queue_state = 'idle',
+         print_queue_error = NULL,
+         print_queue_updated_at = ?,
+         updated_at = ?
      WHERE id = ?`,
-  ).run(now, now, id);
+  ).run(now, now, now, id);
   logRequestEvent({
     requestId: id,
     type: 'picked_up',
