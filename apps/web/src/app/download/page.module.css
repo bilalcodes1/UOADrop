@@ -488,16 +488,17 @@
 }
 
 .brandRow {
-  display: flex;
-  align-items: center;
+  display: grid;
+  justify-items: start;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 22px;
 }
 
 .brandMark {
-  width: 140px;
-  height: 140px;
-  border-radius: 36px;
+  flex: 0 0 auto;
+  width: 118px;
+  height: 118px;
+  border-radius: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -510,13 +511,18 @@
 }
 
 .brandMarkLogo {
-  width: 104px;
-  height: 104px;
+  width: 88px;
+  height: 88px;
   object-fit: contain;
   display: block;
-  transform: scale(3.35);
+  transform: scale(2.7);
   transform-origin: center;
   filter: drop-shadow(0 12px 16px rgba(79, 70, 229, 0.2));
+}
+
+.brandText {
+  min-width: 0;
+  max-width: 720px;
 }
 
 .heroLogo {
@@ -549,12 +555,12 @@
 }
 
 .heroTitle {
-  max-width: 760px;
+  max-width: 720px;
   margin: 0;
-  font-size: clamp(2rem, 4vw, 4.25rem);
-  line-height: 1.08;
+  font-size: clamp(2rem, 3.1vw, 3.25rem);
+  line-height: 1.24;
   font-weight: 900;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
   background: linear-gradient(135deg, #ffffff 0%, #dbeafe 48%, #a7f3d0 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1773,24 +1779,37 @@
   }
 
   .brandRow {
-    align-items: flex-start;
+    display: grid;
+    justify-items: center;
+    gap: 16px;
+    text-align: center;
   }
 
   .brandMark {
-    width: 104px;
-    height: 104px;
+    width: 96px;
+    height: 96px;
     padding: 10px;
     margin-inline: auto;
   }
 
   .brandMarkLogo {
-    width: 78px;
-    height: 78px;
-    transform: scale(3.35);
+    width: 72px;
+    height: 72px;
+    transform: scale(2.75);
+  }
+
+  .brandText,
+  .heroTitle {
+    max-width: 100%;
+  }
+
+  .kicker {
+    text-align: center;
   }
 
   .heroTitle {
     font-size: 2rem;
+    line-height: 1.25;
   }
 
   .heroSub {

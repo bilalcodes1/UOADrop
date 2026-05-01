@@ -560,7 +560,7 @@ export default function DownloadPage() {
                 <div className={styles.brandMark}>
                   <img className={styles.brandMarkLogo} src="/uoadrop-logo.png" alt="UOADrop" />
                 </div>
-                <div>
+                <div className={styles.brandText}>
                   <span className={styles.kicker}>UOADrop Desktop</span>
                   <h1 className={styles.heroTitle}>منصة طباعة جامعية ذكية من الرفع إلى التسليم</h1>
                 </div>
