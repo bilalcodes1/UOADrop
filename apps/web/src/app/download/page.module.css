@@ -742,55 +742,10 @@
   border: 1px solid #e2e8f0;
 }
 
-.releaseConsole {
-  position: absolute;
-  right: 24px;
-  bottom: -22px;
-  width: min(340px, calc(100% - 48px));
-  padding: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 18px;
-  background: rgba(2, 6, 23, 0.9);
-  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.32);
-  direction: ltr;
-}
-
-.consoleLine {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 8px;
-  color: #e2e8f0;
-  font-size: 11px;
-}
-
-.consoleLine span {
-  color: #22c55e;
-  font-weight: 900;
-}
-
-.consoleLine strong {
-  color: #f8fafc;
-  font-weight: 800;
-}
-
-.releaseConsole code {
-  display: block;
-  padding: 10px;
-  border-radius: 12px;
-  color: #c4b5fd;
-  background: rgba(15, 23, 42, 0.88);
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .floatingChip {
   position: absolute;
-  left: -16px;
-  bottom: 34px;
+  left: 18px;
+  bottom: 18px;
   padding: 10px 14px;
   border-radius: 999px;
   color: #064e3b;
@@ -1880,12 +1835,6 @@
     position: static;
     margin-top: 12px;
     width: fit-content;
-  }
-
-  .releaseConsole {
-    position: static;
-    width: 100%;
-    margin-top: 12px;
   }
 
   .storyCardLarge,

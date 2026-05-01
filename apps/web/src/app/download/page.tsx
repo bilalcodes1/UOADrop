@@ -607,17 +607,6 @@ export default function DownloadPage() {
                   </div>
                 </div>
               </div>
-              <div className={styles.releaseConsole}>
-                <div className={styles.consoleLine}>
-                  <span>release</span>
-                  <strong>latest desktop build ready</strong>
-                </div>
-                <div className={styles.consoleLine}>
-                  <span>targets</span>
-                  <strong>macOS + Windows + Linux</strong>
-                </div>
-                <code>GET /download/file → platform asset</code>
-              </div>
               <div className={styles.floatingChip}>Realtime + encrypted uploads</div>
             </div>
           </div>
