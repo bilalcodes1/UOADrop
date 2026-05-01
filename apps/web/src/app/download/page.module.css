@@ -305,6 +305,20 @@
   background: #e2e8f0;
 }
 
+.downloadUnavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 11px 18px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  color: #64748b;
+  background: #f8fafc;
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .downloadBtnDisabled {
   background: #f1f5f9;
   color: #94a3b8;
@@ -486,14 +500,15 @@
   margin: 0;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 22px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06));
+  background: #ffffff;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 18px 40px rgba(0,0,0,0.22);
 }
 
 .heroLogo img {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  object-fit: cover;
 }
 
 .kicker {
@@ -703,7 +718,7 @@
 .capabilityItem,
 .timelineItem,
 .securitySection,
-.releaseCard,
+.downloadMethodCard,
 .platformCard {
   border: 1px solid rgba(226, 232, 240, 0.9);
   background: rgba(255, 255, 255, 0.86);
@@ -746,7 +761,7 @@
 .capabilitySection,
 .timelineSection,
 .platformSection,
-.releaseSection {
+.downloadMethodSection {
   margin-top: 24px;
 }
 
@@ -790,7 +805,7 @@
 .developerCard h3,
 .timelineItem h3,
 .securitySection h2,
-.releaseCard h2 {
+.downloadMethodCard h2 {
   margin: 0 0 10px;
   color: #0f172a;
   font-weight: 950;
@@ -802,7 +817,7 @@
 .partnerCard p,
 .timelineItem p,
 .securitySection p,
-.releaseCard p,
+.downloadMethodCard p,
 .platformCard p {
   margin: 0;
   color: #475569;
@@ -852,6 +867,23 @@
 }
 
 .partnerCard::before {
+  content: none;
+}
+
+.partnerIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, rgba(79,70,229,0.12), rgba(34,197,94,0.14));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+  font-size: 21px;
+}
+
+.partnerCard::after {
   content: "";
   position: absolute;
   top: 18px;
@@ -859,7 +891,8 @@
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(79,70,229,0.12), rgba(34,197,94,0.12));
+  background: radial-gradient(circle, rgba(79,70,229,0.08), transparent 70%);
+  pointer-events: none;
 }
 
 .partnerCard strong {
@@ -1069,7 +1102,7 @@
   background: rgba(79, 70, 229, 0.08);
 }
 
-.releaseCard {
+.downloadMethodCard {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1079,11 +1112,11 @@
   background: linear-gradient(135deg, #ffffff, #eef2ff);
 }
 
-.releaseCard p {
+.downloadMethodCard p {
   max-width: 740px;
 }
 
-.releaseCard .primaryAction {
+.downloadMethodCard .primaryAction {
   white-space: nowrap;
 }
 
@@ -1177,7 +1210,7 @@
   }
 
   .heroActions,
-  .releaseCard,
+  .downloadMethodCard,
   .footer {
     align-items: stretch;
     flex-direction: column;
@@ -1215,7 +1248,7 @@
   .storyCardLarge,
   .developerCard,
   .securitySection,
-  .releaseCard,
+  .downloadMethodCard,
   .platformCard {
     padding: 20px;
     border-radius: 24px;

@@ -34,12 +34,12 @@ type TimelineItem = {
   text: string;
 };
 
-const GITHUB_RELEASES_URL = 'https://github.com/bilalcodes1/UOADrop/releases';
+const downloadFile = (asset: string) => `/download/file?asset=${asset}`;
 
 const stats: StatItem[] = [
   { value: '21K+', label: 'سطر كود', detail: 'تقريباً 21,214 سطر متتبع بدون ملف القفل' },
   { value: '145', label: 'ملف مشروع', detail: 'ويب، ديسكتوب، shared packages، migrations' },
-  { value: '10', label: 'أيام تطوير', detail: 'من 2026-04-22 إلى 2026-05-01 حسب Git history' },
+  { value: 'شهرين', label: 'مدة تطوير', detail: 'تصميم، تطوير، اختبار، وتحسين تجربة الاستخدام' },
   { value: '3', label: 'أنظمة تشغيل', detail: 'macOS و Windows و Linux' },
 ];
 
@@ -51,10 +51,10 @@ const platforms: PlatformInfo[] = [
     iconType: 'mac',
     requirement: 'macOS 12 Monterey أو أحدث، صلاحية الطابعة، واتصال إنترنت للمزامنة الأونلاين.',
     assets: [
-      { label: 'DMG — Apple Silicon', format: 'arm64', href: GITHUB_RELEASES_URL, primary: true },
-      { label: 'DMG — Intel', format: 'x64', href: GITHUB_RELEASES_URL },
-      { label: 'ZIP — Apple Silicon', format: 'arm64', href: GITHUB_RELEASES_URL },
-      { label: 'ZIP — Intel', format: 'x64', href: GITHUB_RELEASES_URL },
+      { label: 'DMG — Apple Silicon', format: 'arm64', href: downloadFile('mac-arm64-dmg'), primary: true },
+      { label: 'DMG — Intel', format: 'x64', href: downloadFile('mac-x64-dmg') },
+      { label: 'ZIP — Apple Silicon', format: 'arm64', href: downloadFile('mac-arm64-zip') },
+      { label: 'ZIP — Intel', format: 'x64', href: downloadFile('mac-x64-zip') },
     ],
   },
   {
@@ -64,9 +64,8 @@ const platforms: PlatformInfo[] = [
     iconType: 'windows',
     requirement: 'Windows 10/11، معالج 64-bit، صلاحية الوصول للطابعة ومساحة تخزين محلية للملفات.',
     assets: [
-      { label: 'Installer — x64', format: 'exe', href: GITHUB_RELEASES_URL, primary: true },
-      { label: 'Portable — x64', format: 'exe', href: GITHUB_RELEASES_URL },
-      { label: 'Installer — ARM64', format: 'arm64', href: GITHUB_RELEASES_URL },
+      { label: 'Installer — x64', format: 'exe', href: downloadFile('win-x64-installer'), primary: true },
+      { label: 'Portable — x64', format: 'exe', href: downloadFile('win-x64-portable') },
     ],
   },
   {
@@ -75,9 +74,7 @@ const platforms: PlatformInfo[] = [
     description: 'نسخة AppImage تعمل على أغلب التوزيعات الشائعة بدون خطوات تثبيت معقدة.',
     iconType: 'linux',
     requirement: 'توزيعة حديثة، صلاحية تنفيذ AppImage، وحزم طباعة النظام مثل CUPS عند الحاجة.',
-    assets: [
-      { label: 'AppImage — x64', format: 'AppImage', href: GITHUB_RELEASES_URL, primary: true },
-    ],
+    assets: [],
   },
 ];
 
@@ -106,20 +103,24 @@ const timeline: TimelineItem[] = [
 
 const partners = [
   {
+    icon: '🎓',
     name: 'جامعة الأنبار',
     role: 'البيئة الأكاديمية التي صُممت التجربة لخدمتها',
   },
   {
+    icon: '💻',
     name: 'كلية علوم الحاسوب وتكنولوجيا المعلومات',
     role: 'الجهة المستفيدة من تبسيط إدارة طلبات الطباعة',
   },
   {
+    icon: '📚',
     name: 'مكتبة الكلية',
     role: 'مركز التشغيل اليومي: استلام، تسعير، طباعة، وتسليم',
   },
   {
+    icon: '⚙️',
     name: 'تقنيات التكامل',
-    role: 'Electron وNext.js وSupabase وVercel وTelegram لخدمة منظومة متكاملة',
+    role: 'تطبيق سطح مكتب، منصة ويب، قاعدة بيانات لحظية، وإشعارات لخدمة منظومة متكاملة',
   },
 ];
 
@@ -203,7 +204,7 @@ export default function DownloadPage() {
             <div className={styles.heroCopy}>
               <div className={styles.brandRow}>
                 <div className={styles.heroLogo}>
-                  <img src="/uoadrop-logo.png" alt="UOADrop" />
+                  <img src="/android-chrome-192x192.png" alt="UOADrop" />
                 </div>
                 <div>
                   <span className={styles.kicker}>UOADrop Desktop</span>
@@ -214,7 +215,7 @@ export default function DownloadPage() {
                 UOADrop يحوّل تجربة الطباعة داخل المكتبة إلى نظام رقمي كامل: رفع ملفات من الويب، معالجة داخل الداشبورد، تسعير يدوي موثوق، إشعارات لحظية، دفع اختياري، وتوزيع تطبيق سطح مكتب يعمل على macOS وWindows وLinux.
               </p>
               <div className={styles.heroActions}>
-                <a href={GITHUB_RELEASES_URL} className={styles.primaryAction}>
+                <a href="/download/file" className={styles.primaryAction} download>
                   <DownloadIcon />
                   تحميل آخر إصدار
                 </a>
@@ -281,8 +282,8 @@ export default function DownloadPage() {
                 تم تطوير UOADrop كمشروع عملي كامل يجمع بين هندسة الويب، تطبيقات سطح المكتب، قواعد البيانات، التشفير، الطباعة، وتجربة المستخدم العربية.
               </p>
               <div className={styles.developerMeta}>
-                <span>GitHub: bilalcodes1</span>
-                <span>Repository: UOADrop</span>
+                <span>المطور: Bilal Codes</span>
+                <span>الهدف: خدمة مكتبة الكلية والطلبة</span>
               </div>
             </article>
           </div>
@@ -296,6 +297,7 @@ export default function DownloadPage() {
           <div className={styles.partnerGrid}>
             {partners.map((partner) => (
               <div key={partner.name} className={styles.partnerCard}>
+                <div className={styles.partnerIcon}>{partner.icon}</div>
                 <strong>{partner.name}</strong>
                 <p>{partner.role}</p>
               </div>
@@ -321,7 +323,7 @@ export default function DownloadPage() {
         <section className={styles.timelineSection}>
           <div className={styles.sectionHead}>
             <span>المدة والتطور</span>
-            <h2>من فكرة إلى منظومة تشغيلية خلال 10 أيام</h2>
+            <h2>من فكرة إلى منظومة تشغيلية خلال شهرين</h2>
           </div>
           <div className={styles.timeline}>
             {timeline.map((item) => (
@@ -376,17 +378,22 @@ export default function DownloadPage() {
                     <span>{platform.requirement}</span>
                   </div>
                   <div className={styles.downloadLinks}>
-                    {platform.assets.map((asset) => (
-                      <a
-                        key={`${platform.name}-${asset.label}`}
-                        href={asset.href}
-                        className={`${styles.downloadBtn} ${asset.primary ? styles.downloadBtnPrimary : styles.downloadBtnSecondary}`}
-                      >
-                        <DownloadIcon />
-                        <span>{asset.label}</span>
-                        <em>{asset.format}</em>
-                      </a>
-                    ))}
+                    {platform.assets.length > 0 ? (
+                      platform.assets.map((asset) => (
+                        <a
+                          key={`${platform.name}-${asset.label}`}
+                          href={asset.href}
+                          className={`${styles.downloadBtn} ${asset.primary ? styles.downloadBtnPrimary : styles.downloadBtnSecondary}`}
+                          download
+                        >
+                          <DownloadIcon />
+                          <span>{asset.label}</span>
+                          <em>{asset.format}</em>
+                        </a>
+                      ))
+                    ) : (
+                      <span className={styles.downloadUnavailable}>سيتوفر ملف هذا النظام قريباً</span>
+                    )}
                   </div>
                 </article>
               );
@@ -394,18 +401,18 @@ export default function DownloadPage() {
           </div>
         </section>
 
-        <section className={styles.releaseSection}>
-          <div className={styles.releaseCard}>
+        <section className={styles.downloadMethodSection}>
+          <div className={styles.downloadMethodCard}>
             <div>
-              <span className={styles.cardEyebrow}>وين تنرفع؟</span>
-              <h2>الصفحة على Vercel والملفات على GitHub Releases</h2>
+              <span className={styles.cardEyebrow}>طريقة التحميل</span>
+              <h2>اضغط زر التحميل وتبدأ العملية مباشرة</h2>
               <p>
-                صفحة التحميل الرسمية تُنشر على نفس موقع UOADrop عبر Vercel على المسار <strong>/download</strong>. أما ملفات التطبيق الكبيرة مثل DMG وEXE وAppImage فالأفضل ترفع على GitHub Releases حتى تبقى منظمة حسب الإصدار والمعمارية.
+                كل أزرار التحميل في هذه الصفحة موجهة لمسار تنزيل مباشر داخل موقع UOADrop. اختَر نسخة نظام التشغيل المناسبة، وسيبدأ المتصفح بتنزيل ملف التطبيق بدون الحاجة لفتح أي صفحة خارجية.
               </p>
             </div>
-            <a href={GITHUB_RELEASES_URL} className={styles.primaryAction}>
+            <a href="/download/file" className={styles.primaryAction} download>
               <SparkIcon />
-              فتح صفحة الإصدارات
+              تحميل النسخة المناسبة
             </a>
           </div>
         </section>
@@ -415,7 +422,7 @@ export default function DownloadPage() {
           <span>كلية علوم الحاسوب وتكنولوجيا المعلومات — جامعة الأنبار</span>
           <div className={styles.footerLinks}>
             <a href="/">رفع ملفات الطباعة</a>
-            <a href={GITHUB_RELEASES_URL}>GitHub Releases</a>
+            <a href="/download/file" download>تحميل مباشر</a>
           </div>
         </footer>
       </div>
