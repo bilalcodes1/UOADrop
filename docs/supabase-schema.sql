@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS print_requests (
                               CHECK (import_state IN ('pending','download_started','downloaded','imported','cleanup_pending','cleanup_done')),
   final_price_confirmed_at TIMESTAMPTZ,
   online_files_cleanup_at TIMESTAMPTZ,
+  payment_method  TEXT CHECK (payment_method IS NULL OR payment_method IN ('qicard','zaincash')),
+  payment_transaction_ref TEXT,
+  payment_status  TEXT CHECK (payment_status IS NULL OR payment_status IN ('pending','verified','rejected')),
+  payment_submitted_at TIMESTAMPTZ,
+  payment_verified_at TIMESTAMPTZ,
   created_at       TIMESTAMPTZ DEFAULT now(),
   updated_at       TIMESTAMPTZ DEFAULT now(),
   printed_at       TIMESTAMPTZ,
@@ -37,6 +42,11 @@ ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS source_of_truth TEXT NOT NUL
 ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS import_state TEXT DEFAULT 'pending';
 ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS final_price_confirmed_at TIMESTAMPTZ;
 ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS online_files_cleanup_at TIMESTAMPTZ;
+ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS payment_method TEXT CHECK (payment_method IS NULL OR payment_method IN ('qicard','zaincash'));
+ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS payment_transaction_ref TEXT;
+ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS payment_status TEXT CHECK (payment_status IS NULL OR payment_status IN ('pending','verified','rejected'));
+ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS payment_submitted_at TIMESTAMPTZ;
+ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS payment_verified_at TIMESTAMPTZ;
 
 -- حدّث قيد الحالة للأنظمة القديمة
 ALTER TABLE print_requests DROP CONSTRAINT IF EXISTS print_requests_status_check;
@@ -84,6 +94,7 @@ ALTER TABLE request_files  ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "anon insert requests"    ON print_requests;
 DROP POLICY IF EXISTS "anon select own request" ON print_requests;
 DROP POLICY IF EXISTS "anon delete online requests" ON print_requests;
+DROP POLICY IF EXISTS "anon submit payment" ON print_requests;
 DROP POLICY IF EXISTS "anon insert files"       ON request_files;
 DROP POLICY IF EXISTS "anon select files"       ON request_files;
 DROP POLICY IF EXISTS "anon delete files"       ON request_files;
@@ -92,6 +103,7 @@ REVOKE ALL ON print_requests FROM anon;
 REVOKE ALL ON request_files FROM anon;
 GRANT INSERT, SELECT ON print_requests TO anon;
 GRANT UPDATE (status) ON print_requests TO anon;
+GRANT UPDATE (payment_method, payment_transaction_ref, payment_status, payment_submitted_at) ON print_requests TO anon;
 GRANT INSERT, SELECT ON request_files TO anon;
 
 -- السماح للـ anon بإدراج طلب جديد (المصدر لازم يكون online)
@@ -113,6 +125,26 @@ CREATE POLICY "anon update online status"
     AND final_price_confirmed_at IS NULL
     AND online_files_cleanup_at IS NULL
     AND status IN ('uploading', 'pending')
+  );
+
+CREATE POLICY "anon submit payment"
+  ON print_requests FOR UPDATE TO anon
+  USING (
+    source = 'online'
+    AND final_price_confirmed_at IS NOT NULL
+    AND price_iqd > 0
+    AND status IN ('pending','printing','ready')
+    AND (payment_status IS NULL OR payment_status = 'pending')
+  )
+  WITH CHECK (
+    source = 'online'
+    AND final_price_confirmed_at IS NOT NULL
+    AND price_iqd > 0
+    AND status IN ('pending','printing','ready')
+    AND payment_method IN ('qicard','zaincash')
+    AND payment_transaction_ref IS NOT NULL
+    AND length(trim(payment_transaction_ref)) >= 4
+    AND payment_status = 'pending'
   );
 
 -- الطالب يقدر يقرأ طلبه بالـ ticket فقط (للـ tracking لاحقاً)

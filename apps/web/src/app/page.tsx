@@ -1424,7 +1424,7 @@ function SuccessPanel({
                   setPaymentBusy(true);
                   setPaymentError(null);
                   try {
-                    const { error } = await supabase
+                    const { data, error } = await supabase
                       .from('print_requests')
                       .update({
                         payment_method: selectedPaymentMethod,
@@ -1432,9 +1432,13 @@ function SuccessPanel({
                         payment_status: 'pending',
                         payment_submitted_at: new Date().toISOString(),
                       })
-                      .eq('id', requestId);
-                    if (error) {
-                      setPaymentError('فشل إرسال بيانات الدفع. حاول مرة أخرى.');
+                      .eq('id', requestId)
+                      .select('id')
+                      .single();
+                    if (error || !data) {
+                      console.error('[UOADrop] Payment submit failed', error);
+                      const denied = error?.code === '42501' || /permission|policy|rls|row-level/i.test(error?.message ?? '');
+                      setPaymentError(denied ? 'صلاحيات الدفع في قاعدة البيانات تحتاج تحديث.' : 'فشل إرسال بيانات الدفع. حاول مرة أخرى.');
                       return;
                     }
                     setPaymentTransactionRef(ref);
