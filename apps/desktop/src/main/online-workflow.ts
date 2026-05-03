@@ -3,12 +3,13 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { constants as cryptoConstants, createDecipheriv, createHash, privateDecrypt } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
-import type { PrintRequest } from '@uoadrop/shared';
+import type { PaymentMethod, PaymentStatus, PrintRequest } from '@uoadrop/shared';
 import { getOnlineEncryptionPrivateKey, getSupabaseRuntimeConfig, hasProductionServiceRoleKey } from './runtime-config';
 import {
   getRequestById,
   importOnlineRequest,
   logRequestEvent,
+  syncRequestPaymentSubmission,
   setRequestWorkflowMeta,
 } from './db';
 import { countFilePages } from './page-counter';
@@ -257,6 +258,35 @@ function buildMirrorPatchFromLocal(request: PrintRequest): SupabaseMirrorPatch {
   };
 }
 
+function parsePaymentMethod(value: string | null): PaymentMethod | null {
+  return value === 'qicard' || value === 'zaincash' ? value : null;
+}
+
+function parsePaymentStatus(value: string | null): PaymentStatus | null {
+  return value === 'pending' || value === 'verified' || value === 'rejected' ? value : null;
+}
+
+function syncLocalPaymentFromRemoteRow(row: SupabaseRequestRow): PrintRequest | null {
+  const paymentMethod = parsePaymentMethod(row.payment_method);
+  const paymentStatus = parsePaymentStatus(row.payment_status);
+  if (!paymentMethod || !paymentStatus || !row.payment_transaction_ref) return null;
+
+  const result = syncRequestPaymentSubmission({
+    id: row.id,
+    paymentMethod,
+    paymentTransactionRef: row.payment_transaction_ref,
+    paymentStatus,
+    paymentSubmittedAt: row.payment_submitted_at,
+    paymentVerifiedAt: row.payment_verified_at,
+  });
+
+  if (result.ok && result.changed && result.request) {
+    emitAppEvent({ type: 'requests:changed', reason: 'payment-submitted', requestId: row.id, payload: result.request });
+  }
+
+  return result.request ?? null;
+}
+
 async function patchMirror(requestId: string, patch: SupabaseMirrorPatch): Promise<void> {
   const client = getSupabaseClient();
   if (!client) return;
@@ -406,8 +436,9 @@ async function importPendingRow(row: SupabaseRequestRow): Promise<PrintRequest |
 
     const existing = getRequestById(row.id);
     if (existing) {
-      await patchMirror(row.id, buildMirrorPatchFromLocal(existing));
-      return existing;
+      const synced = syncLocalPaymentFromRemoteRow(row) ?? existing;
+      await patchMirror(row.id, buildMirrorPatchFromLocal(synced));
+      return synced;
     }
 
     const files = await listRemoteFiles(row.id);
@@ -478,7 +509,8 @@ async function importPendingRow(row: SupabaseRequestRow): Promise<PrintRequest |
 
     await patchMirror(row.id, payload);
 
-    const finalRequest = getRequestById(row.id) ?? { ...imported, importState: 'cleanup_pending', sourceOfTruth: 'desktop', deskReceivedAt };
+    const syncedPayment = syncLocalPaymentFromRemoteRow(row);
+    const finalRequest = syncedPayment ?? getRequestById(row.id) ?? { ...imported, importState: 'cleanup_pending', sourceOfTruth: 'desktop', deskReceivedAt };
     emitAppEvent({ type: 'requests:changed', reason: 'created', requestId: finalRequest.id, payload: finalRequest });
     if (finalRequest.telegramChatId) void notifyTelegramRequestReceived(finalRequest);
     if (finalRequest.studentEmail) void notifyEmailReceived(finalRequest);
@@ -568,11 +600,12 @@ async function runIntakePass(): Promise<void> {
       .from('print_requests')
       .select('*')
       .eq('source', 'online')
-      .eq('status', 'pending')
+      .in('status', ['pending', 'printing', 'ready'])
       .order('created_at', { ascending: false });
 
     const rows = (data ?? []) as SupabaseRequestRow[];
     for (const row of rows) {
+      syncLocalPaymentFromRemoteRow(row);
       await importPendingRow(row);
     }
   } catch (err) {
@@ -647,23 +680,29 @@ async function runStartupSync(): Promise<void> {
   try {
     const { data } = await client
       .from('print_requests')
-      .select('id, status')
+      .select('*')
       .eq('source', 'online')
-      .in('status', ['pending', 'printing']);
+      .in('status', ['pending', 'printing', 'ready']);
 
-    const rows = (data ?? []) as Array<{ id: string; status: string }>;
+    const rows = (data ?? []) as SupabaseRequestRow[];
     let synced = 0;
     for (const row of rows) {
+      const paymentSynced = syncLocalPaymentFromRemoteRow(row);
       const local = getRequestById(row.id);
-      if (!local || local.source !== 'online') continue;
+      if (!local || local.source !== 'online') {
+        if (paymentSynced) synced += 1;
+        continue;
+      }
       if (local.status !== row.status) {
         await patchMirror(row.id, buildMirrorPatchFromLocal(local));
+        synced += 1;
+      } else if (paymentSynced) {
         synced += 1;
       }
     }
     if (synced > 0) {
       // eslint-disable-next-line no-console
-      console.log(`[UOADrop] Startup sync: updated ${synced} stale online requests in Supabase`);
+      console.log(`[UOADrop] Startup sync: synchronized ${synced} online requests`);
     }
   } catch {
     // eslint-disable-next-line no-console

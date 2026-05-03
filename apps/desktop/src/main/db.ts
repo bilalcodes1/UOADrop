@@ -1069,6 +1069,62 @@ export function setRequestWorkflowMeta(args: {
   return { ok: true };
 }
 
+export function syncRequestPaymentSubmission(args: {
+  id: string;
+  paymentMethod?: PaymentMethod | null;
+  paymentTransactionRef?: string | null;
+  paymentStatus?: PaymentStatus | null;
+  paymentSubmittedAt?: string | null;
+  paymentVerifiedAt?: string | null;
+}): { ok: boolean; request?: PrintRequest; changed?: boolean; error?: string } {
+  const current = getRequestById(args.id);
+  if (!current) return { ok: false, error: 'not_found' };
+
+  const paymentMethod = args.paymentMethod ?? null;
+  const paymentTransactionRef = args.paymentTransactionRef?.trim() || null;
+  if (!paymentMethod || !paymentTransactionRef) return { ok: true, request: current, changed: false };
+
+  const incomingStatus = args.paymentStatus ?? 'pending';
+  const keepResolvedStatus = current.paymentStatus && current.paymentStatus !== 'pending' && incomingStatus === 'pending';
+  const paymentStatus = keepResolvedStatus ? current.paymentStatus : incomingStatus;
+  const paymentSubmittedAt = args.paymentSubmittedAt ?? current.paymentSubmittedAt ?? new Date().toISOString();
+  const paymentVerifiedAt = paymentStatus === 'verified'
+    ? args.paymentVerifiedAt ?? current.paymentVerifiedAt ?? new Date().toISOString()
+    : null;
+
+  const changed =
+    (current.paymentMethod ?? null) !== paymentMethod ||
+    (current.paymentTransactionRef ?? null) !== paymentTransactionRef ||
+    (current.paymentStatus ?? null) !== paymentStatus ||
+    (current.paymentSubmittedAt ?? null) !== paymentSubmittedAt ||
+    (current.paymentVerifiedAt ?? null) !== paymentVerifiedAt;
+
+  if (!changed) return { ok: true, request: current, changed: false };
+
+  const now = new Date().toISOString();
+  const d = getDb();
+  d.prepare(
+    `UPDATE print_requests
+     SET payment_method = ?,
+         payment_transaction_ref = ?,
+         payment_status = ?,
+         payment_submitted_at = ?,
+         payment_verified_at = ?,
+         updated_at = ?
+     WHERE id = ?`,
+  ).run(paymentMethod, paymentTransactionRef, paymentStatus, paymentSubmittedAt, paymentVerifiedAt, now, args.id);
+
+  const updated = getRequestById(args.id)!;
+  logRequestEvent({
+    requestId: args.id,
+    type: 'status_changed',
+    actor: 'student',
+    status: updated.status,
+    details: { paymentSubmitted: true, paymentStatus },
+  });
+  return { ok: true, request: updated, changed: true };
+}
+
 export function markRequestDone(id: string): {
   ok: boolean;
   request?: PrintRequest;
