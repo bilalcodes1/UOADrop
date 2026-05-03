@@ -1727,32 +1727,36 @@ export function Dashboard(): JSX.Element {
                 {f.label}
               </button>
             ))}
-            {SOURCE_FILTERS.map((f) => (
-              <button
-                key={f.key}
-                className={`chip chip-secondary ${sourceFilter === f.key ? 'chip-active' : ''}`}
-                onClick={() => setSourceFilter(f.key)}
+            <label className="filter-select-wrap">
+              <span>المصدر</span>
+              <select
+                className="filter-select"
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value as SourceFilter)}
               >
-                {f.label}
-              </button>
-            ))}
-            {PAYMENT_FILTERS.map((f) => (
-              <button
-                key={f.key}
-                className={`chip chip-payment ${paymentFilter === f.key ? 'chip-active' : ''}`}
-                onClick={() => setPaymentFilter(f.key)}
+                {SOURCE_FILTERS.map((f) => (
+                  <option key={f.key} value={f.key}>{f.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="filter-select-wrap">
+              <span>الدفع</span>
+              <select
+                className="filter-select"
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)}
               >
-                {f.label}
-              </button>
-            ))}
+                {PAYMENT_FILTERS.map((f) => (
+                  <option key={f.key} value={f.key}>{f.label}</option>
+                ))}
+              </select>
+            </label>
           </div>
 
           <div className="toolbar-pills">
             <span className="inline-pill">الصفحة {page + 1} / {pageCount}</span>
             <span className="inline-pill">{liveVisibleCount.toLocaleString('ar-IQ')} ظاهرة</span>
             <span className="inline-pill">{selectedIds.size.toLocaleString('ar-IQ')} محدد</span>
-            <span className="inline-pill">{stats.online.toLocaleString('ar-IQ')} أونلاين</span>
-            <span className="inline-pill">{stats.local.toLocaleString('ar-IQ')} أوفلاين</span>
           </div>
         </div>
 

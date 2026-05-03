@@ -787,6 +787,7 @@ body, html, #root {
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+  flex: 1 1 620px;
 }
 
 .select-all-label,
@@ -958,6 +959,39 @@ body, html, #root {
 .chip-secondary.chip-active {
   background: var(--primary);
   color: var(--white);
+}
+
+.filter-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.filter-select {
+  min-width: 132px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--primary);
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  outline: none;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
 }
 
 @keyframes selectAllPulse {
@@ -2094,6 +2128,15 @@ body, html, #root {
 
   .toolbar-pills {
     width: 100%;
+  }
+
+  .filter-select-wrap {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .filter-select {
+    flex: 1;
   }
 
   .search-shell {
