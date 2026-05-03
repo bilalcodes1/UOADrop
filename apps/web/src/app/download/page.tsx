@@ -17,7 +17,7 @@ type PlatformInfo = {
   name: string;
   arch: string;
   description: string;
-  iconType: 'mac' | 'windows' | 'linux';
+  iconType: 'mac' | 'windows';
   requirement: string;
   assets: DownloadAsset[];
 };
@@ -47,7 +47,7 @@ const stats: StatItem[] = [
   { value: '21K+', label: 'سطر كود', detail: 'تقريباً 21,214 سطر متتبع بدون ملف القفل' },
   { value: '145', label: 'ملف مشروع', detail: 'ويب، ديسكتوب، shared packages، migrations' },
   { value: 'شهرين', label: 'مدة تطوير', detail: 'تصميم، تطوير، اختبار، وتحسين تجربة الاستخدام' },
-  { value: '3', label: 'أنظمة تشغيل', detail: 'macOS و Windows و Linux' },
+  { value: '2', label: 'أنظمة تشغيل', detail: 'macOS و Windows بإصدارات محدثة' },
 ];
 
 const platforms: PlatformInfo[] = [
@@ -66,7 +66,7 @@ const platforms: PlatformInfo[] = [
   },
   {
     name: 'Windows',
-    arch: 'x64 + ARM64',
+    arch: 'x64',
     description: 'مناسب لأجهزة المختبرات والمكاتب، مع مثبت رسمي ونسخة Portable للتشغيل بدون تثبيت كامل.',
     iconType: 'windows',
     requirement: 'Windows 10/11، معالج 64-bit، صلاحية الوصول للطابعة ومساحة تخزين محلية للملفات.',
@@ -74,14 +74,6 @@ const platforms: PlatformInfo[] = [
       { label: 'Installer — x64', format: 'exe', href: downloadFile('win-x64-installer'), primary: true },
       { label: 'Portable — x64', format: 'exe', href: downloadFile('win-x64-portable') },
     ],
-  },
-  {
-    name: 'Linux',
-    arch: 'x64 AppImage',
-    description: 'نسخة AppImage تعمل على أغلب التوزيعات الشائعة بدون خطوات تثبيت معقدة.',
-    iconType: 'linux',
-    requirement: 'توزيعة حديثة، صلاحية تنفيذ AppImage، وحزم طباعة النظام مثل CUPS عند الحاجة.',
-    assets: [],
   },
 ];
 
@@ -104,7 +96,7 @@ const timeline: TimelineItem[] = [
   {
     phase: '04',
     title: 'منظومة كاملة',
-    text: 'اكتمل النظام بصفحة رفع، داشبورد سطح مكتب، تشفير، إشعارات، دفع اختياري، وإصدارات لأنظمة macOS وWindows وLinux.',
+    text: 'اكتمل النظام بصفحة رفع، داشبورد سطح مكتب، تشفير، إشعارات، دفع اختياري، وإصدارات محدثة لأنظمة macOS وWindows.',
   },
 ];
 
@@ -139,7 +131,7 @@ const capabilities = [
   'تشفير ملفات الطلبة قبل وصولها إلى نظام المكتبة',
   'دفع اختياري عبر Qi Card وZainCash مع تحقق إداري',
   'إدارة حسابات الدفع ورمز PIN من إعدادات الداشبورد',
-  'إصدارات مستقلة لأنظمة macOS وWindows وLinux',
+  'إصدارات مستقلة ومحدثة لأنظمة macOS وWindows',
 ];
 
 const heroProofItems = [
@@ -162,7 +154,7 @@ const techStack: TechStackItem[] = [
   },
   {
     title: 'تطبيق سطح المكتب',
-    items: ['Electron', 'SQLite', 'طابور طلبات', 'إصدارات macOS وWindows وLinux'],
+    items: ['Electron', 'SQLite', 'طابور طلبات', 'إصدارات macOS وWindows'],
   },
   {
     title: 'المزامنة والبيانات',
@@ -213,16 +205,6 @@ function WindowsIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 5.5l7.5-1.2v7.2H3V5.5zM3 12.5h7.5v7.2L3 18.5v-6zM11.5 4.2L21 2.5v9H11.5V4.2zM11.5 12.5H21v9l-9.5-1.7v-7.3z" />
-    </svg>
-  );
-}
-
-function LinuxIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2C9.2 2 7 4.5 7 7.5c0 1.2.3 2.4.9 3.3-.3.6-.5 1.3-.7 2-.4 1.5-.7 3-.7 4.2 0 .8.1 1.5.3 2.1.3.8.8 1.4 1.5 1.7.5.2 1 .3 1.7.3h4c.7 0 1.2-.1 1.7-.3.7-.3 1.2-.9 1.5-1.7.2-.6.3-1.3.3-2.1 0-1.2-.3-2.7-.7-4.2-.2-.7-.4-1.4-.7-2 .6-.9.9-2.1.9-3.3C17 4.5 14.8 2 12 2z" />
-      <circle cx="10" cy="7" r="1" fill="currentColor" />
-      <circle cx="14" cy="7" r="1" fill="currentColor" />
     </svg>
   );
 }
@@ -343,7 +325,7 @@ function partnerIcon(type: PartnerIconType) {
 }
 
 function platformIcon(type: PlatformInfo['iconType']) {
-  const icons = { mac: MacIcon, windows: WindowsIcon, linux: LinuxIcon };
+  const icons = { mac: MacIcon, windows: WindowsIcon };
   return icons[type];
 }
 
@@ -693,8 +675,7 @@ export default function DownloadPage() {
                   <div className={styles.platformHead}>
                     <div className={`${styles.platformIcon} ${
                       platform.iconType === 'mac' ? styles.platformIconMac
-                      : platform.iconType === 'windows' ? styles.platformIconWindows
-                      : styles.platformIconLinux
+                      : styles.platformIconWindows
                     }`}>
                       <Icon />
                     </div>

@@ -1,6 +1,6 @@
 {
   "name": "@uoadrop/desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "UOADrop librarian Electron app (dashboard + local server + printing)",
   "author": "Bilal <asel64152@icloud.com>",
@@ -71,7 +71,11 @@
     "extraResources": [
       {
         "from": "resources",
-        "to": "resources"
+        "to": "resources",
+        "filter": [
+          "**/*",
+          "!runtime-config.json"
+        ]
       }
     ],
     "mac": {

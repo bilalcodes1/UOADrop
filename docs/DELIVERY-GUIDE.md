@@ -6,12 +6,14 @@
 
 | الملف | الموقع | الاستخدام |
 |-------|--------|-----------|
-| `UOADrop Setup 0.1.0.exe` | `apps/desktop/release/` | تثبيت على Windows |
-| `UOADrop 0.1.0.exe` | `apps/desktop/release/` | نسخة محمولة (بدون تثبيت) |
+| `UOADrop Setup 0.1.1.exe` | `apps/desktop/release/` | تثبيت على Windows |
+| `UOADrop 0.1.1.exe` | `apps/desktop/release/` | نسخة محمولة Windows بدون تثبيت |
+| `UOADrop-0.1.1-arm64.dmg` | `apps/desktop/release/` | تثبيت على Mac Apple Silicon |
+| `UOADrop-0.1.1.dmg` | `apps/desktop/release/` | تثبيت على Mac Intel |
 
 ## خطوات التثبيت على جهاز سعد (Windows)
 
-1. **انسخ** `UOADrop Setup 0.1.0.exe` على فلاشة USB
+1. **انسخ** `UOADrop Setup 0.1.1.exe` على فلاشة USB
 2. **شغّل** الملف على جهاز سعد
 3. إذا طلع تحذير Windows SmartScreen: اضغط **More info** ← **Run anyway**
 4. اختر مسار التثبيت (الافتراضي مقبول) ← **Install**

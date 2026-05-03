@@ -18,15 +18,12 @@ const assetMatchers: Record<string, (name: string) => boolean> = {
   'mac-x64-zip': (name) => name.endsWith('.zip') && name.includes('mac') && !name.includes('arm64'),
   'win-x64-installer': (name) => name.endsWith('.exe') && name.includes('setup') && !name.includes('arm64'),
   'win-x64-portable': (name) => name.endsWith('.exe') && !name.includes('setup') && !name.includes('arm64'),
-  'win-arm64-installer': (name) => name.endsWith('.exe') && name.includes('setup') && name.includes('arm64'),
-  'linux-x64-appimage': (name) => name.endsWith('.appimage') && !name.includes('arm64'),
 };
 
 function getDefaultAsset(request: NextRequest): string {
   const userAgent = request.headers.get('user-agent')?.toLowerCase() ?? '';
   if (userAgent.includes('mac os') || userAgent.includes('macintosh')) return 'mac-arm64-dmg';
   if (userAgent.includes('windows')) return 'win-x64-installer';
-  if (userAgent.includes('linux')) return 'linux-x64-appimage';
   return 'win-x64-installer';
 }
 

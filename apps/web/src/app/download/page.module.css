@@ -192,8 +192,6 @@
 
 .platformCard:nth-child(1) { animation-delay: 0.2s; }
 .platformCard:nth-child(2) { animation-delay: 0.3s; }
-.platformCard:nth-child(3) { animation-delay: 0.4s; }
-
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(16px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -233,11 +231,6 @@
 .platformIconWindows {
   background: linear-gradient(135deg, #dbeafe, #bfdbfe);
   color: #1d4ed8;
-}
-
-.platformIconLinux {
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
-  color: #92400e;
 }
 
 .platformName {
@@ -1250,7 +1243,7 @@
 
 .platforms {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-bottom: 0;
 }
