@@ -590,6 +590,15 @@ export async function syncOnlineRequestMirrorFromLocal(
   });
 }
 
+export async function cancelOnlineRequestMirror(request: PrintRequest): Promise<void> {
+  if (request.source !== 'online') return;
+  await patchMirror(request.id, {
+    ...buildMirrorPatchFromLocal({ ...request, status: 'canceled' }),
+    status: 'canceled',
+    source_of_truth: 'desktop',
+  });
+}
+
 async function runIntakePass(): Promise<void> {
   if (intakeBusy) return;
   const client = getSupabaseClient();

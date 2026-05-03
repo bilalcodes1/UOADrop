@@ -32,6 +32,7 @@ import {
 import { getCachedPrinterStatus } from './printer';
 import { emit as emitAppEvent } from './events';
 import {
+  cancelOnlineRequestMirror,
   downloadOnlineFileToRequestStore,
   repairOnlineRequestLocalFiles,
   syncOnlineRequestMirrorFromLocal,
@@ -168,6 +169,10 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('requests:delete', async (_e, id: string) => {
+    const request = getRequestById(id);
+    if (request?.source === 'online') {
+      await cancelOnlineRequestMirror(request);
+    }
     const res = deleteRequest(id);
     emitAppEvent({ type: 'requests:changed', reason: 'deleted', requestId: id });
     return res;

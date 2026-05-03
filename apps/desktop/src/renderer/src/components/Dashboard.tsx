@@ -1214,6 +1214,7 @@ export function Dashboard(): JSX.Element {
         next.delete(req.id);
         return next;
       });
+      moveToArchiveView();
       showToast(`تم تسليم الطلب ${req.ticket} ونقله إلى الأرشيف`);
     } finally {
       setBusy(null);
@@ -1342,6 +1343,19 @@ export function Dashboard(): JSX.Element {
 
   const moveToReadyView = (): void => {
     setFilter('ready');
+    setSourceFilter('all');
+    setPaymentFilter('all');
+    setSearchInput('');
+    setSearch('');
+    setPage(0);
+  };
+
+  const moveToArchiveView = (): void => {
+    setFilter('archive');
+    setSourceFilter('all');
+    setPaymentFilter('all');
+    setSearchInput('');
+    setSearch('');
     setPage(0);
   };
 
@@ -1393,6 +1407,7 @@ export function Dashboard(): JSX.Element {
         doneCount += 1;
       }
       if (doneCount > 0) {
+        moveToArchiveView();
         showToast(`تم تسليم ${doneCount.toLocaleString('ar-IQ')} طلبات ونقلها إلى الأرشيف`);
       }
     } finally {
