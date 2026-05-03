@@ -29,10 +29,29 @@ type AnnouncementBody = {
   };
 };
 
-function isAuthorized(req: NextRequest): boolean {
-  if (!SUPABASE_SERVICE_ROLE_KEY) return false;
+function getBearerToken(req: NextRequest): string {
   const authorization = req.headers.get('authorization') ?? '';
-  return authorization === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
+  return authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length).trim() : '';
+}
+
+function getJwtRole(token: string): string {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) return '';
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = Buffer.from(normalized, 'base64').toString('utf8');
+    const parsed = JSON.parse(json) as { role?: string };
+    return typeof parsed.role === 'string' ? parsed.role : '';
+  } catch {
+    return '';
+  }
+}
+
+function getAuthorizedServiceRoleKey(req: NextRequest): string | null {
+  const bearer = getBearerToken(req);
+  if (SUPABASE_SERVICE_ROLE_KEY && bearer === SUPABASE_SERVICE_ROLE_KEY) return SUPABASE_SERVICE_ROLE_KEY;
+  if (bearer && getJwtRole(bearer) === 'service_role') return bearer;
+  return null;
 }
 
 function normalizeText(value: unknown, maxLength: number): string {
@@ -61,9 +80,9 @@ function normalizeChatId(value: string | null): string | null {
   return chatId;
 }
 
-async function loadOnlineContacts(): Promise<{ emails: string[]; telegramChatIds: string[] }> {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('missing_supabase_config');
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+async function loadOnlineContacts(serviceRoleKey: string): Promise<{ emails: string[]; telegramChatIds: string[] }> {
+  if (!SUPABASE_URL || !serviceRoleKey) throw new Error('missing_supabase_config');
+  const admin = createClient(SUPABASE_URL, serviceRoleKey, { auth: { persistSession: false } });
   const { data, error } = await admin
     .from('print_requests')
     .select('student_email, telegram_chat_id')
@@ -169,12 +188,13 @@ async function sendTelegramMessages(chatIds: string[], title: string, message: s
 
 export async function POST(req: NextRequest) {
   try {
-    if (!isAuthorized(req)) {
+    const serviceRoleKey = getAuthorizedServiceRoleKey(req);
+    if (!serviceRoleKey) {
       return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
     }
 
     const body = (await req.json().catch(() => ({}))) as AnnouncementBody;
-    const contacts = await loadOnlineContacts();
+    const contacts = await loadOnlineContacts(serviceRoleKey);
     const counts = {
       emails: contacts.emails.length,
       telegram: contacts.telegramChatIds.length,

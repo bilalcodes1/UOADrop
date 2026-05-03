@@ -528,6 +528,8 @@ function formatAnnouncementError(error?: string): string {
       return 'رابط الويب غير مضبوط في إعدادات التشغيل';
     case 'missing_service_role_key':
       return 'مفتاح الخدمة غير مضبوط لإرسال إعلان الأونلاين';
+    case 'missing_supabase_url':
+      return 'رابط Supabase غير مضبوط';
     case 'missing_message':
       return 'اكتب نص الإعلان أولاً';
     case 'no_channels':
@@ -536,6 +538,8 @@ function formatAnnouncementError(error?: string): string {
       return 'تعذر التحقق من صلاحية إرسال الإعلان';
     case 'network_error':
       return 'تعذر الاتصال بخدمة الإعلانات';
+    case 'server_error':
+      return 'خدمة الإعلان رجعت خطأ من الخادم';
     default:
       return 'تعذر إرسال الإعلان الجماعي';
   }
@@ -557,6 +561,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
   const [announcementEmail, setAnnouncementEmail] = useState(true);
   const [announcementTelegram, setAnnouncementTelegram] = useState(true);
   const [announcementCounts, setAnnouncementCounts] = useState<AnnouncementCounts | null>(null);
+  const [announcementError, setAnnouncementError] = useState<string | null>(null);
   const [announcementPreviewBusy, setAnnouncementPreviewBusy] = useState(false);
   const [announcementBusy, setAnnouncementBusy] = useState(false);
   const [lastAnnouncementResult, setLastAnnouncementResult] = useState<{
@@ -581,13 +586,18 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
 
   const refreshAnnouncementPreview = useCallback(async (): Promise<void> => {
     setAnnouncementPreviewBusy(true);
+    setAnnouncementError(null);
     try {
       const res = await window.api.getOnlineAnnouncementPreview();
       if (res.ok && res.counts) {
         setAnnouncementCounts(res.counts);
       } else {
         setAnnouncementCounts(null);
+        setAnnouncementError(`${formatAnnouncementError(res.error)}${res.details ? `: ${res.details}` : ''}`);
       }
+    } catch (err) {
+      setAnnouncementCounts(null);
+      setAnnouncementError(`تعذر تحديث العدد: ${String((err as Error)?.message ?? err).slice(0, 160)}`);
     } finally {
       setAnnouncementPreviewBusy(false);
     }
@@ -640,6 +650,10 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
     const emailCount = announcementEmail ? announcementCounts?.emails ?? 0 : 0;
     const telegramCount = announcementTelegram ? announcementCounts?.telegram ?? 0 : 0;
     const totalTargets = emailCount + telegramCount;
+    if (announcementCounts && totalTargets === 0) {
+      showToast('لا توجد إيميلات أو حسابات Telegram محفوظة لطلبات الأونلاين');
+      return;
+    }
     const approved = window.confirm(
       `سيتم إرسال الإعلان لمستلمي الأونلاين فقط (${totalTargets.toLocaleString('ar-IQ')} قناة). هل تريد المتابعة؟`,
     );
@@ -653,9 +667,11 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
         channels: { email: announcementEmail, telegram: announcementTelegram },
       });
       if (!res.ok) {
+        setAnnouncementError(`${formatAnnouncementError(res.error)}${res.details ? `: ${res.details}` : ''}`);
         showToast(formatAnnouncementError(res.error));
         return;
       }
+      setAnnouncementError(null);
       const sentEmail = res.sent?.emails ?? 0;
       const sentTelegram = res.sent?.telegram ?? 0;
       const failedEmail = res.failed?.emails ?? 0;
@@ -802,6 +818,9 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
               تحديث العدد
             </button>
           </div>
+          {announcementError && (
+            <p className="settings-error">{announcementError}</p>
+          )}
           <div className="settings-field">
             <label className="settings-label">عنوان الإعلان</label>
             <input
@@ -2016,10 +2035,6 @@ export function Dashboard(): JSX.Element {
                 <button className="btn btn-open" disabled={busy === req.id} onClick={() => void handleView(req)}>
                   <EyeIcon className="btn-icon" />
                   <span>الملفات</span>
-                </button>
-                <button className="btn btn-open" disabled={busy === req.id} onClick={() => void openEventsPanel(req)}>
-                  <EyeIcon className="btn-icon" />
-                  <span>سجل الطلب</span>
                 </button>
                 <button
                   className={`btn btn-print ${req.status === 'printing' ? 'btn-print-repeat' : ''}`}
