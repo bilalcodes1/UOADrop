@@ -61,7 +61,10 @@
     },
     "files": [
       "dist/**",
-      "package.json"
+      "package.json",
+      "!**/node_modules/**/*.md",
+      "!**/node_modules/**/README*",
+      "!**/node_modules/**/readme*"
     ],
     "asar": true,
     "asarUnpack": [
