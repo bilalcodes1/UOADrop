@@ -179,6 +179,8 @@ SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
+UOADROP_DESKTOP_ACTIVATION_PASSWORD=...
+UOADROP_DESKTOP_TOKEN_SECRET=...
 EMAIL_HOST=smtp-relay.brevo.com
 EMAIL_PORT=587
 EMAIL_USER=...
@@ -205,6 +207,8 @@ https://uoadrop.vercel.app
 
 - بعد تثبيت التطبيق، افتح الديسكتوب → الإعدادات → **حالة الأونلاين لهذا الجهاز** وأدخل باسورد التفعيل.
 - السيرفر يرجع Token خاص بالجهاز، ويُحفظ محلياً في `online-mode-activation.json`.
+- `UOADROP_DESKTOP_ACTIVATION_PASSWORD` إلزامي في Vercel؛ لا يوجد باسورد افتراضي.
+- `UOADROP_DESKTOP_TOKEN_SECRET` إلزامي في Vercel ويجب تدويره إذا انكشف أو تغيّر نظام التفعيل.
 - إذا لم يتم إدخال باسورد التفعيل، يبقى الداشبورد محلياً فقط ولا يستورد طلبات الأونلاين ولا يرسل إعلانات جماعية.
 - مفاتيح `SUPABASE_SERVICE_ROLE_KEY` و`TELEGRAM_BOT_TOKEN` وSMTP والمفتاح الخاص للتشفير تبقى فقط داخل Vercel Environment Variables.
 - لا تضع أسرار داخل `runtime-config.json` ولا ترفعه إلى GitHub.

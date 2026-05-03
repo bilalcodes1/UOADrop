@@ -4,11 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 
 export const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-export const DESKTOP_ACTIVATION_PASSWORD = process.env.UOADROP_DESKTOP_ACTIVATION_PASSWORD || 'bilalcodes1';
-export const DESKTOP_TOKEN_SECRET = process.env.UOADROP_DESKTOP_TOKEN_SECRET || SUPABASE_SERVICE_ROLE_KEY;
+export const DESKTOP_ACTIVATION_PASSWORD = String(process.env.UOADROP_DESKTOP_ACTIVATION_PASSWORD ?? '').trim();
+export const DESKTOP_TOKEN_SECRET = String(process.env.UOADROP_DESKTOP_TOKEN_SECRET ?? '').trim();
 export const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 365;
 export const DESKTOP_TOKEN_TYPE = 'uoadrop-desktop';
 export const ONLINE_FILE_ENCRYPTION_ALGORITHM = 'AES-256-GCM+RSA-OAEP-SHA256';
+const BLOCKED_DESKTOP_ACTIVATION_PASSWORDS = new Set(['bilalcodes1']);
 
 export type DesktopTokenPayload = {
   typ: typeof DESKTOP_TOKEN_TYPE;
@@ -36,6 +37,16 @@ export function json(data: unknown, init?: ResponseInit): NextResponse {
 export function assertServerEnv(): void {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('missing_supabase_server_env');
   if (!DESKTOP_TOKEN_SECRET) throw new Error('missing_desktop_token_secret');
+  if (DESKTOP_TOKEN_SECRET.length < 32) throw new Error('weak_desktop_token_secret');
+}
+
+export function assertActivationEnv(): void {
+  if (!DESKTOP_ACTIVATION_PASSWORD) throw new Error('missing_desktop_activation_password');
+  if (DESKTOP_ACTIVATION_PASSWORD.length < 12 || BLOCKED_DESKTOP_ACTIVATION_PASSWORDS.has(DESKTOP_ACTIVATION_PASSWORD)) {
+    throw new Error('weak_desktop_activation_password');
+  }
+  if (!DESKTOP_TOKEN_SECRET) throw new Error('missing_desktop_token_secret');
+  if (DESKTOP_TOKEN_SECRET.length < 32) throw new Error('weak_desktop_token_secret');
 }
 
 export function getAdminClient() {
@@ -105,6 +116,7 @@ export function isDesktopAuth(value: DesktopAuth | NextResponse): value is Deskt
 }
 
 export function verifyActivationPassword(passphrase: string): boolean {
+  assertActivationEnv();
   const actual = Buffer.from(String(passphrase ?? '').trim());
   const expected = Buffer.from(DESKTOP_ACTIVATION_PASSWORD);
   return actual.length === expected.length && timingSafeEqual(actual, expected);
