@@ -25,6 +25,29 @@ export interface PrinterEvent {
   createdAt: string;
 }
 
+export interface OnlineAnnouncementResult {
+  ok: boolean;
+  error?: string;
+  details?: string;
+  counts?: {
+    emails: number;
+    telegram: number;
+    totalChannels: number;
+  };
+  sent?: {
+    emails: number;
+    telegram: number;
+  };
+  failed?: {
+    emails: number;
+    telegram: number;
+  };
+  skipped?: {
+    emails: boolean;
+    telegram: boolean;
+  };
+}
+
 export const api = {
   unlock: (
     pin: string,
@@ -134,6 +157,16 @@ export const api = {
     status: PaymentStatus,
   ): Promise<{ ok: boolean; request?: PrintRequest; error?: string }> =>
     ipcRenderer.invoke('requests:setPaymentStatus', id, status),
+
+  getOnlineAnnouncementPreview: (): Promise<OnlineAnnouncementResult> =>
+    ipcRenderer.invoke('announcements:onlinePreview'),
+
+  sendOnlineAnnouncement: (args: {
+    title?: string;
+    message?: string;
+    channels?: { email?: boolean; telegram?: boolean };
+  }): Promise<OnlineAnnouncementResult> =>
+    ipcRenderer.invoke('announcements:sendOnline', args),
 };
 
 contextBridge.exposeInMainWorld('api', api);

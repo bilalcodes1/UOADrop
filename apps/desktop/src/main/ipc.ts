@@ -39,6 +39,7 @@ import {
 import { enqueueRequestPrint } from './print-queue';
 import { notifyTelegramReady } from './telegram';
 import { notifyEmailReady } from './email-notify';
+import { getOnlineAnnouncementPreview, sendOnlineAnnouncement } from './online-announcements';
 
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
 
@@ -165,6 +166,14 @@ export function registerIpcHandlers(): void {
     emitAppEvent({ type: 'requests:changed', reason: 'deleted', requestId: id });
     return res;
   });
+
+  ipcMain.handle('announcements:onlinePreview', async () => getOnlineAnnouncementPreview());
+
+  ipcMain.handle('announcements:sendOnline', async (_e, args: {
+    title?: string;
+    message?: string;
+    channels?: { email?: boolean; telegram?: boolean };
+  }) => sendOnlineAnnouncement(args ?? {}));
 
   ipcMain.handle('requests:addFile', async (_e, requestId: string, filePath: string) => {
     const st = await stat(filePath);

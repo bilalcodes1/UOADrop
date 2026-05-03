@@ -12,6 +12,29 @@ import type {
   RequestStatus,
 } from '@uoadrop/shared';
 
+type OnlineAnnouncementResult = {
+  ok: boolean;
+  error?: string;
+  details?: string;
+  counts?: {
+    emails: number;
+    telegram: number;
+    totalChannels: number;
+  };
+  sent?: {
+    emails: number;
+    telegram: number;
+  };
+  failed?: {
+    emails: number;
+    telegram: number;
+  };
+  skipped?: {
+    emails: boolean;
+    telegram: boolean;
+  };
+};
+
 declare global {
   interface Window {
     api: {
@@ -83,6 +106,12 @@ declare global {
         id: string,
         status: PaymentStatus,
       ) => Promise<{ ok: boolean; request?: PrintRequest; error?: string }>;
+      getOnlineAnnouncementPreview: () => Promise<OnlineAnnouncementResult>;
+      sendOnlineAnnouncement: (args: {
+        title?: string;
+        message?: string;
+        channels?: { email?: boolean; telegram?: boolean };
+      }) => Promise<OnlineAnnouncementResult>;
     };
   }
 }

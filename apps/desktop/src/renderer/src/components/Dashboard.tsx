@@ -236,11 +236,24 @@ function SearchIcon({ className }: IconProps): JSX.Element {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"
+        d="M11 19a8 8 0 100-16 8 8 0 000 16zM20 20l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SpinnerIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 3a9 9 0 109 9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -412,18 +425,29 @@ function CloseIcon({ className }: IconProps): JSX.Element {
   );
 }
 
-function SpinnerIcon({ className }: IconProps): JSX.Element {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 4a8 8 0 108 8"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+type AnnouncementCounts = {
+  emails: number;
+  telegram: number;
+  totalChannels: number;
+};
+
+function formatAnnouncementError(error?: string): string {
+  switch (error) {
+    case 'missing_web_base_url':
+      return 'رابط الويب غير مضبوط في إعدادات التشغيل';
+    case 'missing_service_role_key':
+      return 'مفتاح الخدمة غير مضبوط لإرسال إعلان الأونلاين';
+    case 'missing_message':
+      return 'اكتب نص الإعلان أولاً';
+    case 'no_channels':
+      return 'اختر قناة واحدة على الأقل';
+    case 'unauthorized':
+      return 'تعذر التحقق من صلاحية إرسال الإعلان';
+    case 'network_error':
+      return 'تعذر الاتصال بخدمة الإعلانات';
+    default:
+      return 'تعذر إرسال الإعلان الجماعي';
+  }
 }
 
 function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX.Element {
@@ -437,6 +461,13 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
   const [zainCash, setZainCash] = useState('');
   const [accountsBusy, setAccountsBusy] = useState(false);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementMessage, setAnnouncementMessage] = useState('');
+  const [announcementEmail, setAnnouncementEmail] = useState(true);
+  const [announcementTelegram, setAnnouncementTelegram] = useState(true);
+  const [announcementCounts, setAnnouncementCounts] = useState<AnnouncementCounts | null>(null);
+  const [announcementPreviewBusy, setAnnouncementPreviewBusy] = useState(false);
+  const [announcementBusy, setAnnouncementBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -448,6 +479,24 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
     });
     return () => { active = false; };
   }, []);
+
+  const refreshAnnouncementPreview = useCallback(async (): Promise<void> => {
+    setAnnouncementPreviewBusy(true);
+    try {
+      const res = await window.api.getOnlineAnnouncementPreview();
+      if (res.ok && res.counts) {
+        setAnnouncementCounts(res.counts);
+      } else {
+        setAnnouncementCounts(null);
+      }
+    } finally {
+      setAnnouncementPreviewBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshAnnouncementPreview();
+  }, [refreshAnnouncementPreview]);
 
   const handleChangePin = async (): Promise<void> => {
     setPinError(null);
@@ -474,6 +523,53 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
       showToast(res.synced ? 'تم حفظ أرقام الحسابات ومزامنتها' : 'تم حفظ أرقام الحسابات محلياً فقط');
     } finally {
       setAccountsBusy(false);
+    }
+  };
+
+  const handleSendAnnouncement = async (): Promise<void> => {
+    const title = announcementTitle.trim();
+    const message = announcementMessage.trim();
+    if (!message) {
+      showToast('اكتب نص الإعلان أولاً');
+      return;
+    }
+    if (!announcementEmail && !announcementTelegram) {
+      showToast('اختر البريد أو Telegram للإرسال');
+      return;
+    }
+
+    const emailCount = announcementEmail ? announcementCounts?.emails ?? 0 : 0;
+    const telegramCount = announcementTelegram ? announcementCounts?.telegram ?? 0 : 0;
+    const totalTargets = emailCount + telegramCount;
+    const approved = window.confirm(
+      `سيتم إرسال الإعلان لمستلمي الأونلاين فقط (${totalTargets.toLocaleString('ar-IQ')} قناة). هل تريد المتابعة؟`,
+    );
+    if (!approved) return;
+
+    setAnnouncementBusy(true);
+    try {
+      const res = await window.api.sendOnlineAnnouncement({
+        title,
+        message,
+        channels: { email: announcementEmail, telegram: announcementTelegram },
+      });
+      if (!res.ok) {
+        showToast(formatAnnouncementError(res.error));
+        return;
+      }
+      const sentEmail = res.sent?.emails ?? 0;
+      const sentTelegram = res.sent?.telegram ?? 0;
+      const failedEmail = res.failed?.emails ?? 0;
+      const failedTelegram = res.failed?.telegram ?? 0;
+      setAnnouncementTitle('');
+      setAnnouncementMessage('');
+      showToast(
+        `تم إرسال الإعلان: Email ${sentEmail.toLocaleString('ar-IQ')} • Telegram ${sentTelegram.toLocaleString('ar-IQ')}`
+        + (failedEmail + failedTelegram > 0 ? ` • فشل ${Number(failedEmail + failedTelegram).toLocaleString('ar-IQ')}` : ''),
+      );
+      void refreshAnnouncementPreview();
+    } finally {
+      setAnnouncementBusy(false);
     }
   };
 
@@ -569,6 +665,82 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
             onClick={() => void handleSaveAccounts()}
           >
             {accountsBusy ? 'جارٍ الحفظ...' : 'حفظ أرقام الحسابات'}
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-divider" />
+
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h2 className="settings-section-title">إعلان جماعي للأونلاين</h2>
+          <p className="settings-section-desc">يرسل رسالة واحدة لكل جهات التواصل المحفوظة في طلبات الأونلاين فقط. طلبات الأوفلاين لا تدخل بهذا الإرسال.</p>
+        </div>
+        <div className="settings-fields">
+          <div className="announcement-stats">
+            <div className="announcement-stat">
+              <span>Email</span>
+              <strong>{announcementPreviewBusy ? '...' : (announcementCounts?.emails ?? 0).toLocaleString('ar-IQ')}</strong>
+            </div>
+            <div className="announcement-stat">
+              <span>Telegram</span>
+              <strong>{announcementPreviewBusy ? '...' : (announcementCounts?.telegram ?? 0).toLocaleString('ar-IQ')}</strong>
+            </div>
+            <button
+              type="button"
+              className="announcement-refresh"
+              disabled={announcementPreviewBusy}
+              onClick={() => void refreshAnnouncementPreview()}
+            >
+              تحديث العدد
+            </button>
+          </div>
+          <div className="settings-field">
+            <label className="settings-label">عنوان الإعلان</label>
+            <input
+              className="settings-input"
+              type="text"
+              maxLength={90}
+              placeholder="مثال: تنبيه بخصوص استلام الطلبات"
+              value={announcementTitle}
+              onChange={(e) => setAnnouncementTitle(e.target.value)}
+            />
+          </div>
+          <div className="settings-field">
+            <label className="settings-label">نص الرسالة</label>
+            <textarea
+              className="settings-input settings-textarea"
+              maxLength={1600}
+              rows={5}
+              placeholder="اكتب الإعلان الذي تريد إرساله لكل طلبة الأونلاين..."
+              value={announcementMessage}
+              onChange={(e) => setAnnouncementMessage(e.target.value)}
+            />
+          </div>
+          <div className="announcement-channels">
+            <label className="announcement-channel">
+              <input
+                type="checkbox"
+                checked={announcementEmail}
+                onChange={(e) => setAnnouncementEmail(e.target.checked)}
+              />
+              <span>إرسال للبريد الإلكتروني</span>
+            </label>
+            <label className="announcement-channel">
+              <input
+                type="checkbox"
+                checked={announcementTelegram}
+                onChange={(e) => setAnnouncementTelegram(e.target.checked)}
+              />
+              <span>إرسال إلى Telegram</span>
+            </label>
+          </div>
+          <button
+            className="btn btn-ready settings-save"
+            disabled={announcementBusy}
+            onClick={() => void handleSendAnnouncement()}
+          >
+            {announcementBusy ? 'جارٍ إرسال الإعلان...' : 'إرسال الإعلان للأونلاين'}
           </button>
         </div>
       </div>
@@ -1214,7 +1386,7 @@ export function Dashboard(): JSX.Element {
           onClick={() => setActiveTab('settings')}
         >
           <span className="dashboard-tab-title">الإعدادات</span>
-          <span className="dashboard-tab-meta">PIN وحسابات الدفع</span>
+          <span className="dashboard-tab-meta">PIN والدفع وإعلانات الأونلاين</span>
         </button>
         <button
           type="button"
