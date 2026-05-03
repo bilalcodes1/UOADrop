@@ -16,7 +16,7 @@
 - نسخة التطبيق الحالية.
 - ورقة مطبوعة أو ملصق لعرض رابط/QR صفحة الرفع.
 
-> هذا الدليل خاص بالتطبيق المحلي الحالي. إعدادات الـ online و Telegram و Email ليست جزءاً من التشغيل الحالي.
+> هذا الدليل يشرح التشغيل المحلي أولاً. إعدادات Online و Telegram و Email اختيارية، وتُفعّل فقط إذا أردت استقبال طلبات من الويب أو إرسال إشعارات/إعلانات جماعية لطلبات الأونلاين.
 
 > تحديث: يوجد الآن مسار Online اختياري عبر `https://uoadrop.vercel.app` + Supabase. تشغيله يعتمد على إعداد Supabase داخل تطبيق الديسكتوب (runtime-config) وبيئة Vercel.
 
@@ -150,6 +150,9 @@
 4. عدّل إعدادات ملف واحفظها.
 5. جرّب فتح الملف ثم طباعته.
 6. افتح تبويب **معلومات المشروع** وتأكد أن بطاقات المطور والجهة الأكاديمية تظهر بشكل متناسق مع الشعارات.
+7. أدخل سعراً يدوياً ثم اضغط **طباعة**.
+8. بعد بدء التنفيذ، اضغط **جاهز** وتأكد أن الطلب انتقل إلى تبويب **جاهز للاستلام**.
+9. اضغط **تم التسليم** وتأكد أن الطلب انتقل إلى **الأرشيف**.
 
 ### 4.4 اختبار الطابعة
 
@@ -169,6 +172,39 @@
 3. في جهاز المكتبة، جهّز `runtime-config.json` لكي يستطيع الديسكتوب استيراد الطلبات الأونلاين.
 4. إذا أردت تشفير ملفات Online، شغّل migration: `supabase/migrations/add_request_file_encryption_metadata.sql`.
 
+### متغيرات Vercel المطلوبة لمسار Online
+
+```text
+SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+EMAIL_HOST=smtp-relay.brevo.com
+EMAIL_PORT=587
+EMAIL_USER=...
+EMAIL_PASS=...
+EMAIL_FROM=UOADrop <...>
+TELEGRAM_BOT_TOKEN=...
+```
+
+### إعداد `runtime-config.json` للديسكتوب
+
+يجب أن يحتوي إعداد الديسكتوب على الأقل:
+
+```json
+{
+  "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
+  "supabaseAnonKey": "...",
+  "supabaseServiceRoleKey": "...",
+  "webBaseUrl": "https://uoadrop.vercel.app",
+  "notifyServerUrl": "https://uoadrop.vercel.app/api/notify/telegram"
+}
+```
+
+- `supabaseServiceRoleKey` مطلوب لاستيراد طلبات الأونلاين، مزامنة الحالة/السعر/الدفع/الحذف، وعدّ مستلمي الإعلان الجماعي.
+- `webBaseUrl` أو أصل `notifyServerUrl` مطلوب لإرسال الإعلان الجماعي عبر `/api/notify/announcement`.
+- لا ترفع `runtime-config.json` إلى GitHub.
+
 ### تشفير ملفات Online بالمفتاح العام/الخاص
 
 لإنشاء مفاتيح RSA:
@@ -186,8 +222,18 @@ openssl rsa -in uoadrop-online-private.pem -pubout -out uoadrop-online-public.pe
 ### اختبار Online بسرعة
 
 1. افتح: `https://uoadrop.vercel.app`
-2. ارفع ملف + اكتب الاسم + (اختياري) ملاحظات الطالب.
+2. ارفع ملف + اكتب الاسم + (اختياري) البريد الإلكتروني وتفعيل Telegram وملاحظات الطالب.
 3. على الديسكتوب: يجب أن يظهر الطلب بعلامة أونلاين.
+4. أدخل السعر من الديسكتوب فقط، ثم جرّب `طباعة` → `جاهز` → `تم التسليم`.
+5. تأكد أن صفحة الطالب الأونلاين تعكس الحالة الجديدة.
+
+### اختبار الإعلان الجماعي للأونلاين
+
+1. افتح الديسكتوب → الإعدادات → **إعلان جماعي للأونلاين**.
+2. اضغط **تحديث العدد**.
+3. يجب أن تظهر أعداد `Email` و`Telegram` من Supabase للطلبات التي `source = 'online'`.
+4. اكتب رسالة قصيرة، واختر القنوات، ثم اضغط **إرسال إعلان للأونلاين**.
+5. إذا ظهرت نتيجة فشل، اقرأ رسالة الخطأ في نفس القسم؛ الإرسال لا يشمل طلبات الأوفلاين.
 
 ### تنبيه التأخير (3 دقائق)
 
@@ -226,6 +272,10 @@ openssl rsa -in uoadrop-online-private.pem -pubout -out uoadrop-online-public.pe
 | الطلب الأونلاين المشفر لا يصل | المفتاح الخاص غير موجود أو لا يطابق المفتاح العام | تأكد من `UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` وشاهد logs الديسكتوب |
 | تنبيه التأخير لا يعمل | `pg_cron` غير مفعّل/غير مجدول | تأكد من وجود job `uoadrop_notify_delayed_every_minute` داخل Supabase |
 | ملفات Supabase لا تنحذف | ما مرّت 48 ساعة أو الديسكتوب مطفي أو فشل حذف | افحص `online_files_cleanup_at` وراقب logs الديسكتوب بعد آخر تحديث |
+| إعلان الأونلاين يظهر أعداداً لكن الإرسال يفشل بـ `unauthorized` | Vercel يعمل على نسخة قديمة أو يرفض bearer token | تأكد أن آخر commit منشور وأن `/api/notify/announcement` يقبل مفتاح `service_role` |
+| إعلان الأونلاين لا يرسل Email | SMTP غير مضبوط في Vercel | تأكد من `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM` |
+| إعلان الأونلاين لا يرسل Telegram | Token غير مضبوط أو chat id غير محفوظ | تأكد من `TELEGRAM_BOT_TOKEN` ومن ربط الطالب للبوت حتى يُحفظ `telegram_chat_id` |
+| بعد الضغط على `جاهز` لا يظهر الطلب في الجاهز | نسخة ديسكتوب قديمة أو فلاتر/صفحة قديمة | أعد تشغيل التطبيق؛ الكود الحالي يمسح الفلاتر المخفية ويرجع لأول صفحة تلقائياً |
 
 ---
 

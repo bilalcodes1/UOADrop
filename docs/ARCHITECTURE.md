@@ -43,7 +43,11 @@
 5. يراجع إعدادات كل ملف أو يعدّلها.
 6. يفتح الملف أو يطبعه عبر التطبيق الافتراضي للنظام.
 7. يحدد السعر يدوياً.
-8. يحدّث الحالة إلى `printing` أو `ready` أو `done` حسب الحاجة.
+8. يحدّث الحالة عبر أزرار الدشبورد:
+   - `طباعة` → طابور الطباعة وحالة `printing`
+   - `جاهز` → حالة `ready` مع فتح تبويب الجاهز
+   - `تم التسليم` → حالة `done` مع فتح الأرشيف
+9. عند حذف طلب Online، يتم إلغاء Mirror في Supabase قبل الحذف المحلي حتى لا يعود الطلب للاستيراد.
 
 ---
 
@@ -79,6 +83,18 @@
 - فك تشفير ملفات Online المشفرة عند وجود metadata ومفتاح خاص في `runtime-config`
 - تحديث Mirror في Supabase (`desk_received_at`, `total_pages`, `status`, ...)
 - cleanup دوري للملفات الأونلاين من Supabase بعد مدة احتفاظ
+- مزامنة السعر والحالة والدفع والحذف من الديسكتوب إلى Supabase عند الطلبات الأونلاين
+
+### 3.2.2 Online announcements
+
+يوجد مسار إعلان جماعي مخصص لطلبات الأونلاين فقط:
+
+- الديسكتوب يقرأ عدد المستلمين من Supabase (`student_email`, `telegram_chat_id`) للصفوف التي `source = 'online'`.
+- الإرسال يتم عبر API الويب: `POST /api/notify/announcement`.
+- الديسكتوب يرسل `SUPABASE_SERVICE_ROLE_KEY` كـ bearer token.
+- API الويب يقبل مفتاحاً بدور `service_role` ويستخدمه لقراءة مستلمي Supabase.
+- Email يعتمد على إعدادات SMTP في Vercel.
+- Telegram يعتمد على `TELEGRAM_BOT_TOKEN` في Vercel.
 
 ### 3.3 SQLite
 
@@ -95,11 +111,14 @@
 الـ renderer الحالي مبني بـ React + Vite، ويعرض:
 
 - الطلبات مع الفلاتر والبحث
+- فلاتر الحالة، المصدر (`local`/`online`)، والدفع
+- إحصائيات أعلى الدشبورد مثل الجاهز، المدفوعات المنتظرة، الطلبات بدون سعر، والملفات التي تحتاج إصلاح
 - تبويب `معلومات المشروع` مع الجهة الأكاديمية، بطاقات الاعتمادات، وروابط الصفحات الرسمية
 - السعر اليدوي
 - حالة الطابعة
 - `pickupPin`
 - drawer الملفات وإعداداتها
+- إعدادات حسابات الدفع والإعلان الجماعي للأونلاين
 
 ### 3.5 Student page
 
@@ -158,13 +177,16 @@ UOADrop/
 │   │       ├── main/
 │   │       │   ├── db.ts
 │   │       │   ├── ipc.ts
+│   │       │   ├── online-announcements.ts
+│   │       │   ├── online-workflow.ts
 │   │       │   ├── page-counter.ts
+│   │       │   ├── print-queue.ts
 │   │       │   ├── printer.ts
 │   │       │   └── server.ts
 │   │       ├── preload/
 │   │       └── renderer/
 │   └── web/
-│       └── README.md   # placeholder للمراحل القادمة
+│       └── src/app/    # Next.js online upload + notification APIs
 ├── packages/
 │   └── shared/
 └── docs/
@@ -181,6 +203,8 @@ UOADrop/
 - `id`
 - `ticket`
 - `student_name`
+- `student_email`
+- `telegram_chat_id`
 - `notes`
 - `pickup_pin`
 - `pin_hash`
@@ -190,6 +214,11 @@ UOADrop/
 - `source_of_truth`
 - `import_state`
 - `online_files_cleanup_at`
+- `payment_method`
+- `payment_transaction_ref`
+- `payment_status`
+- `payment_submitted_at`
+- `payment_verified_at`
 - `options_json`
 - `total_pages`
 - `price_iqd`
@@ -297,9 +326,18 @@ UOADrop/
 - `requests:listPaged`
 - `requests:setStatus`
 - `requests:setPrice`
+- `requests:setPaymentStatus`
+- `requests:setWorkflowMeta`
+- `requests:markDone`
+- `requests:queuePrint`
+- `requests:repairOnlineFiles`
 - `requests:files`
+- `requests:events`
 - `requests:setFileOptions`
 - `requests:delete`
+- `announcements:onlinePreview`
+- `announcements:sendOnline`
+- `dashboard:stats`
 - `file:open`
 - `file:print`
 - `printer:status`

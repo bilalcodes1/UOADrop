@@ -10,6 +10,27 @@
 
 ---
 
+## 0. الحالة الحالية المختصرة
+
+التنفيذ الحالي يعتمد على Next.js APIs داخل `apps/web` وليس Supabase Edge Functions:
+
+- `/api/notify/email` لإشعار البريد عند استلام/جاهزية الطلب.
+- `/api/notify/telegram` لإشعار Telegram عند الربط/الجاهزية.
+- `/api/telegram/webhook` لربط `telegram_chat_id` بالطلب عبر البوت.
+- `/api/notify/announcement` للإعلان الجماعي للأونلاين فقط.
+- `/api/cron/notify-delayed` لتنبيه الطلبات المتأخرة.
+
+الإعلان الجماعي الحالي:
+
+- يقرأ المستلمين من Supabase `print_requests` حيث `source = 'online'`.
+- يستخدم `student_email` و`telegram_chat_id`.
+- يتطلب من الديسكتوب إرسال bearer token بدور `service_role`.
+- لا يشمل طلبات Offline/Local.
+- يعتمد إرسال Email على SMTP variables في Vercel.
+- يعتمد إرسال Telegram على `TELEGRAM_BOT_TOKEN` في Vercel.
+
+---
+
 ## 1. لماذا لبلال فقط؟
 
 - **بلال من خارج المكتبة**: لا يعرف متى طلبه جاهز → يحتاج إشعار.
@@ -42,12 +63,12 @@
 
 ### 📧 البريد الإلكتروني
 - بلال يُدخل `email` (اختياري) في نموذج الرفع.
-- إذا أدخله → يستلم **رسالة واحدة فقط** عند جاهزية الطلب (`done`).
+- إذا أدخله → يُحفظ في `student_email` ويستطيع النظام إرسال إشعارات الطلب والإعلانات الجماعية للأونلاين.
 - إذا تركه فارغاً → لا إرسال.
-- **السبب**: Resend Free tier محدود بـ 3,000 email/شهر. نحفظها للإشعار الأهم.
+- **المزوّد الحالي**: SMTP عبر `nodemailer` داخل Next.js API.
 
 ### 💬 Telegram
-- بلال يُدخل `@username` أو يربط حسابه عبر البوت.
+- بلال يربط حسابه عبر البوت حتى يُحفظ `telegram_chat_id` داخل Supabase.
 - أول مرة: يحتاج يبدأ محادثة مع البوت عبر `/start <ticket>`.
 - بعدها، كل الإشعارات تأتي تلقائياً.
 
@@ -61,11 +82,11 @@
 
 ## 4. المزوّدات المختارة
 
-### Email: Resend
-- **لماذا**: أسهل API، developer-friendly، قوالب HTML + Markdown.
-- **Free tier**: 3,000 email/شهر، 100/يوم.
-- **الكفاية**: 300 طلب أونلاين/شهر × 3 إشعارات = 900 email → داخل الحدود.
-- **Domain**: يحتاج verify domain (`uoadrop.app`) أو `onboarding@resend.dev` مؤقتاً.
+### Email: SMTP عبر Nodemailer
+- التنفيذ الحالي يستخدم `nodemailer` داخل Next.js API routes.
+- الإعداد الافتراضي مناسب لـ Brevo SMTP: `smtp-relay.brevo.com:587`.
+- الإرسال يحتاج `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM` في Vercel.
+- إذا لم تُضبط بيانات SMTP، يرجع الإرسال كـ skipped/failed بدل أن ينجح بصمت.
 
 ### Telegram: Bot API
 - **مجاني 100%**.
@@ -82,6 +103,7 @@
 │  Web app (Next.js على Vercel)               │
 │  - /api/notify/email                        │
 │  - /api/notify/telegram                     │
+│  - /api/notify/announcement                 │
 │  - /api/cron/notify-delayed                 │
 └──────────────────┬──────────────────────────┘
                    │
@@ -99,9 +121,9 @@
 - يقوم `pg_net` باستدعاء `https://uoadrop.vercel.app/api/cron/notify-delayed`.
 - هذا التصميم تم اعتماده بسبب قيود Vercel Hobby التي تمنع cron بتكرار أكثر من مرة يومياً.
 
-### 5.1 إعداد Database Webhook (C13 — مهم جداً)
+### 5.1 إعداد Database Webhook (تصميم سابق/اختياري)
 
-> بدون هذا الإعداد الصريح، الإشعارات **لن تُرسل أبداً**. Supabase لا يربط DB triggers بـ Edge Functions تلقائياً.
+التنفيذ الحالي لا يحتاج Database Webhook للإعلان الجماعي أو إشعارات الجاهزية الأساسية؛ الديسكتوب يستدعي Next.js APIs مباشرة. الخطوات التالية تخص التصميم الأصلي إذا تم الرجوع لاحقاً إلى Supabase Edge Functions.
 
 **الخطوات** (من Supabase Dashboard):
 
@@ -137,13 +159,12 @@ CREATE TRIGGER trg_notify
   FOR EACH ROW EXECUTE FUNCTION notify_status_change();
 ```
 
-### 5.2 الآلية
-1. بلال يرفع الطلب → INSERT في `print_requests` → Webhook يستدعي Edge Function.
-2. Edge Function يقرأ `email` + `telegram_chat_id` من الطلب.
-3. يولّد محتوى حسب الحدث من template.
-4. يرسل عبر الـ APIs بالتوازي (`Promise.allSettled`).
-5. يسجل النتيجة (success/failure) في `notifications_log`.
-6. فشل → retry تلقائي 3 مرات مع exponential backoff.
+### 5.2 الآلية الحالية
+1. بلال يرفع الطلب → يتم حفظ `student_email` و/أو تفضيل Telegram في Supabase.
+2. إذا ربط Telegram، `/api/telegram/webhook` يحفظ `telegram_chat_id`.
+3. عند وصول/جاهزية الطلب، الديسكتوب يستدعي `/api/notify/email` و/أو `/api/notify/telegram`.
+4. للإعلان الجماعي، الديسكتوب يستدعي `/api/notify/announcement` مع bearer token بدور `service_role`.
+5. API الإعلان يقرأ كل مستلمي الأونلاين من `print_requests.source = 'online'` ثم يرسل عبر SMTP وTelegram Bot API.
 
 ---
 
@@ -151,8 +172,7 @@ CREATE TRIGGER trg_notify
 
 ### في `print_requests` (إضافة)
 ```sql
-ALTER TABLE print_requests ADD COLUMN email TEXT;
-ALTER TABLE print_requests ADD COLUMN telegram_username TEXT;
+ALTER TABLE print_requests ADD COLUMN student_email TEXT;
 ALTER TABLE print_requests ADD COLUMN telegram_chat_id TEXT;
 ALTER TABLE print_requests ADD COLUMN notify_preferences JSONB 
   DEFAULT '{"email": true, "telegram": true}';
@@ -205,7 +225,7 @@ CREATE INDEX idx_notif_failed ON notifications_log(status)
 
 ### Email — Done (الرسالة الأساسية)
 
-> Email يُرسَل عند `done` (جاهزية) أو `blocked` (مشكلة — C6)، لتوفير quota الـ Resend.
+> Email يُرسَل عند الجاهزية أو الحالات التي تفعلها واجهات Next.js الحالية، مع الاعتماد على SMTP مضبوط في Vercel.
 
 ```
 Subject: 🎉 طلبك جاهز للاستلام — UOADrop B-0077
@@ -275,22 +295,19 @@ Subject: 🎉 طلبك جاهز للاستلام — UOADrop B-0077
 
 ---
 
-## 9. Edge Function — التنفيذ
+## 9. Notify engine — تصميم سابق/مرجعي
+
+> ملاحظة: هذا القسم يصف التصميم الأصلي/المستقبلي باستخدام Supabase Edge Functions. التنفيذ الحالي للإشعارات والإعلان الجماعي موجود داخل Next.js API routes في `apps/web/src/app/api/notify/*`.
 
 ```ts
-// supabase/functions/notify/index.ts
-import { serve } from 'https://deno.land/std/http/server.ts';
-
-serve(async (req) => {
-  const { record, old_record, type } = await req.json();
-  
-  const event = determineEvent(record, old_record, type);
-  if (!event) return new Response('no-op');
+async function notify(record: any, oldRecord?: any) {
+  const event = determineEvent(record, oldRecord);
+  if (!event) return { ok: true, skipped: true };
   
   const tasks: Promise<any>[] = [];
   // Email: فقط عند done أو blocked (C6)
   const EMAIL_EVENTS = new Set(['done', 'blocked']);
-  if (record.email && EMAIL_EVENTS.has(event)) {
+  if (record.student_email && EMAIL_EVENTS.has(event)) {
     tasks.push(sendEmail(record, event));
   }
   // Telegram: كل الأحداث (received / printing / done / blocked / canceled)
@@ -301,22 +318,16 @@ serve(async (req) => {
   const results = await Promise.allSettled(tasks);
   await logResults(record.id, event, results);
   
-  return new Response('ok');
-});
+  return { ok: true };
+}
 
 async function sendEmail(req: any, event: string) {
-  return fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from: 'UOADrop <noreply@uoadrop.app>',
-      to: req.email,
-      subject: subjectFor(event, req.ticket_no),
-      html: htmlFor(event, req)
-    })
+  // Current implementation uses Nodemailer inside Next.js API routes.
+  return transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: req.student_email,
+    subject: subjectFor(event, req.ticket),
+    html: htmlFor(event, req)
   });
 }
 
@@ -360,8 +371,8 @@ await db.insert(telegramLinkTokens).values({
 البوت يتلقى `/start <token>` ويحفظ `chat_id`:
 
 ```ts
-// supabase/functions/telegram-webhook/index.ts
-serve(async (req) => {
+// apps/web/src/app/api/telegram/webhook/route.ts
+export async function POST(req: Request) {
   const update = await req.json();
   const msg = update.message;
   
@@ -395,14 +406,14 @@ serve(async (req) => {
     await sendTelegramMessage(msg.chat.id, '❌ تم إلغاء الاشتراك.');
   }
   
-  return new Response('ok');
-});
+  return Response.json({ ok: true });
+}
 ```
 
 Webhook setup:
 ```bash
 curl -X POST https://api.telegram.org/bot<TOKEN>/setWebhook \
-  -d "url=https://<project>.supabase.co/functions/v1/telegram-webhook"
+  -d "url=https://uoadrop.vercel.app/api/telegram/webhook"
 ```
 
 ---
@@ -427,7 +438,7 @@ Cron job في Supabase كل 5 دقائق يفحص notifications_log للـ pendi
 |---------|------|
 | طالب يرفع 50 طلب → 150 email | Rate limit: 5 طلبات/ساعة لكل email |
 | Bot spam | Chat_id يُحفظ فقط بعد `/start` — opt-in صريح |
-| Email غلط → bounces | Validation + Resend domain verification |
+| Email غلط → bounces | Validation + SPF/DKIM/DMARC على مزود SMTP |
 | Telegram username انتحال | نستخدم `chat_id` العددي لا `@username` |
 
 ---
@@ -436,7 +447,7 @@ Cron job في Supabase كل 5 دقائق يفحص notifications_log للـ pendi
 
 - **لا نشارك** email أو chat_id مع أي طرف ثالث.
 - **نحذف** بيانات الإشعار بعد 30 يوم من اكتمال الطلب.
-- **لا إعلانات** — البوت للإشعارات فقط.
+- **الإعلانات الجماعية** مسموحة فقط لمستلمي Online الذين لديهم `student_email` أو `telegram_chat_id` محفوظ.
 - **opt-out**: أمر `/stop` يحذف chat_id فوراً.
 
 ---
@@ -450,7 +461,7 @@ Cron job في Supabase كل 5 دقائق يفحص notifications_log للـ pendi
 │  ✅ Email sent         42/43         │
 │  ✅ Telegram sent      38/38         │
 │  ⚠️  Failed            1 (retrying)   │
-│  Resend quota:         127/3000      │
+│  SMTP skipped/failed   1             │
 └──────────────────────────────────────┘
 ```
 
@@ -459,11 +470,15 @@ Cron job في Supabase كل 5 دقائق يفحص notifications_log للـ pendi
 ## 15. Environment Variables
 
 ```bash
-# .env للـ Supabase Edge Function
-RESEND_API_KEY=re_xxxxxxxxxxxx
+# Vercel / Next.js API
+EMAIL_HOST=smtp-relay.brevo.com
+EMAIL_PORT=587
+EMAIL_USER=...
+EMAIL_PASS=...
+EMAIL_FROM=UOADrop <...>
 TELEGRAM_BOT_TOKEN=123456:ABC-xyz
-FROM_EMAIL=noreply@uoadrop.app
 BOT_USERNAME=UOADropBot
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
 ---

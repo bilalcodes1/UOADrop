@@ -21,10 +21,10 @@
 - في التطبيق الحالي: ترفع الطلب عبر صفحة الرفع المحلية وتستلم `ticket` و `pickupPin`.
 
 ### 👨‍🎓 بلال — الطالب Online
-- الدور: شخصية تمثل سيناريو الـ online المستقبلي في الوثائق.
+- الدور: طالب يرفع طلبه عبر مسار Online من خارج شبكة المكتبة.
 - الجهاز: أي جهاز متصل بالإنترنت.
-- الاتصال: غير منفّذ بعد في التطبيق الحالي.
-- في الوثائق: يُستخدم لوصف المراحل القادمة فقط.
+- الاتصال: `https://uoadrop.vercel.app` + Supabase.
+- في التطبيق الحالي: طلبه يظهر داخل Dashboard الديسكتوب بعد استيراده، ويمكن إشعاره عبر Email/Telegram.
 
 ---
 
@@ -86,10 +86,10 @@
 ميزة في Supabase لبث تحديثات قاعدة البيانات للعملاء فوراً عبر WebSocket. نستخدمها لإشعار سعد لحظة رفع بلال.
 
 ### Edge Function
-دالة serverless تشتغل على CDN edge. في Supabase نستخدمها لـ Keep-Alive endpoint.
+دالة serverless تشتغل على CDN edge. ذُكرت في التصاميم الأولى؛ التنفيذ الحالي للإشعارات يعتمد غالباً على Next.js API routes في `apps/web`.
 
-### Resend
-مزوّد خدمة إرسال Email الذي نستخدمه للإشعارات. Free tier 3,000 email/شهر. API بسيط ويدعم قوالب HTML + Markdown.
+### SMTP / Nodemailer
+المسار الحالي لإرسال Email من `apps/web` عبر SMTP. الإعداد الافتراضي يستخدم Brevo SMTP، ويمكن تغييره عبر متغيرات `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`.
 
 ### Telegram Bot API
 API رسمي من تيليجرام لإنشاء بوتات. مجاني بالكامل. نستخدمه لإرسال إشعارات الطباعة لبلال عبر `@UOADropBot`.
@@ -118,9 +118,7 @@ API رسمي من تيليجرام لإنشاء بوتات. مجاني بالك�
 نمط تنظيم الكود حيث كل الحزم (packages + apps) في مستودع git واحد. نستخدم pnpm workspaces + Turborepo.
 
 ### PWA (Progressive Web App)
-تطبيق ويب يقدر يُثبّت على الشاشة الرئيسية ويعمل offline. صفحة الرفع تدعم PWA اختيارياً.
-
-> هذا ليس جزءاً من التطبيق الحالي، لكنه مفهوم عام قد يُستخدم لاحقاً لو أضيفت نسخة web كاملة.
+تطبيق ويب يقدر يُثبّت على الشاشة الرئيسية ويعمل offline. صفحة الرفع المحلية تعمل كصفحة standalone، والويب الأونلاين موجود داخل `apps/web`.
 
 ### Zod
 مكتبة TypeScript لـ schema validation. نستخدمها لـ form validation في كل من الـ client والـ server.
@@ -137,10 +135,10 @@ script يشتغل في الخلفية في المتصفح، يدعم offline cac
 
 | الاسم | الموقع | الغرض |
 |-------|--------|-------|
-| `apps/web` | جذر المشروع | Placeholder للـ online phase مستقبلاً |
+| `apps/web` | جذر المشروع | Next.js online upload + notification APIs |
 | `apps/desktop` | جذر المشروع | Electron + Fastify + SQLite + React dashboard |
 | `packages/shared` | جذر المشروع | types + constants + validation helpers |
-| `supabase/functions` | جذر المشروع | Edge Functions (keepalive) |
+| `supabase/functions` | جذر المشروع | مساحة اختيارية/قديمة لـ Edge Functions إن أضيفت لاحقاً |
 | `~/Library/Application Support/UOADrop` | Mac | بيانات سعد (SQLite + ملفات) |
 | `%APPDATA%/UOADrop` | Windows | نفس الشي لـ Windows |
 

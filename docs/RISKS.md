@@ -2,7 +2,7 @@
 
 # المخاطر والوقاية والاستجابة
 
-> **ملاحظة قراءة:** هذا المستند يشمل مخاطر **التطبيق الحالي المحلي** وكذلك مخاطر **المراحل القادمة للـ online/cloud**. أي قسم يتحدث عن Supabase أو Vercel أو Email/Telegram يُقرأ على أنه **مستقبلي** ما لم يُذكر خلاف ذلك.
+> **ملاحظة قراءة:** هذا المستند يشمل مخاطر **التطبيق المحلي الحالي** ومخاطر **مسار Online الحالي** عبر Supabase/Vercel/Email/Telegram. بعض عناصر العمليات المتقدمة مثل auto-update أو cleanup السحابي الكامل ما تزال مؤجلة.
 
 هذا المستند يوثّق كل مصدر فشل محتمل في UOADrop، مع الوقاية والاستجابة المخطط لها. يُراجع كل 6 أشهر أو بعد أي حادثة.
 
@@ -269,29 +269,29 @@
 
 ## 9. 📨 مخاطر الإشعارات (بلال Online فقط)
 
-### 9.1 تجاوز حد Resend (3,000 email/شهر)
+### 9.1 تجاوز حد SMTP أو تعطل مزوّد البريد
 - **الاحتمال**: منخفض (تقديرنا 900 email/شهر)
 - **الأثر**: متوسط — إشعارات Email تتوقف، Telegram يستمر
-- **الوقاية**: Rate limit 5 طلبات/ساعة/email + مراقبة usage في Health Dashboard + تنبيه عند 80%
-- **الاستجابة**: ترقية Resend ($20/شهر = 50k email) أو هجرة لـ AWS SES
+- **الوقاية**: Rate limit 5 طلبات/ساعة/email + مراقبة فشل الإرسال + إبقاء Telegram كقناة بديلة
+- **الاستجابة**: تصحيح SMTP في Vercel أو تغيير المزود إلى Brevo/AWS SES/Resend SMTP
 
 ### 9.2 فشل Telegram Webhook
 - **الاحتمال**: منخفض
 - **الأثر**: حرج لإشعارات Telegram — ما يستلم `/start` من الطلاب الجدد
-- **الوقاية**: `setWebhook` مع `max_connections` وإعادة تسجيل تلقائية كل 24 ساعة + `getWebhookInfo` للفحص
-- **الاستجابة**: إعادة تسجيل webhook يدوياً + فحص Edge Function logs
+- **الوقاية**: `setWebhook` مع `max_connections` + فحص logs مسار `/api/telegram/webhook`
+- **الاستجابة**: إعادة تسجيل webhook يدوياً + فحص Vercel logs
 
-### 9.3 تسرّب RESEND_API_KEY أو TELEGRAM_BOT_TOKEN
-- **الاحتمال**: منخفض (محفوظة في Supabase env فقط)
+### 9.3 تسرّب SMTP credentials أو `TELEGRAM_BOT_TOKEN`
+- **الاحتمال**: منخفض (محفوظة في Vercel/إعدادات runtime فقط)
 - **الأثر**: حرج — مهاجم يستطيع إرسال spam باسم المشروع
-- **الوقاية**: لا ترفعها لـ git أبداً + `.env` في `.gitignore` + Supabase Secrets vault
-- **الاستجابة**: rotate keys فوراً من Resend + BotFather (`/revoke`) + redeploy
+- **الوقاية**: لا ترفعها لـ git أبداً + `.env` و`runtime-config.json` في `.gitignore` + صلاحيات محدودة
+- **الاستجابة**: rotate credentials فوراً من مزود SMTP + BotFather (`/revoke`) + redeploy
 
 ### 9.4 Email bounces تضر domain reputation
 - **الاحتمال**: متوسط (طلاب يُدخلون email غلط)
 - **الأثر**: متوسط — Gmail/Outlook يحوّلون رسائلنا للـ spam
-- **الوقاية**: Zod validation صارم + SPF/DKIM/DMARC records على `uoadrop.app` + Resend يتعامل مع bounces تلقائياً
-- **الاستجابة**: مراقبة bounce rate في Resend dashboard، حذف emails الفاشلة بعد bounce واحد
+- **الوقاية**: validation صارم + SPF/DKIM/DMARC records على الدومين المستخدم للإرسال
+- **الاستجابة**: مراقبة bounce rate في مزود SMTP، وحذف/تجاهل emails الفاشلة بعد bounce واضح
 
 ### 9.5 الطالب يحجب البوت (`/block`)
 - **الاحتمال**: منخفض
@@ -303,19 +303,19 @@
 - **الاحتمال**: منخفض
 - **الأثر**: حرج إذا حصل
 - **الوقاية**: مراقبة + الحفاظ على قناة Email كـ redundant
-- **الاستجابة**: استخدام proxy في Edge Function أو الاكتفاء بـ Email
+- **الاستجابة**: استخدام proxy في API الويب أو الاكتفاء بـ Email
 
-### 9.7 Edge Function timeout أثناء الإرسال
-- **الاحتمال**: منخفض (Supabase Edge = 150s limit)
+### 9.7 API timeout أثناء الإرسال الجماعي
+- **الاحتمال**: منخفض للعدد الحالي، يزيد مع آلاف المستلمين
 - **الأثر**: خفيف — إشعار واحد يتأخر
-- **الوقاية**: إرسال parallel عبر `Promise.allSettled` + timeout 10s لكل API call
-- **الاستجابة**: Retry queue يلتقط الفاشلات تلقائياً
+- **الوقاية**: إبقاء الإعلان للأونلاين فقط، عرض عدد المستلمين قبل الإرسال، وتسجيل sent/failed/skipped
+- **الاستجابة**: إعادة المحاولة بعد تقليل القنوات أو تقسيم الإرسال إذا كبر العدد
 
-### 9.8 DB trigger فشل أو مفصول
+### 9.8 فشل صلاحية API الإعلان
 - **الاحتمال**: منخفض
-- **الأثر**: حرج — لا إشعارات أبداً
-- **الوقاية**: Health check يومي يتحقق أن آخر `notifications_log` < 24 ساعة
-- **الاستجابة**: إعادة إنشاء trigger + retry آخر 24 ساعة يدوياً
+- **الأثر**: متوسط — العد قد يظهر لكن الإرسال يرجع `unauthorized`
+- **الوقاية**: API الإعلان يقبل bearer token بدور `service_role`، والديسكتوب يعرض الخطأ بوضوح
+- **الاستجابة**: تأكد من نشر آخر Vercel deploy ومن مطابقة `SUPABASE_SERVICE_ROLE_KEY` في runtime config
 
 ### 9.9 تسرّب بيانات الاتصال (email + chat_id)
 - **الاحتمال**: منخفض
@@ -326,8 +326,8 @@
 ### 9.10 طالب spam يرفع طلبات وهمية لإرسال emails
 - **الاحتمال**: منخفض
 - **الأثر**: متوسط (استهلاك quota + ضرر reputation)
-- **الوقاية**: Rate limit 5 طلبات/ساعة/IP + CAPTCHA بعد 3 طلبات + Resend يرصد الأنماط
-- **الاستجابة**: حظر IP + الإبلاغ لـ Resend
+- **الوقاية**: Rate limit 5 طلبات/ساعة/IP + CAPTCHA بعد 3 طلبات + مراقبة فشل SMTP
+- **الاستجابة**: حظر IP + تغيير قيود الرفع أو الإرسال
 
 ---
 

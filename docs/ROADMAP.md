@@ -117,99 +117,70 @@
 
 ---
 
-## Phase 2 — Online Integration 🌐
+## Phase 2 — Online Integration 🌐 ✅
 
-**المدة المتوقعة**: 4-5 أيام.
-**الهدف**: بلال يقدر يرفع من خارج المكتبة، يتلقى إشعارات على Email/Telegram، ودمج القائمتين عند سعد.
+**الحالة**: منفّذ عملياً عبر Next.js/Vercel + Supabase + Desktop intake.
+**الهدف**: بلال يرفع من خارج المكتبة، وسعد يرى طلبات Online داخل نفس الدشبورد مع مزامنة السعر والحالة والدفع.
 
-### 2.1 — Supabase Setup (نصف يوم)
-- [ ] إنشاء project على `supabase.com`
-- [ ] Region: Frankfurt
-- [ ] Push schema عبر `drizzle-kit push:pg`
-- [ ] إنشاء Storage bucket: `print-files`
-- [ ] ضبط Storage policies
-- [ ] ضبط RLS على الجداول
-- [ ] حفظ `SUPABASE_URL` + `SUPABASE_ANON_KEY` في `.env`
+### 2.1 — Supabase + Vercel Setup ✅
+- [x] Supabase Postgres + Storage bucket `print-files`
+- [x] Web app online على `https://uoadrop.vercel.app`
+- [x] متغيرات Supabase في Vercel والديسكتوب
+- [x] دعم تشفير اختياري لملفات Online قبل الرفع
 
-### 2.2 — Online Upload API (يوم)
-- [ ] `apps/web/app/api/requests/route.ts` — POST يُدخل في Supabase
-- [ ] Upload مباشر لـ Supabase Storage من الـ client (signed URL)
-- [ ] نفس صفحة `/u` تكتشف: `process.env.MODE === 'online'`
-- [ ] Ticket generation: `B-XXXX` من Postgres sequence
+### 2.2 — Online Upload ✅
+- [x] صفحة رفع Online داخل `apps/web`
+- [x] حفظ `student_email`, `notify_preferences`, وبيانات الدفع/التتبع
+- [x] رفع الملفات إلى Supabase Storage
+- [x] تتبع حالة الطلب في صفحة النجاح
+- [x] السعر النهائي يبقى من الديسكتوب فقط؛ الويب لا يصبح مصدر السعر النهائي
 
-### 2.3 — Realtime في Dashboard (يوم)
-- [ ] Supabase client في desktop app
-- [ ] Subscribe على `print_requests` channel
-- [ ] دمج مع WebSocket المحلي → قائمة موحّدة في UI
-- [ ] تمييز 📡 vs 🌐 في كل بطاقة
+### 2.3 — Desktop Online Intake ✅
+- [x] استيراد طلبات Online من Supabase داخل الديسكتوب
+- [x] تنزيل الملفات محلياً وفك التشفير عند وجود metadata ومفتاح خاص
+- [x] تحديث Mirror في Supabase عند السعر، الحالة، الدفع، الطباعة، والحذف
+- [x] تمييز المصدر `online` داخل الدشبورد
 
-### 2.4 — Keep-Alive 3 طبقات (يوم)
-- [ ] `apps/desktop/main/keepalive.ts` — ping كل 12 ساعة
-- [ ] `supabase/functions/keepalive/index.ts` — Edge Function
-- [ ] Deploy: `supabase functions deploy keepalive`
-- [ ] تسجيل في cron-job.org + إعداد schedule يومي
-- [ ] `.github/workflows/keepalive.yml` — backup layer
-- [ ] Health Dashboard يعرض آخر ping من كل مصدر
-
-### 2.5 — نظام الإشعارات لبلال (يوم ونصف) 📨
+### 2.4 — Notifications + Announcements ✅
 **تفاصيل كاملة في [`NOTIFICATIONS.md`](./NOTIFICATIONS.md).**
 
-#### Email (Resend)
-- [ ] إنشاء حساب Resend + API key
-- [ ] Verify domain `uoadrop.app` (أو استخدام `onboarding@resend.dev` مؤقتاً)
-- [ ] إضافة حقل `email` (اختياري) لنموذج الرفع — Online فقط
-- [ ] قالب HTML واحد فقط لحدث `done` (توفير quota)
-- [ ] rate limit: 5 طلبات/ساعة لكل email
+- [x] Email عبر SMTP/Nodemailer داخل Next.js API
+- [x] Telegram Bot API وربط `telegram_chat_id`
+- [x] تنبيه تأخير للطلبات الأونلاين
+- [x] إعلان جماعي للأونلاين فقط من الديسكتوب
+- [x] عدّ مباشر للمستلمين من Supabase (`student_email`, `telegram_chat_id`)
+- [x] API الإعلان يقبل bearer token بدور `service_role`
 
-#### Telegram
-- [ ] إنشاء بوت عبر [@BotFather](https://t.me/BotFather) → `@UOADropBot`
-- [ ] حفظ `TELEGRAM_BOT_TOKEN` في env
-- [ ] زر "اربط حسابك" في صفحة التأكيد → `t.me/UOADropBot?start=<ticket>`
-- [ ] Edge Function `telegram-webhook` يستقبل `/start` و `/stop`
-- [ ] setWebhook لربط البوت بالـ Edge Function
+### 2.5 — Deploy + Operations ✅
+- [x] Vercel production deployment
+- [x] إعدادات runtime للديسكتوب عبر `runtime-config.json`
+- [x] توثيق متغيرات البيئة في `.env.example` و`docs/SETUP.md`
 
-#### Notify Engine
-- [ ] جدول `notifications_log` في Supabase
-- [ ] Edge Function `notify` يُستدعى من DB trigger
-- [ ] إرسال بالتوازي (Email + Telegram)
-- [ ] Retry strategy: 1 min → 10 min → failed
-- [ ] Cron كل 5 دقائق لـ retry
-- [ ] قسم جديد في Health Dashboard لإحصائيات الإشعارات
-
-#### حقول DB الإضافية
-- [ ] `email`, `telegram_username`, `telegram_chat_id`, `notify_preferences`
-- [ ] migration في `packages/db-schema`
-
-### 2.6 — Vercel Deployment (نصف يوم)
-- [ ] ربط GitHub repo بـ Vercel
-- [ ] Environment variables
-- [ ] Custom domain setup (`uoadrop.app` إذا متوفر، أو `uoadrop.vercel.app`)
-- [ ] اختبار من موبايل خارج المكتبة
-
-**مخرجات Phase 2**: بلال يقدر يرفع من البيت. سعد يشوف كل الطلبات في واجهة واحدة.
+**مخرجات Phase 2**: بلال يقدر يرفع من البيت. سعد يشوف طلبات Online وLocal في واجهة واحدة، والإعلانات الجماعية تعمل لمستلمي Online فقط.
 
 ---
 
-## Phase 3 — Online + Notifications 🌐
+## Phase 3 — Dashboard hardening + validation ✅
 
-**المدة المتوقعة**: 2-4 أيام.
-**الهدف**: إضافة نسخة online مرتبطة بالسحابة وإشعارات Email/Telegram للطلبات الخارجية.
+**الحالة**: منفّذ كتحسينات عملية على الدشبورد.
 
-### 3.1 — Cloud storage + online upload
-- [ ] Supabase project + storage bucket + tables
-- [ ] صفحة web/online مستقلة عن صفحة الرفع المحلية
-- [ ] Request tracking للطلبات الأونلاين
+### 3.1 — Workflow actions ✅
+- [x] `طباعة` يضيف الطلب لطابور الطباعة ويفتح الملف/الملفات للتنفيذ
+- [x] `جاهز` ينقل الطلب إلى `ready` ويفتح تبويب الجاهز مع مسح الفلاتر المخفية
+- [x] `تم التسليم` ينقل الطلب إلى `done` ويفتح الأرشيف
+- [x] حذف طلب Online يلغي Mirror في Supabase أولاً
 
-### 3.2 — Notifications
-- [ ] Telegram linking flow
-- [ ] Email notifications عند الجاهزية أو التعذر
-- [ ] Cloud-side request status API
+### 3.2 — Filters + stats ✅
+- [x] فلاتر المصدر والدفع والحالة والبحث
+- [x] إحصائيات أعلى الدشبورد للجاهز، الأونلاين، المحلي، المدفوعات، والملفات التي تحتاج إصلاح
+- [x] معالجة الصفحات الفارغة عند تغير الفلاتر أو العدد
 
-### 3.3 — Unified visibility
-- [ ] دمج الطلبات المحلية والسحابية داخل واجهة المكتبة عند الحاجة
-- [ ] تمييز مصدر الطلب بوضوح في اللوحة
+### 3.3 — Online announcement UI ✅
+- [x] عرض أخطاء واضحة في واجهة الإعلان
+- [x] منع إرسال إعلان بلا مستلمين
+- [x] عدّ Email/Telegram من Supabase حتى لو تعذر Web API preview
 
-**مخرجات Phase 3**: الطلبات الخارجية تعمل وتصل إلى النظام مع الإشعارات المناسبة.
+**مخرجات Phase 3**: أزرار الدشبورد ومسارات Online/Local موثقة ومختبرة TypeScript/build.
 
 ---
 
