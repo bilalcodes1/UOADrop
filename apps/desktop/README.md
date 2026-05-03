@@ -46,9 +46,9 @@ Online requests are synced through IPC/main-process handlers after price, status
 The Settings panel includes `إعلان جماعي للأونلاين`.
 
 - Targets **online uploads only** (`print_requests.source = 'online'`).
-- Recipient counts are loaded from Supabase `student_email` and `telegram_chat_id`.
-- Sending is delegated to the web API `/api/notify/announcement`.
-- Desktop sends the local `SUPABASE_SERVICE_ROLE_KEY`; the web API accepts a valid `service_role` bearer token.
+- Recipient counts are loaded by the secure desktop gateway on the web deployment.
+- Sending is delegated to the web API `/api/desktop/announcement`.
+- Desktop sends only its activation token. Supabase service-role credentials stay on the web deployment.
 - Email delivery requires SMTP variables on the web deployment.
 - Telegram delivery requires `TELEGRAM_BOT_TOKEN` on the web deployment.
 
@@ -63,23 +63,16 @@ pnpm --filter @uoadrop/desktop build
 
 Do not commit production secrets into the repository.
 
-1. Create a runtime config file from environment variables:
+1. Optionally create a runtime config file if you need a custom gateway URL:
 
 ```bash
-VITE_SUPABASE_URL='https://your-project.supabase.co' \
-VITE_SUPABASE_ANON_KEY='your-anon-key' \
-SUPABASE_SERVICE_ROLE_KEY='your-service-role-key' \
-UOADROP_WEB_BASE_URL='https://uoadrop.vercel.app' \
-UOADROP_NOTIFY_SERVER_URL='https://uoadrop.vercel.app/api/notify/telegram' \
-TELEGRAM_BOT_TOKEN='telegram-bot-token' \
-UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64='base64-private-pem' \
+UOADROP_DESKTOP_GATEWAY_URL='https://uoadrop.vercel.app' \
 pnpm --filter @uoadrop/desktop runtime-config:write
 ```
 
-This writes `resources/runtime-config.json` for local packaging only. The file is gitignored.
-Online mode stays locked after installation until the librarian enters the activation password in the desktop Settings panel. The activation is saved locally on that machine.
-`UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` is required only when encrypted online uploads are enabled in the web app.
-`UOADROP_WEB_BASE_URL` or `UOADROP_NOTIFY_SERVER_URL` is required for online announcement sending.
+This writes `resources/runtime-config.json` for local packaging only. The file is gitignored. Public builds default to `https://uoadrop.vercel.app`, so no runtime config is required for the standard release.
+Online mode stays locked after installation until the librarian enters the activation password in the desktop Settings panel. The server returns a local desktop token for that machine.
+Supabase, Telegram, SMTP, and private encryption keys must remain on the web deployment.
 
 2. Build desktop artifacts:
 
@@ -93,7 +86,7 @@ Notes:
 
 - `dist:mac` builds both Apple Silicon (`arm64`) and Intel (`x64`) macOS artifacts.
 - `dist:win` builds Windows `x64` artifacts. Use `dist:win:arm64` only for Windows ARM devices.
-- Packaged desktop builds require local online activation from Settings plus `SUPABASE_SERVICE_ROLE_KEY` for the online workflow service.
-- Online announcements also require either `UOADROP_WEB_BASE_URL` or a `notifyServerUrl` whose origin points at the web deployment.
+- Packaged desktop builds require only local online activation from Settings. Online workflow calls the secure web gateway.
+- Online announcements require the web deployment to have SMTP/Telegram variables configured.
 - The app also looks for `runtime-config.json` in `userData`, next to the packaged executable, or under Electron resources.
 - Local mac packaging is configured unsigned by default. Production signing/notarization should be added as a separate release step.

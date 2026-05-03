@@ -1,90 +1,36 @@
 import type { PrintRequest } from '@uoadrop/shared';
-import { getRequestByTicket, linkRequestTelegramChat, logRequestEvent } from './db';
-import { getTelegramRuntimeConfig, getNotifyServerUrl } from './runtime-config';
-
-type TelegramUpdate = {
-  update_id: number;
-  message?: {
-    chat?: { id?: number | string };
-    text?: string;
-  };
-};
+import { logRequestEvent } from './db';
+import { getDesktopGatewayConfig } from './runtime-config';
 
 let started = false;
-let offset = 0;
-let pollTimer: NodeJS.Timeout | null = null;
 
-function getBotToken(): string {
-  return getTelegramRuntimeConfig().botToken;
-}
+type TelegramNotificationEvent = 'linked' | 'ready';
 
 function isConfigured(): boolean {
-  return Boolean(getBotToken());
+  return Boolean(getDesktopGatewayConfig());
 }
 
-function formatStudentName(request: PrintRequest): string {
-  return request.studentName?.trim() || 'الطالب';
-}
-
-function buildTicketLine(request: PrintRequest): string {
-  return `رقم التذكرة: ${request.ticket}`;
-}
-
-async function telegramRequest<T>(method: string, body: Record<string, unknown>): Promise<T | null> {
-  const token = getBotToken();
-  if (!token) return null;
+async function sendGatewayTelegramEvent(requestId: string, event: TelegramNotificationEvent): Promise<boolean> {
+  const config = getDesktopGatewayConfig();
+  if (!config) return false;
   try {
-    const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    const res = await fetch(`${config.baseUrl}/api/desktop/telegram`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.token}`,
+      },
+      body: JSON.stringify({ requestId, event }),
     });
-    if (!response.ok) return null;
-    const data = await response.json() as { ok?: boolean; result?: T };
-    return data.ok ? data.result ?? null : null;
+    const payload = (await res.json().catch(() => ({}))) as { ok?: boolean };
+    return res.ok && payload.ok !== false;
   } catch {
-    return null;
+    return false;
   }
-}
-
-export async function sendTelegramMessage(chatId: string, text: string): Promise<boolean> {
-  if (!chatId || !isConfigured()) return false;
-  const result = await telegramRequest<unknown>('sendMessage', {
-    chat_id: chatId,
-    text,
-    parse_mode: 'HTML',
-    disable_web_page_preview: true,
-  });
-  return result !== null;
 }
 
 export async function notifyTelegramRequestReceived(request: PrintRequest): Promise<void> {
-  if (!request.telegramChatId) return;
-  let ok = false;
-  const notifyUrl = getNotifyServerUrl();
-  if (notifyUrl) {
-    try {
-      const res = await fetch(notifyUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: request.id, event: 'linked' }),
-      });
-      ok = res.ok;
-    } catch {
-      ok = false;
-    }
-  } else {
-    // Dev fallback only if desktop bot token is configured
-    ok = await sendTelegramMessage(
-      request.telegramChatId,
-      [
-        `✅ تم ربط إشعارات UOADrop بنجاح`,
-        `مرحباً ${formatStudentName(request)}`,
-        buildTicketLine(request),
-        `سنرسل لك تحديثاً عندما يصبح الطلب جاهزاً للاستلام.`,
-      ].join('\n'),
-    );
-  }
+  const ok = await sendGatewayTelegramEvent(request.id, 'linked');
   logRequestEvent({
     requestId: request.id,
     type: 'status_changed',
@@ -95,36 +41,7 @@ export async function notifyTelegramRequestReceived(request: PrintRequest): Prom
 }
 
 export async function notifyTelegramReady(request: PrintRequest): Promise<void> {
-  let ok = false;
-  const notifyUrl = getNotifyServerUrl();
-  // For online requests, always try Vercel — telegram_chat_id lives in Supabase
-  // (the webhook updates Supabase directly, not the local DB)
-  if (notifyUrl) {
-    try {
-      const res = await fetch(notifyUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: request.id, event: 'ready' }),
-      });
-      ok = res.ok;
-    } catch {
-      ok = false;
-    }
-  } else if (request.telegramChatId) {
-    const priceLine = request.finalPriceConfirmedAt && request.priceIqd > 0
-      ? `السعر النهائي: ${request.priceIqd.toLocaleString('ar-IQ')} د.ع`
-      : `السعر النهائي: يتم تأكيده من موظف المكتبة`;
-    ok = await sendTelegramMessage(
-      request.telegramChatId,
-      [
-        `📦 طلبك جاهز للاستلام`,
-        `مرحباً ${formatStudentName(request)}`,
-        buildTicketLine(request),
-        priceLine,
-        `يرجى مراجعة المكتبة لاستلام الطلب.`,
-      ].filter(Boolean).join('\n'),
-    );
-  }
+  const ok = await sendGatewayTelegramEvent(request.id, 'ready');
   logRequestEvent({
     requestId: request.id,
     type: 'ready',
@@ -134,62 +51,19 @@ export async function notifyTelegramReady(request: PrintRequest): Promise<void> 
   });
 }
 
-async function handleStartCommand(chatId: string, text: string): Promise<void> {
-  const [, rawTicket] = text.trim().split(/\s+/, 2);
-  const ticket = String(rawTicket ?? '').trim().toUpperCase().slice(0, 12);
-  if (!ticket) {
-    await sendTelegramMessage(chatId, 'أرسل /start متبوعاً برقم التذكرة حتى يتم ربط الإشعارات.');
-    return;
-  }
-
-  const request = getRequestByTicket(ticket);
-  if (!request) {
-    await sendTelegramMessage(chatId, `لم أجد تذكرة بهذا الرقم: ${ticket}`);
-    return;
-  }
-
-  const linked = linkRequestTelegramChat(request.id, chatId);
-  await notifyTelegramRequestReceived(linked);
-  if (linked.status === 'ready') {
-    await notifyTelegramReady(linked);
-  }
-}
-
-async function pollTelegramUpdates(): Promise<void> {
-  if (!isConfigured()) return;
-  const updates = await telegramRequest<TelegramUpdate[]>('getUpdates', {
-    offset: offset || undefined,
-    timeout: 0,
-    allowed_updates: ['message'],
-  });
-  if (!updates) return;
-
-  for (const update of updates) {
-    offset = Math.max(offset, update.update_id + 1);
-    const chatId = update.message?.chat?.id;
-    const text = update.message?.text?.trim() ?? '';
-    if (!chatId || !text.startsWith('/start')) continue;
-    await handleStartCommand(String(chatId), text);
-  }
-}
-
 export function startTelegramNotificationService(): void {
   if (started) return;
   if (!isConfigured()) {
     // eslint-disable-next-line no-console
-    console.warn('[UOADrop] Telegram notifications disabled: TELEGRAM_BOT_TOKEN is not configured.');
+    console.warn('[UOADrop] Telegram notifications disabled: desktop gateway activation is missing.');
     return;
   }
 
   started = true;
-  // Polling disabled — /start linking is handled by Vercel webhook.
-  // Notifications (linked, ready) are sent via notifyServerUrl → Vercel API.
   // eslint-disable-next-line no-console
-  console.log('[UOADrop] Telegram configured — notifications routed via Vercel webhook.');
+  console.log('[UOADrop] Telegram configured — notifications routed via Desktop Gateway.');
 }
 
 export function stopTelegramNotificationService(): void {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = null;
   started = false;
 }

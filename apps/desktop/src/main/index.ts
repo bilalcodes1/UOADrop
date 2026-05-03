@@ -6,7 +6,7 @@ import { registerIpcHandlers } from './ipc';
 import { startOnlineWorkflowService } from './online-workflow';
 import { startPrintQueueService } from './print-queue';
 import { startTelegramNotificationService } from './telegram';
-import { getSupabaseRuntimeConfig } from './runtime-config';
+import { getDesktopGatewayBaseUrl } from './runtime-config';
 import { startLocalServer } from './server';
 import { startPrinterPolling } from './printer';
 import { subscribe as subscribeBus, type AppEvent } from './events';
@@ -72,7 +72,7 @@ function showMainWindow(): void {
 
 function getConnectSrcValues(): string[] {
   const values = ["'self'", 'ws://localhost:*', 'http://localhost:*'];
-  const { url } = getSupabaseRuntimeConfig();
+  const url = getDesktopGatewayBaseUrl();
   if (!url) return values;
   try {
     const origin = new URL(url).origin;
@@ -159,7 +159,7 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(() => {
-  // Allow Supabase HTTPS + Realtime WebSocket connections
+  // Allow desktop gateway HTTPS connections
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const headers = { ...details.responseHeaders };
     // Remove any existing CSP headers (case-insensitive)

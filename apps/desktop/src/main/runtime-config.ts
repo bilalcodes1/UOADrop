@@ -1,48 +1,58 @@
 import { app } from 'electron';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 
 type DesktopRuntimeConfig = {
-  supabaseUrl?: string;
-  supabaseAnonKey?: string;
-  supabaseServiceRoleKey?: string;
-  telegramBotToken?: string;
-  notifyServerUrl?: string; // e.g. https://uoadrop.example.com/api/notify/telegram
+  desktopGatewayUrl?: string;
   webBaseUrl?: string; // e.g. https://uoadrop.example.com
-  onlineEncryptionPrivateKey?: string;
-  onlineEncryptionPrivateKeyBase64?: string;
 };
 
-export type OnlineModeReason = 'enabled' | 'activation_required';
+export type OnlineModeReason = 'enabled' | 'activation_required' | 'missing_gateway_url';
 
 export type OnlineModeStatus = {
   enabled: boolean;
   reason: OnlineModeReason;
   activated: boolean;
-  hasSupabaseUrl: boolean;
-  hasSupabaseAnonKey: boolean;
-  hasServiceRoleKey: boolean;
-  hasWebBaseUrl: boolean;
-  hasNotifyServerUrl: boolean;
+  deviceId: string;
+  webBaseUrl: string;
+  hasGatewayUrl: boolean;
+  hasDesktopToken: boolean;
 };
 
 export type OnlineModeActivationResult = {
   ok: boolean;
-  error?: 'invalid_activation_password' | 'activation_write_failed';
+  error?: 'invalid_activation_password' | 'activation_write_failed' | 'activation_network_error' | 'missing_gateway_url' | 'server_error';
+  status: OnlineModeStatus;
+};
+
+export type OnlineGatewayDiagnostics = {
+  ok: boolean;
+  serverReachable: boolean;
+  error?: string;
+  pendingOnlineRequests?: number;
   status: OnlineModeStatus;
 };
 
 type OnlineModeActivationRecord = {
   activated: boolean;
   activatedAt: string;
-  passphraseHash: string;
+  deviceId: string;
+  token: string;
+  webBaseUrl: string;
 };
 
-const ONLINE_ACTIVATION_PASSPHRASE_HASH = 'fd482f9780b2c21ae943c2aa7c29d822624f5cea7f5fc694ea9abfbfb5ec9207';
+export type DesktopGatewayConfig = {
+  baseUrl: string;
+  token: string;
+  deviceId: string;
+};
+
+const DEFAULT_WEB_BASE_URL = 'https://uoadrop.vercel.app';
 
 let cachedConfig: DesktopRuntimeConfig | null | undefined;
-let cachedOnlineActivation: boolean | undefined;
+let cachedOnlineActivationRecord: OnlineModeActivationRecord | null | undefined;
+let cachedDesktopDeviceId: string | undefined;
 
 function readJsonConfig(filePath: string): DesktopRuntimeConfig | null {
   try {
@@ -91,34 +101,91 @@ function getOnlineActivationPath(): string {
   return join(app.getPath('userData'), 'online-mode-activation.json');
 }
 
-function hashActivationPassphrase(value: string): string {
-  return createHash('sha256').update(value.trim(), 'utf8').digest('hex');
+function normalizeBaseUrl(value: string): string {
+  return value.trim().replace(/\/$/, '');
 }
 
-function isValidActivationPassphrase(value: string): boolean {
-  const actual = Buffer.from(hashActivationPassphrase(value), 'hex');
-  const expected = Buffer.from(ONLINE_ACTIVATION_PASSPHRASE_HASH, 'hex');
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
+export function getDesktopDeviceId(): string {
+  if (cachedDesktopDeviceId) return cachedDesktopDeviceId;
+  const userDataPath = app.getPath('userData');
+  const filePath = join(userDataPath, 'desktop-device-id');
+  try {
+    if (existsSync(filePath)) {
+      const existing = readFileSync(filePath, 'utf8').trim();
+      if (existing) {
+        cachedDesktopDeviceId = existing;
+        return existing;
+      }
+    }
+  } catch {
+  }
+
+  const generated = randomUUID();
+  try {
+    mkdirSync(userDataPath, { recursive: true });
+    writeFileSync(filePath, `${generated}\n`, 'utf8');
+  } catch {
+  }
+  cachedDesktopDeviceId = generated;
+  return generated;
 }
 
-function isOnlineModeActivated(): boolean {
-  if (cachedOnlineActivation !== undefined) return cachedOnlineActivation;
+export function getDesktopGatewayBaseUrl(): string {
+  const runtimeConfig = getDesktopRuntimeConfig();
+  return normalizeBaseUrl(String(
+    process.env.UOADROP_DESKTOP_GATEWAY_URL
+      ?? runtimeConfig.desktopGatewayUrl
+      ?? process.env.UOADROP_WEB_BASE_URL
+      ?? runtimeConfig.webBaseUrl
+      ?? DEFAULT_WEB_BASE_URL,
+  ));
+}
+
+function getOnlineActivationRecord(): OnlineModeActivationRecord | null {
+  if (cachedOnlineActivationRecord !== undefined) return cachedOnlineActivationRecord;
   try {
     const filePath = getOnlineActivationPath();
     if (existsSync(filePath)) {
       const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as Partial<OnlineModeActivationRecord>;
-      cachedOnlineActivation = parsed.activated === true && parsed.passphraseHash === ONLINE_ACTIVATION_PASSPHRASE_HASH;
-      return cachedOnlineActivation;
+      if (parsed.activated === true && parsed.token && parsed.deviceId) {
+        cachedOnlineActivationRecord = {
+          activated: true,
+          activatedAt: String(parsed.activatedAt ?? ''),
+          deviceId: String(parsed.deviceId),
+          token: String(parsed.token),
+          webBaseUrl: normalizeBaseUrl(String(parsed.webBaseUrl || getDesktopGatewayBaseUrl())),
+        };
+        return cachedOnlineActivationRecord;
+      }
     }
   } catch {
   }
-  cachedOnlineActivation = false;
-  return cachedOnlineActivation;
+  cachedOnlineActivationRecord = null;
+  return cachedOnlineActivationRecord;
 }
 
-export function activateOnlineMode(passphrase: string): OnlineModeActivationResult {
-  if (!isValidActivationPassphrase(passphrase)) {
-    return { ok: false, error: 'invalid_activation_password', status: getOnlineModeStatus() };
+function isOnlineModeActivated(): boolean {
+  return Boolean(getOnlineActivationRecord()?.token);
+}
+
+export async function activateOnlineMode(passphrase: string): Promise<OnlineModeActivationResult> {
+  const webBaseUrl = getDesktopGatewayBaseUrl();
+  if (!webBaseUrl) return { ok: false, error: 'missing_gateway_url', status: getOnlineModeStatus() };
+  const deviceId = getDesktopDeviceId();
+  let token = '';
+  try {
+    const res = await fetch(`${webBaseUrl}/api/desktop/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passphrase, deviceId }),
+    });
+    const payload = (await res.json().catch(() => ({}))) as { ok?: boolean; token?: string; error?: OnlineModeActivationResult['error'] };
+    if (!res.ok || !payload.ok || !payload.token) {
+      return { ok: false, error: payload.error ?? 'server_error', status: getOnlineModeStatus() };
+    }
+    token = payload.token;
+  } catch {
+    return { ok: false, error: 'activation_network_error', status: getOnlineModeStatus() };
   }
 
   try {
@@ -126,11 +193,13 @@ export function activateOnlineMode(passphrase: string): OnlineModeActivationResu
     const record: OnlineModeActivationRecord = {
       activated: true,
       activatedAt: new Date().toISOString(),
-      passphraseHash: ONLINE_ACTIVATION_PASSPHRASE_HASH,
+      deviceId,
+      token,
+      webBaseUrl,
     };
     mkdirSync(userDataPath, { recursive: true });
     writeFileSync(getOnlineActivationPath(), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
-    cachedOnlineActivation = true;
+    cachedOnlineActivationRecord = record;
     return { ok: true, status: getOnlineModeStatus() };
   } catch {
     return { ok: false, error: 'activation_write_failed', status: getOnlineModeStatus() };
@@ -138,24 +207,20 @@ export function activateOnlineMode(passphrase: string): OnlineModeActivationResu
 }
 
 export function getOnlineModeStatus(): OnlineModeStatus {
-  const runtimeConfig = getDesktopRuntimeConfig();
+  const activationRecord = getOnlineActivationRecord();
+  const webBaseUrl = activationRecord?.webBaseUrl || getDesktopGatewayBaseUrl();
   const activated = isOnlineModeActivated();
-  const hasSupabaseUrl = Boolean(String(process.env.VITE_SUPABASE_URL ?? runtimeConfig.supabaseUrl ?? '').trim());
-  const hasSupabaseAnonKey = Boolean(String(process.env.VITE_SUPABASE_ANON_KEY ?? runtimeConfig.supabaseAnonKey ?? '').trim());
-  const hasServiceRoleKey = Boolean(String(process.env.SUPABASE_SERVICE_ROLE_KEY ?? runtimeConfig.supabaseServiceRoleKey ?? '').trim());
-  const hasWebBaseUrl = Boolean(String(process.env.UOADROP_WEB_BASE_URL ?? runtimeConfig.webBaseUrl ?? '').trim());
-  const hasNotifyServerUrl = Boolean(String(process.env.UOADROP_NOTIFY_SERVER_URL ?? runtimeConfig.notifyServerUrl ?? '').trim());
-  const reason: OnlineModeReason = activated ? 'enabled' : 'activation_required';
+  let reason: OnlineModeReason = activated ? 'enabled' : 'activation_required';
+  if (!webBaseUrl) reason = 'missing_gateway_url';
 
   return {
-    enabled: activated,
+    enabled: activated && Boolean(webBaseUrl),
     reason,
     activated,
-    hasSupabaseUrl,
-    hasSupabaseAnonKey,
-    hasServiceRoleKey,
-    hasWebBaseUrl,
-    hasNotifyServerUrl,
+    deviceId: activationRecord?.deviceId || getDesktopDeviceId(),
+    webBaseUrl,
+    hasGatewayUrl: Boolean(webBaseUrl),
+    hasDesktopToken: Boolean(activationRecord?.token),
   };
 }
 
@@ -163,56 +228,56 @@ export function isOnlineModeAuthorized(): boolean {
   return getOnlineModeStatus().enabled;
 }
 
-export function getSupabaseRuntimeConfig(): {
-  url: string;
-  anonKey: string;
-  serviceRoleKey: string;
-} {
-  if (!isOnlineModeAuthorized()) return { url: '', anonKey: '', serviceRoleKey: '' };
-  const runtimeConfig = getDesktopRuntimeConfig();
+export function getDesktopGatewayConfig(): DesktopGatewayConfig | null {
+  if (!isOnlineModeAuthorized()) return null;
+  const activationRecord = getOnlineActivationRecord();
+  if (!activationRecord?.token) return null;
   return {
-    url: String(process.env.VITE_SUPABASE_URL ?? runtimeConfig.supabaseUrl ?? '').trim(),
-    anonKey: String(process.env.VITE_SUPABASE_ANON_KEY ?? runtimeConfig.supabaseAnonKey ?? '').trim(),
-    serviceRoleKey: String(process.env.SUPABASE_SERVICE_ROLE_KEY ?? runtimeConfig.supabaseServiceRoleKey ?? '').trim(),
+    baseUrl: activationRecord.webBaseUrl || getDesktopGatewayBaseUrl(),
+    token: activationRecord.token,
+    deviceId: activationRecord.deviceId,
   };
 }
 
-export function hasProductionServiceRoleKey(): boolean {
-  return Boolean(getSupabaseRuntimeConfig().serviceRoleKey);
-}
+export async function checkOnlineGatewayDiagnostics(): Promise<OnlineGatewayDiagnostics> {
+  const status = getOnlineModeStatus();
+  const config = getDesktopGatewayConfig();
+  if (!status.enabled || !config) {
+    return { ok: false, serverReachable: false, error: status.reason, status };
+  }
 
-export function getTelegramRuntimeConfig(): { botToken: string } {
-  if (!isOnlineModeAuthorized()) return { botToken: '' };
-  const runtimeConfig = getDesktopRuntimeConfig();
-  return {
-    botToken: String(process.env.TELEGRAM_BOT_TOKEN ?? runtimeConfig.telegramBotToken ?? '').trim(),
-  };
-}
-
-export function getNotifyServerUrl(): string {
-  if (!isOnlineModeAuthorized()) return '';
-  const runtimeConfig = getDesktopRuntimeConfig();
-  return String(process.env.UOADROP_NOTIFY_SERVER_URL ?? runtimeConfig.notifyServerUrl ?? '').trim();
+  try {
+    const res = await fetch(`${config.baseUrl}/api/desktop/status`, {
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+      },
+    });
+    const payload = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; details?: string; pendingOnlineRequests?: number };
+    if (!res.ok || payload.ok === false) {
+      return {
+        ok: false,
+        serverReachable: true,
+        error: payload.details || payload.error || `http_${res.status}`,
+        status: getOnlineModeStatus(),
+      };
+    }
+    return {
+      ok: true,
+      serverReachable: true,
+      pendingOnlineRequests: payload.pendingOnlineRequests ?? 0,
+      status: getOnlineModeStatus(),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      serverReachable: false,
+      error: String((err as Error)?.message ?? err).slice(0, 200),
+      status: getOnlineModeStatus(),
+    };
+  }
 }
 
 export function getWebBaseUrl(): string {
   if (!isOnlineModeAuthorized()) return '';
-  const runtimeConfig = getDesktopRuntimeConfig();
-  return String(process.env.UOADROP_WEB_BASE_URL ?? runtimeConfig.webBaseUrl ?? '').trim().replace(/\/$/, '');
-}
-
-export function getOnlineEncryptionPrivateKey(): string {
-  if (!isOnlineModeAuthorized()) return '';
-  const runtimeConfig = getDesktopRuntimeConfig();
-  const raw = String(process.env.UOADROP_ENCRYPTION_PRIVATE_KEY ?? runtimeConfig.onlineEncryptionPrivateKey ?? '').trim();
-  if (raw) return raw.replace(/\\n/g, '\n');
-
-  const encoded = String(process.env.UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64 ?? runtimeConfig.onlineEncryptionPrivateKeyBase64 ?? '').trim();
-  if (!encoded) return '';
-
-  try {
-    return Buffer.from(encoded, 'base64').toString('utf8').trim().replace(/\\n/g, '\n');
-  } catch {
-    return '';
-  }
+  return getDesktopGatewayConfig()?.baseUrl ?? '';
 }

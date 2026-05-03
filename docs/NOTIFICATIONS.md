@@ -15,16 +15,16 @@
 التنفيذ الحالي يعتمد على Next.js APIs داخل `apps/web` وليس Supabase Edge Functions:
 
 - `/api/notify/email` لإشعار البريد عند استلام/جاهزية الطلب.
-- `/api/notify/telegram` لإشعار Telegram عند الربط/الجاهزية.
+- `/api/desktop/telegram` لإشعار Telegram عند الربط/الجاهزية عبر Desktop Gateway.
 - `/api/telegram/webhook` لربط `telegram_chat_id` بالطلب عبر البوت.
-- `/api/notify/announcement` للإعلان الجماعي للأونلاين فقط.
+- `/api/desktop/announcement` للإعلان الجماعي للأونلاين فقط عبر Desktop Gateway.
 - `/api/cron/notify-delayed` لتنبيه الطلبات المتأخرة.
 
 الإعلان الجماعي الحالي:
 
-- يقرأ المستلمين من Supabase `print_requests` حيث `source = 'online'`.
+- يقرأ المستلمين عبر Desktop Gateway من `print_requests` حيث `source = 'online'`.
 - يستخدم `student_email` و`telegram_chat_id`.
-- يتطلب من الديسكتوب إرسال bearer token بدور `service_role`.
+- يتطلب من الديسكتوب إرسال activation token فقط.
 - لا يشمل طلبات Offline/Local.
 - يعتمد إرسال Email على SMTP variables في Vercel.
 - يعتمد إرسال Telegram على `TELEGRAM_BOT_TOKEN` في Vercel.
@@ -54,7 +54,7 @@
 - **Email**: فقط عند `done` (جاهزية) أو `blocked` (مشكلة تحتاج تدخل الطالب) — تقدير أقصى ~600 email/شهر < 3000 quota.
 - **Telegram**: كل الأحداث (مجاني بلا حدود، خفيف وفوري).
 
-> ملاحظة تنفيذية: في النظام الحالي يتم إرسال إشعارات `received` و`ready` عبر APIs داخل تطبيق الويب (`/api/notify/email`, `/api/notify/telegram`).
+> ملاحظة تنفيذية: في النظام الحالي يتم إرسال إشعارات Telegram لحالات `received` و`ready` عبر Desktop Gateway، أما البريد فيبقى عبر `/api/notify/email`.
 > الإشعارات الأخرى المذكورة هنا قد تكون مخططة أو تعتمد على توسعة لاحقة في الداشبورد.
 
 ---
@@ -102,8 +102,8 @@
 ┌────────────────────────────────────────────┐
 │  Web app (Next.js على Vercel)               │
 │  - /api/notify/email                        │
-│  - /api/notify/telegram                     │
-│  - /api/notify/announcement                 │
+│  - /api/desktop/telegram                    │
+│  - /api/desktop/announcement                │
 │  - /api/cron/notify-delayed                 │
 └──────────────────┬──────────────────────────┘
                    │
@@ -162,9 +162,9 @@ CREATE TRIGGER trg_notify
 ### 5.2 الآلية الحالية
 1. بلال يرفع الطلب → يتم حفظ `student_email` و/أو تفضيل Telegram في Supabase.
 2. إذا ربط Telegram، `/api/telegram/webhook` يحفظ `telegram_chat_id`.
-3. عند وصول/جاهزية الطلب، الديسكتوب يستدعي `/api/notify/email` و/أو `/api/notify/telegram`.
-4. للإعلان الجماعي، الديسكتوب يستدعي `/api/notify/announcement` مع bearer token بدور `service_role`.
-5. API الإعلان يقرأ كل مستلمي الأونلاين من `print_requests.source = 'online'` ثم يرسل عبر SMTP وTelegram Bot API.
+3. عند وصول/جاهزية الطلب، الديسكتوب يستدعي `/api/desktop/telegram` عبر activation token، والبريد عبر `/api/notify/email`.
+4. للإعلان الجماعي، الديسكتوب يستدعي `/api/desktop/announcement` مع activation token.
+5. Gateway يقرأ كل مستلمي الأونلاين من `print_requests.source = 'online'` ثم يرسل عبر SMTP وTelegram Bot API.
 
 ---
 

@@ -47,18 +47,25 @@ type DashboardStats = {
 
 type OnlineModeStatus = {
   enabled: boolean;
-  reason: 'enabled' | 'activation_required';
+  reason: 'enabled' | 'activation_required' | 'missing_gateway_url';
   activated: boolean;
-  hasSupabaseUrl: boolean;
-  hasSupabaseAnonKey: boolean;
-  hasServiceRoleKey: boolean;
-  hasWebBaseUrl: boolean;
-  hasNotifyServerUrl: boolean;
+  deviceId: string;
+  webBaseUrl: string;
+  hasGatewayUrl: boolean;
+  hasDesktopToken: boolean;
 };
 
 type OnlineModeActivationResult = {
   ok: boolean;
-  error?: 'invalid_activation_password' | 'activation_write_failed';
+  error?: 'invalid_activation_password' | 'activation_write_failed' | 'activation_network_error' | 'missing_gateway_url' | 'server_error';
+  status: OnlineModeStatus;
+};
+
+type OnlineGatewayDiagnostics = {
+  ok: boolean;
+  serverReachable: boolean;
+  error?: string;
+  pendingOnlineRequests?: number;
   status: OnlineModeStatus;
 };
 
@@ -79,6 +86,7 @@ declare global {
       }) => Promise<{ items: PrintRequest[]; total: number }>;
       getDashboardStats: () => Promise<DashboardStats>;
       getOnlineModeStatus: () => Promise<OnlineModeStatus>;
+      getOnlineDiagnostics: () => Promise<OnlineGatewayDiagnostics>;
       activateOnlineMode: (passphrase: string) => Promise<OnlineModeActivationResult>;
       setRequestStatus: (id: string, status: RequestStatus) => Promise<{ ok: true }>;
       setRequestPrice: (id: string, priceIqd: number) => Promise<{ ok: true }>;

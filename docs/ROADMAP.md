@@ -148,8 +148,8 @@
 - [x] Telegram Bot API وربط `telegram_chat_id`
 - [x] تنبيه تأخير للطلبات الأونلاين
 - [x] إعلان جماعي للأونلاين فقط من الديسكتوب
-- [x] عدّ مباشر للمستلمين من Supabase (`student_email`, `telegram_chat_id`)
-- [x] API الإعلان يقبل bearer token بدور `service_role`
+- [x] عدّ مباشر للمستلمين عبر Desktop Gateway (`student_email`, `telegram_chat_id`)
+- [x] API الإعلان يعمل عبر activation token بدون مفاتيح Supabase داخل الديسكتوب
 
 ### 2.5 — Deploy + Operations ✅
 - [x] Vercel production deployment

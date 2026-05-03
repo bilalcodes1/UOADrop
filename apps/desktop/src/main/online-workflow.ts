@@ -1,10 +1,9 @@
 import { app } from 'electron';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { constants as cryptoConstants, createDecipheriv, createHash, privateDecrypt } from 'node:crypto';
+import { createDecipheriv, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import type { PaymentMethod, PaymentStatus, PrintRequest } from '@uoadrop/shared';
-import { getOnlineEncryptionPrivateKey, getOnlineModeStatus, getSupabaseRuntimeConfig, hasProductionServiceRoleKey } from './runtime-config';
+import { getDesktopGatewayConfig, getOnlineModeStatus } from './runtime-config';
 import {
   getRequestById,
   importOnlineRequest,
@@ -17,7 +16,7 @@ import { emit as emitAppEvent } from './events';
 import { notifyEmailReceived } from './email-notify';
 import { notifyTelegramRequestReceived } from './telegram';
 
-type SupabaseRequestRow = {
+type GatewayRequestRow = {
   id: string;
   ticket: string;
   student_name: string | null;
@@ -44,7 +43,7 @@ type SupabaseRequestRow = {
   payment_verified_at: string | null;
 };
 
-type SupabaseFileRow = {
+type GatewayFileRow = {
   id: string;
   request_id: string;
   filename: string;
@@ -61,10 +60,12 @@ type SupabaseFileRow = {
   encryption_iv: string | null;
   encrypted_key: string | null;
   encrypted_size_bytes: number | null;
+  signed_url?: string | null;
+  decryption_key_base64?: string | null;
 };
 
-type SupabaseMirrorPatch = Partial<Pick<
-  SupabaseRequestRow,
+type GatewayMirrorPatch = Partial<Pick<
+  GatewayRequestRow,
   | 'status'
   | 'price_iqd'
   | 'total_pages'
@@ -106,7 +107,6 @@ const ONLINE_FILE_RETENTION_HOURS = 48;
 const ONLINE_FILE_ENCRYPTION_ALGORITHM = 'AES-256-GCM+RSA-OAEP-SHA256';
 const AES_GCM_AUTH_TAG_BYTES = 16;
 
-let supabase: SupabaseClient | null = null;
 let started = false;
 let intakeBusy = false;
 let cleanupBusy = false;
@@ -116,43 +116,44 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function readSupabaseConfig(): { url: string; key: string } | null {
+async function gatewayRequest<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T | null> {
   const onlineStatus = getOnlineModeStatus();
   if (!onlineStatus.enabled) return null;
-  const { url, anonKey, serviceRoleKey } = getSupabaseRuntimeConfig();
-  const key = serviceRoleKey || anonKey;
-  if (!url || !key) return null;
-  return { url, key };
-}
-
-function getSupabaseClient(): SupabaseClient | null {
-  if (supabase) return supabase;
-  const config = readSupabaseConfig();
+  const config = getDesktopGatewayConfig();
   if (!config) return null;
-  supabase = createClient(config.url, config.key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    realtime: { params: { eventsPerSecond: 10 } },
+  const res = await fetch(`${config.baseUrl}/api/desktop${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.token}`,
+      ...(init?.headers ?? {}),
+    },
   });
-  return supabase;
+  const payload = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; details?: string } & T;
+  if (!res.ok || payload.ok === false) {
+    throw new Error(payload.details || payload.error || `desktop_gateway_${res.status}`);
+  }
+  return payload;
 }
 
-export async function syncPaymentAccountsToSupabase(accounts: {
+export async function syncPaymentAccountsToGateway(accounts: {
   qiCard: string;
   zainCash: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const onlineStatus = getOnlineModeStatus();
   if (!onlineStatus.enabled) return { ok: false, error: onlineStatus.reason };
-  const client = getSupabaseClient();
-  if (!client) return { ok: false, error: 'missing_supabase_config' };
-  const now = new Date().toISOString();
-  const { error } = await client
-    .from('payment_settings')
-    .upsert([
-      { key: 'qicard', account_number: accounts.qiCard, updated_at: now },
-      { key: 'zaincash', account_number: accounts.zainCash, updated_at: now },
-    ], { onConflict: 'key' });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  try {
+    const res = await gatewayRequest<{ ok: boolean; error?: string }>('/payment-settings', {
+      method: 'POST',
+      body: JSON.stringify(accounts),
+    });
+    return res?.ok ? { ok: true } : { ok: false, error: res?.error ?? 'missing_gateway_config' };
+  } catch (err) {
+    return { ok: false, error: String((err as Error)?.message ?? err).slice(0, 200) };
+  }
 }
 
 function safeSegment(value: string): string {
@@ -207,11 +208,11 @@ function decodeBase64Buffer(value: string): Buffer {
   return Buffer.from(padded, 'base64');
 }
 
-function isEncryptedOnlineFile(file: SupabaseFileRow): boolean {
+function isEncryptedOnlineFile(file: GatewayFileRow): boolean {
   return Boolean(file.encryption_algorithm || file.encrypted_key || file.encryption_iv);
 }
 
-async function decryptOnlineFileAtPath(file: SupabaseFileRow, localPath: string): Promise<void> {
+async function decryptOnlineFileAtPath(file: GatewayFileRow, localPath: string): Promise<void> {
   if (!isEncryptedOnlineFile(file)) return;
   if (file.encryption_algorithm !== ONLINE_FILE_ENCRYPTION_ALGORITHM) {
     throw new Error(`Unsupported online file encryption algorithm: ${file.encryption_algorithm ?? 'missing'}`);
@@ -220,9 +221,9 @@ async function decryptOnlineFileAtPath(file: SupabaseFileRow, localPath: string)
     throw new Error('Encrypted online file is missing encryption metadata');
   }
 
-  const privateKey = getOnlineEncryptionPrivateKey();
-  if (!privateKey) {
-    throw new Error('Missing UOADROP_ENCRYPTION_PRIVATE_KEY for encrypted online file import');
+  let aesKey = file.decryption_key_base64 ? decodeBase64Buffer(file.decryption_key_base64) : null;
+  if (!aesKey) {
+    throw new Error('Missing online file decryption key from gateway');
   }
 
   const encrypted = await readFile(localPath);
@@ -230,14 +231,6 @@ async function decryptOnlineFileAtPath(file: SupabaseFileRow, localPath: string)
     throw new Error('Encrypted online file payload is too small');
   }
 
-  const aesKey = privateDecrypt(
-    {
-      key: privateKey,
-      padding: cryptoConstants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: 'sha256',
-    },
-    decodeBase64Buffer(file.encrypted_key),
-  );
   const iv = decodeBase64Buffer(file.encryption_iv);
   const ciphertext = encrypted.subarray(0, encrypted.length - AES_GCM_AUTH_TAG_BYTES);
   const authTag = encrypted.subarray(encrypted.length - AES_GCM_AUTH_TAG_BYTES);
@@ -247,7 +240,7 @@ async function decryptOnlineFileAtPath(file: SupabaseFileRow, localPath: string)
   await writeFile(localPath, decrypted);
 }
 
-function buildMirrorPatchFromLocal(request: PrintRequest): SupabaseMirrorPatch {
+function buildMirrorPatchFromLocal(request: PrintRequest): GatewayMirrorPatch {
   return {
     desk_received_at: request.deskReceivedAt ?? new Date().toISOString(),
     total_pages: request.totalPages,
@@ -272,7 +265,7 @@ function parsePaymentStatus(value: string | null): PaymentStatus | null {
   return value === 'pending' || value === 'verified' || value === 'rejected' ? value : null;
 }
 
-function syncLocalPaymentFromRemoteRow(row: SupabaseRequestRow): PrintRequest | null {
+function syncLocalPaymentFromRemoteRow(row: GatewayRequestRow): PrintRequest | null {
   const paymentMethod = parsePaymentMethod(row.payment_method);
   const paymentStatus = parsePaymentStatus(row.payment_status);
   if (!paymentMethod || !paymentStatus || !row.payment_transaction_ref) return null;
@@ -293,63 +286,40 @@ function syncLocalPaymentFromRemoteRow(row: SupabaseRequestRow): PrintRequest | 
   return result.request ?? null;
 }
 
-async function patchMirror(requestId: string, patch: SupabaseMirrorPatch): Promise<void> {
-  const client = getSupabaseClient();
-  if (!client) return;
-  const { error } = await client
-    .from('print_requests')
-    .update(patch)
-    .eq('id', requestId)
-    .eq('source', 'online');
-  if (error) throw error;
+async function patchMirror(requestId: string, patch: GatewayMirrorPatch): Promise<void> {
+  await gatewayRequest<{ ok: boolean }>(`/requests/${encodeURIComponent(requestId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
 }
 
-async function listRemoteFiles(requestId: string): Promise<SupabaseFileRow[]> {
-  const client = getSupabaseClient();
-  if (!client) return [];
-  let files: SupabaseFileRow[] = [];
+async function listRemoteFiles(requestId: string): Promise<GatewayFileRow[]> {
+  let files: GatewayFileRow[] = [];
   for (let attempt = 0; attempt < FILE_LIST_RETRIES; attempt += 1) {
-    const { data } = await client
-      .from('request_files')
-      .select('*')
-      .eq('request_id', requestId);
-    files = (data ?? []) as SupabaseFileRow[];
+    const payload = await gatewayRequest<{ ok: boolean; files: GatewayFileRow[] }>(`/requests/${encodeURIComponent(requestId)}/files`);
+    files = payload?.files ?? [];
     if (files.length > 0) break;
     await sleep(FILE_LIST_DELAY_MS);
   }
   return files;
 }
 
-async function getRemoteRequestRow(requestId: string): Promise<SupabaseRequestRow | null> {
-  const client = getSupabaseClient();
-  if (!client) return null;
-  const { data, error } = await client
-    .from('print_requests')
-    .select('*')
-    .eq('id', requestId)
-    .eq('source', 'online')
-    .maybeSingle();
-  if (error || !data) return null;
-  return data as SupabaseRequestRow;
+async function getRemoteRequestRow(requestId: string): Promise<GatewayRequestRow | null> {
+  const payload = await gatewayRequest<{ ok: boolean; row: GatewayRequestRow | null }>(`/requests/${encodeURIComponent(requestId)}`);
+  return payload?.row ?? null;
 }
 
-async function prepareLocalFiles(requestId: string, files: SupabaseFileRow[]): Promise<ImportedLocalFile[]> {
-  const client = getSupabaseClient();
-  if (!client) return [];
+async function prepareLocalFiles(requestId: string, files: GatewayFileRow[]): Promise<ImportedLocalFile[]> {
   const localFiles: ImportedLocalFile[] = [];
 
   for (const file of files) {
     let localPath: string | null = null;
 
     for (let attempt = 0; attempt < DOWNLOAD_RETRIES; attempt += 1) {
-      const { data, error } = await client.storage
-        .from('print-files')
-        .createSignedUrl(file.storage_path, 60 * 60 * 24 * 7);
-
-      if (!error && data?.signedUrl) {
+      if (file.signed_url) {
         try {
           localPath = await downloadOnlineFileToRequestStore({
-            url: data.signedUrl,
+            url: file.signed_url,
             requestId,
             fileId: file.id,
             filename: file.filename,
@@ -398,36 +368,19 @@ async function prepareLocalFiles(requestId: string, files: SupabaseFileRow[]): P
   return localFiles;
 }
 
-async function cleanupRemoteSource(requestId: string, files: SupabaseFileRow[]): Promise<boolean> {
-  const client = getSupabaseClient();
-  if (!client) return false;
-  const storagePaths = [...new Set(files.map((file) => file.storage_path).filter(Boolean))];
-
-  if (storagePaths.length > 0) {
-    const { error: storageErr } = await client.storage
-      .from('print-files')
-      .remove(storagePaths);
-    if (storageErr) {
-      // eslint-disable-next-line no-console
-      console.warn(`[UOADrop] Cleanup failed (storage.remove) for ${requestId}: ${storageErr.message}`);
-      return false;
-    }
-  }
-
-  const { error: filesErr } = await client
-    .from('request_files')
-    .delete()
-    .eq('request_id', requestId);
-
-  if (filesErr) {
+async function cleanupRemoteSource(requestId: string, files: GatewayFileRow[]): Promise<boolean> {
+  void files;
+  try {
+    const res = await gatewayRequest<{ ok: boolean }>(`/requests/${encodeURIComponent(requestId)}/cleanup`, { method: 'POST' });
+    return Boolean(res?.ok);
+  } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn(`[UOADrop] Cleanup failed (request_files.delete) for ${requestId}: ${filesErr.message}`);
+    console.warn(`[UOADrop] Cleanup failed for ${requestId}: ${String((err as Error)?.message ?? err).slice(0, 200)}`);
+    return false;
   }
-
-  return !filesErr;
 }
 
-async function importPendingRow(row: SupabaseRequestRow): Promise<PrintRequest | null> {
+async function importPendingRow(row: GatewayRequestRow): Promise<PrintRequest | null> {
   if (row.source !== 'online' || row.status !== 'pending' || row.source_of_truth === 'desktop' || row.desk_received_at) {
     return null;
   }
@@ -588,7 +541,7 @@ export async function repairOnlineRequestLocalFiles(requestId: string): Promise<
 
 export async function syncOnlineRequestMirrorFromLocal(
   requestId: string,
-  patch?: SupabaseMirrorPatch,
+  patch?: GatewayMirrorPatch,
 ): Promise<void> {
   const onlineStatus = getOnlineModeStatus();
   if (!onlineStatus.enabled) return;
@@ -613,18 +566,11 @@ export async function cancelOnlineRequestMirror(request: PrintRequest): Promise<
 
 async function runIntakePass(): Promise<void> {
   if (intakeBusy) return;
-  const client = getSupabaseClient();
-  if (!client) return;
+  if (!getDesktopGatewayConfig()) return;
   intakeBusy = true;
   try {
-    const { data } = await client
-      .from('print_requests')
-      .select('*')
-      .eq('source', 'online')
-      .in('status', ['pending', 'printing', 'ready'])
-      .order('created_at', { ascending: false });
-
-    const rows = (data ?? []) as SupabaseRequestRow[];
+    const payload = await gatewayRequest<{ ok: boolean; rows: GatewayRequestRow[] }>('/requests?mode=active');
+    const rows = payload?.rows ?? [];
     for (const row of rows) {
       syncLocalPaymentFromRemoteRow(row);
       await importPendingRow(row);
@@ -639,18 +585,12 @@ async function runIntakePass(): Promise<void> {
 
 async function runCleanupPass(): Promise<void> {
   if (cleanupBusy) return;
-  const client = getSupabaseClient();
-  if (!client) return;
+  if (!getDesktopGatewayConfig()) return;
   cleanupBusy = true;
   try {
     const cutoff = new Date(Date.now() - ONLINE_FILE_RETENTION_HOURS * 60 * 60 * 1000).toISOString();
-    const { data } = await client
-      .from('print_requests')
-      .select('*')
-      .eq('source', 'online')
-      .order('created_at', { ascending: false });
-
-    const rows = (data ?? []) as SupabaseRequestRow[];
+    const payload = await gatewayRequest<{ ok: boolean; rows: GatewayRequestRow[] }>('/requests?mode=all');
+    const rows = payload?.rows ?? [];
     const cleanupCandidates = rows.filter((row) =>
       row.source_of_truth === 'desktop'
       && !!row.desk_received_at
@@ -659,11 +599,7 @@ async function runCleanupPass(): Promise<void> {
     );
 
     for (const row of cleanupCandidates) {
-      const { data: filesData } = await client
-        .from('request_files')
-        .select('*')
-        .eq('request_id', row.id);
-      const files = (filesData ?? []) as SupabaseFileRow[];
+      const files = await listRemoteFiles(row.id);
       const cleaned = await cleanupRemoteSource(row.id, files);
       if (!cleaned) continue;
 
@@ -696,16 +632,10 @@ async function runCleanupPass(): Promise<void> {
 }
 
 async function runStartupSync(): Promise<void> {
-  const client = getSupabaseClient();
-  if (!client) return;
+  if (!getDesktopGatewayConfig()) return;
   try {
-    const { data } = await client
-      .from('print_requests')
-      .select('*')
-      .eq('source', 'online')
-      .in('status', ['pending', 'printing', 'ready']);
-
-    const rows = (data ?? []) as SupabaseRequestRow[];
+    const payload = await gatewayRequest<{ ok: boolean; rows: GatewayRequestRow[] }>('/requests?mode=active');
+    const rows = payload?.rows ?? [];
     let synced = 0;
     for (const row of rows) {
       const paymentSynced = syncLocalPaymentFromRemoteRow(row);
@@ -738,14 +668,9 @@ export function startOnlineWorkflowService(): void {
     console.warn(`[UOADrop] Online workflow disabled: ${onlineStatus.reason}.`);
     return;
   }
-  if (app.isPackaged && !hasProductionServiceRoleKey()) {
+  if (!getDesktopGatewayConfig()) {
     // eslint-disable-next-line no-console
-    console.error('[UOADrop] Online workflow disabled: SUPABASE_SERVICE_ROLE_KEY is required in packaged desktop builds.');
-    return;
-  }
-  if (!getSupabaseClient()) {
-    // eslint-disable-next-line no-console
-    console.warn('[UOADrop] Online workflow disabled: Supabase runtime configuration is incomplete.');
+    console.warn('[UOADrop] Online workflow disabled: desktop gateway activation is missing.');
     return;
   }
   started = true;

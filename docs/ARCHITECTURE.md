@@ -78,21 +78,21 @@
 
 إضافة إلى الخادم المحلي، يوجد داخل تطبيق الديسكتوب خدمة Online تعمل عند توفر إعدادات Supabase:
 
-- polling لاستيراد الطلبات الأونلاين من Supabase (`online-workflow.ts`)
-- تنزيل الملفات من Supabase Storage إلى مسار محلي دائم
-- فك تشفير ملفات Online المشفرة عند وجود metadata ومفتاح خاص في `runtime-config`
-- تحديث Mirror في Supabase (`desk_received_at`, `total_pages`, `status`, ...)
-- cleanup دوري للملفات الأونلاين من Supabase بعد مدة احتفاظ
-- مزامنة السعر والحالة والدفع والحذف من الديسكتوب إلى Supabase عند الطلبات الأونلاين
+- polling لاستيراد الطلبات الأونلاين عبر Vercel Desktop Gateway (`online-workflow.ts`)
+- تنزيل الملفات عبر روابط موقعة يصدرها Gateway إلى مسار محلي دائم
+- فك تشفير ملفات Online المشفرة بعد أن يرسل Gateway مفتاح AES المفكوك؛ المفتاح الخاص يبقى في Vercel فقط
+- تحديث Mirror عبر Gateway (`desk_received_at`, `total_pages`, `status`, ...)
+- cleanup دوري للملفات الأونلاين عبر Gateway بعد مدة احتفاظ
+- مزامنة السعر والحالة والدفع والحذف من الديسكتوب إلى Gateway عند الطلبات الأونلاين
 
 ### 3.2.2 Online announcements
 
 يوجد مسار إعلان جماعي مخصص لطلبات الأونلاين فقط:
 
-- الديسكتوب يقرأ عدد المستلمين من Supabase (`student_email`, `telegram_chat_id`) للصفوف التي `source = 'online'`.
-- الإرسال يتم عبر API الويب: `POST /api/notify/announcement`.
-- الديسكتوب يرسل `SUPABASE_SERVICE_ROLE_KEY` كـ bearer token.
-- API الويب يقبل مفتاحاً بدور `service_role` ويستخدمه لقراءة مستلمي Supabase.
+- الديسكتوب يطلب عدد المستلمين عبر Gateway للصفوف التي `source = 'online'`.
+- الإرسال يتم عبر API الويب: `POST /api/desktop/announcement`.
+- الديسكتوب يرسل activation token فقط.
+- API الويب يحتفظ بمفتاح `service_role` داخل Vercel ويستخدمه لقراءة مستلمي Supabase.
 - Email يعتمد على إعدادات SMTP في Vercel.
 - Telegram يعتمد على `TELEGRAM_BOT_TOKEN` في Vercel.
 

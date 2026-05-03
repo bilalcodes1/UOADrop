@@ -62,13 +62,19 @@ type DashboardStats = {
 };
 type OnlineModeStatus = {
   enabled: boolean;
-  reason: 'enabled' | 'activation_required';
+  reason: 'enabled' | 'activation_required' | 'missing_gateway_url';
   activated: boolean;
-  hasSupabaseUrl: boolean;
-  hasSupabaseAnonKey: boolean;
-  hasServiceRoleKey: boolean;
-  hasWebBaseUrl: boolean;
-  hasNotifyServerUrl: boolean;
+  deviceId: string;
+  webBaseUrl: string;
+  hasGatewayUrl: boolean;
+  hasDesktopToken: boolean;
+};
+type OnlineGatewayDiagnostics = {
+  ok: boolean;
+  serverReachable: boolean;
+  error?: string;
+  pendingOnlineRequests?: number;
+  status: OnlineModeStatus;
 };
 
 const EMPTY_DASHBOARD_STATS: DashboardStats = {
@@ -536,12 +542,10 @@ function formatAnnouncementError(error?: string): string {
   switch (error) {
     case 'activation_required':
       return 'الأونلاين يحتاج باسورد التفعيل أولاً';
+    case 'missing_gateway_config':
+      return 'تفعيل Gateway غير مكتمل';
     case 'missing_web_base_url':
       return 'رابط الويب غير مضبوط في إعدادات التشغيل';
-    case 'missing_service_role_key':
-      return 'مفتاح الخدمة غير مضبوط لإرسال إعلان الأونلاين';
-    case 'missing_supabase_url':
-      return 'رابط Supabase غير مضبوط';
     case 'missing_message':
       return 'اكتب نص الإعلان أولاً';
     case 'no_channels':
@@ -563,6 +567,8 @@ function formatOnlineModeReason(status?: OnlineModeStatus | null): string {
       return 'الأونلاين مفعل على هذا الجهاز';
     case 'activation_required':
       return 'الأونلاين مقفول إلى أن تدخل باسورد التفعيل';
+    case 'missing_gateway_url':
+      return 'رابط سيرفر الأونلاين غير مضبوط';
     default:
       return 'جارٍ قراءة حالة الأونلاين';
   }
@@ -574,6 +580,12 @@ function formatOnlineActivationError(error?: string): string {
       return 'باسورد التفعيل غير صحيح';
     case 'activation_write_failed':
       return 'تعذر حفظ تفعيل الأونلاين على هذا الجهاز';
+    case 'activation_network_error':
+      return 'تعذر الاتصال بسيرفر التفعيل';
+    case 'missing_gateway_url':
+      return 'رابط سيرفر الأونلاين غير مضبوط';
+    case 'server_error':
+      return 'سيرفر التفعيل رجع خطأ';
     default:
       return 'تعذر تفعيل الأونلاين';
   }
@@ -594,6 +606,8 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
   const [onlineActivationPassword, setOnlineActivationPassword] = useState('');
   const [onlineActivationBusy, setOnlineActivationBusy] = useState(false);
   const [onlineActivationError, setOnlineActivationError] = useState<string | null>(null);
+  const [onlineDiagnostics, setOnlineDiagnostics] = useState<OnlineGatewayDiagnostics | null>(null);
+  const [onlineDiagnosticsBusy, setOnlineDiagnosticsBusy] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementMessage, setAnnouncementMessage] = useState('');
   const [announcementEmail, setAnnouncementEmail] = useState(true);
@@ -624,6 +638,17 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
       setOnlineModeStatus(status);
     });
     return () => { active = false; };
+  }, []);
+
+  const refreshOnlineDiagnostics = useCallback(async (): Promise<void> => {
+    setOnlineDiagnosticsBusy(true);
+    try {
+      const diagnostics = await window.api.getOnlineDiagnostics();
+      setOnlineDiagnostics(diagnostics);
+      setOnlineModeStatus(diagnostics.status);
+    } finally {
+      setOnlineDiagnosticsBusy(false);
+    }
   }, []);
 
   const refreshAnnouncementPreview = useCallback(async (): Promise<void> => {
@@ -701,6 +726,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
       }
       setOnlineActivationPassword('');
       showToast('تم تفعيل الأونلاين على هذا الجهاز');
+      void refreshOnlineDiagnostics();
     } finally {
       setOnlineActivationBusy(false);
     }
@@ -783,7 +809,23 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
           <div className={`online-mode-card ${onlineModeStatus?.enabled ? 'online-mode-card-enabled' : 'online-mode-card-disabled'}`}>
             <span>{onlineModeStatus?.enabled ? 'Online enabled' : 'Online locked'}</span>
             <strong>{formatOnlineModeReason(onlineModeStatus)}</strong>
-            <p>{onlineModeStatus?.enabled ? 'طلبات الأونلاين والمزامنة والإعلانات متاحة.' : 'أدخل باسورد التفعيل لفتح ميزات الأونلاين على هذا الجهاز.'}</p>
+            <p>{onlineModeStatus?.enabled ? 'طلبات الأونلاين والمزامنة والإعلانات متاحة عبر Vercel Gateway بدون مفاتيح داخل التطبيق.' : 'أدخل باسورد التفعيل لفتح ميزات الأونلاين على هذا الجهاز.'}</p>
+            <div className="online-mode-diagnostics">
+              <span>Gateway: {onlineModeStatus?.hasGatewayUrl ? 'جاهز' : 'غير مضبوط'}</span>
+              <span>Token: {onlineModeStatus?.hasDesktopToken ? 'محفوظ' : 'غير موجود'}</span>
+              <span>Server: {onlineDiagnostics ? (onlineDiagnostics.serverReachable ? 'متصل' : 'غير متصل') : 'غير مفحوص'}</span>
+              <span>Pending: {onlineDiagnostics?.pendingOnlineRequests?.toLocaleString('ar-IQ') ?? '-'}</span>
+              {onlineDiagnostics?.error && <span>Error: {onlineDiagnostics.error}</span>}
+              <span dir="ltr">{onlineModeStatus?.webBaseUrl || '...'}</span>
+            </div>
+            <button
+              type="button"
+              className="announcement-refresh"
+              disabled={onlineDiagnosticsBusy}
+              onClick={() => void refreshOnlineDiagnostics()}
+            >
+              {onlineDiagnosticsBusy ? 'جارٍ الفحص...' : 'فحص اتصال الأونلاين'}
+            </button>
           </div>
           {!onlineModeStatus?.enabled && (
             <>

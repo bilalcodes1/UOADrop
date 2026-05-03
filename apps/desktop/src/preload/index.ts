@@ -60,18 +60,25 @@ export interface DashboardStats {
 
 export interface OnlineModeStatus {
   enabled: boolean;
-  reason: 'enabled' | 'activation_required';
+  reason: 'enabled' | 'activation_required' | 'missing_gateway_url';
   activated: boolean;
-  hasSupabaseUrl: boolean;
-  hasSupabaseAnonKey: boolean;
-  hasServiceRoleKey: boolean;
-  hasWebBaseUrl: boolean;
-  hasNotifyServerUrl: boolean;
+  deviceId: string;
+  webBaseUrl: string;
+  hasGatewayUrl: boolean;
+  hasDesktopToken: boolean;
 }
 
 export interface OnlineModeActivationResult {
   ok: boolean;
-  error?: 'invalid_activation_password' | 'activation_write_failed';
+  error?: 'invalid_activation_password' | 'activation_write_failed' | 'activation_network_error' | 'missing_gateway_url' | 'server_error';
+  status: OnlineModeStatus;
+}
+
+export interface OnlineGatewayDiagnostics {
+  ok: boolean;
+  serverReachable: boolean;
+  error?: string;
+  pendingOnlineRequests?: number;
   status: OnlineModeStatus;
 }
 
@@ -99,6 +106,9 @@ export const api = {
 
   getOnlineModeStatus: (): Promise<OnlineModeStatus> =>
     ipcRenderer.invoke('online:getStatus'),
+
+  getOnlineDiagnostics: (): Promise<OnlineGatewayDiagnostics> =>
+    ipcRenderer.invoke('online:diagnostics'),
 
   activateOnlineMode: (passphrase: string): Promise<OnlineModeActivationResult> =>
     ipcRenderer.invoke('online:activate', passphrase),

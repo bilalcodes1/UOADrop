@@ -37,13 +37,13 @@ import {
   repairOnlineRequestLocalFiles,
   startOnlineWorkflowService,
   syncOnlineRequestMirrorFromLocal,
-  syncPaymentAccountsToSupabase,
+  syncPaymentAccountsToGateway,
 } from './online-workflow';
 import { enqueueRequestPrint } from './print-queue';
 import { notifyTelegramReady, startTelegramNotificationService } from './telegram';
 import { notifyEmailReady } from './email-notify';
 import { getOnlineAnnouncementPreview, sendOnlineAnnouncement } from './online-announcements';
-import { activateOnlineMode, getOnlineModeStatus } from './runtime-config';
+import { activateOnlineMode, checkOnlineGatewayDiagnostics, getOnlineModeStatus } from './runtime-config';
 
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
 
@@ -103,8 +103,9 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('dashboard:stats', async () => getDashboardStats());
   ipcMain.handle('online:getStatus', async () => getOnlineModeStatus());
+  ipcMain.handle('online:diagnostics', async () => checkOnlineGatewayDiagnostics());
   ipcMain.handle('online:activate', async (_e, passphrase: string) => {
-    const res = activateOnlineMode(String(passphrase ?? ''));
+    const res = await activateOnlineMode(String(passphrase ?? ''));
     if (res.ok) {
       startOnlineWorkflowService();
       startTelegramNotificationService();
@@ -118,7 +119,7 @@ export function registerIpcHandlers(): void {
     if (status === 'ready') {
       const req = getRequestById(id);
       if (req) {
-        // Always try Telegram — chat_id may be in Supabase even if not in local DB
+        // Always try Telegram — chat_id may be in the online backend even if not in local DB
         void notifyTelegramReady(req);
         if (req.studentEmail) void notifyEmailReady(req);
       }
@@ -338,7 +339,7 @@ export function registerIpcHandlers(): void {
   }));
 
   // ─────────────────────────────────────────
-  // online:downloadFile — download a Supabase signed URL to local temp dir
+  // online:downloadFile — download a gateway signed URL to local temp dir
   // ─────────────────────────────────────────
   ipcMain.handle('online:downloadFile', async (_e, url: string, filename: string, requestId?: string, fileId?: string): Promise<string> => {
     return downloadOnlineFileToRequestStore({
@@ -393,7 +394,7 @@ export function registerIpcHandlers(): void {
     const zainCash = typeof accounts?.zainCash === 'string' ? accounts.zainCash.trim() : (getSetting('payment_account_zaincash') ?? '');
     setSetting('payment_account_qicard', qiCard);
     setSetting('payment_account_zaincash', zainCash);
-    const sync = await syncPaymentAccountsToSupabase({ qiCard, zainCash });
+    const sync = await syncPaymentAccountsToGateway({ qiCard, zainCash });
     return { ok: true, synced: sync.ok, error: sync.ok ? undefined : sync.error };
   });
 

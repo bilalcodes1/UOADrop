@@ -20,20 +20,19 @@
 
 ## After packaging
 
-- Place `runtime-config.json` on the trusted machine using one of these locations:
+- Public builds do not require `runtime-config.json`; the app defaults to `https://uoadrop.vercel.app`.
+- If a custom gateway is needed, place `runtime-config.json` on the trusted machine using one of these locations:
   - userData directory
   - next to the packaged executable
   - app resources directory
-- The file should contain:
-  - `supabaseUrl`
-  - `supabaseAnonKey`
-  - `supabaseServiceRoleKey`
-  - `onlineEncryptionPrivateKeyBase64` when encrypted online uploads are enabled
+- The file should contain only:
+  - `desktopGatewayUrl`
+- Supabase, Telegram, SMTP, and encryption private keys must stay in Vercel environment variables.
 
 ## Validate on the target machine
 
 - App launches successfully
-- Online workflow starts without the service-role-key error
+- Online workflow activates from Settings and starts through the Gateway without local service-role keys
 - Encrypted online uploads import successfully when encryption is enabled
 - Online request mirror sync works
 - Cleanup/repair works

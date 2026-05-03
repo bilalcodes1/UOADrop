@@ -187,25 +187,27 @@ EMAIL_FROM=UOADrop <...>
 TELEGRAM_BOT_TOKEN=...
 ```
 
-### إعداد `runtime-config.json` للديسكتوب
+### إعداد أونلاين الديسكتوب الاحترافي
 
-يجب أن يحتوي إعداد الديسكتوب على الأقل:
+النسخة العامة من الديسكتوب لا تحتاج مفاتيح Supabase ولا Telegram ولا المفتاح الخاص. التطبيق يتصل افتراضياً بـ:
+
+```text
+https://uoadrop.vercel.app
+```
+
+إذا احتجت Gateway مختلف فقط، يمكن وضع:
 
 ```json
 {
-  "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
-  "supabaseAnonKey": "...",
-  "supabaseServiceRoleKey": "...",
-  "webBaseUrl": "https://uoadrop.vercel.app",
-  "notifyServerUrl": "https://uoadrop.vercel.app/api/notify/telegram"
+  "desktopGatewayUrl": "https://uoadrop.vercel.app"
 }
 ```
 
-- بعد تثبيت التطبيق وتجهيز `runtime-config.json`، افتح الديسكتوب → الإعدادات → **حالة الأونلاين لهذا الجهاز** وأدخل باسورد التفعيل.
-- إذا ثُبّت التطبيق على جهاز آخر ولم يتم إدخال باسورد التفعيل، يبقى الداشبورد محلياً فقط ولا يستورد طلبات الأونلاين ولا يرسل إعلانات جماعية.
-- `supabaseServiceRoleKey` مطلوب لاستيراد طلبات الأونلاين، مزامنة الحالة/السعر/الدفع/الحذف، وعدّ مستلمي الإعلان الجماعي.
-- `webBaseUrl` أو أصل `notifyServerUrl` مطلوب لإرسال الإعلان الجماعي عبر `/api/notify/announcement`.
-- لا ترفع `runtime-config.json` إلى GitHub.
+- بعد تثبيت التطبيق، افتح الديسكتوب → الإعدادات → **حالة الأونلاين لهذا الجهاز** وأدخل باسورد التفعيل.
+- السيرفر يرجع Token خاص بالجهاز، ويُحفظ محلياً في `online-mode-activation.json`.
+- إذا لم يتم إدخال باسورد التفعيل، يبقى الداشبورد محلياً فقط ولا يستورد طلبات الأونلاين ولا يرسل إعلانات جماعية.
+- مفاتيح `SUPABASE_SERVICE_ROLE_KEY` و`TELEGRAM_BOT_TOKEN` وSMTP والمفتاح الخاص للتشفير تبقى فقط داخل Vercel Environment Variables.
+- لا تضع أسرار داخل `runtime-config.json` ولا ترفعه إلى GitHub.
 
 ### تشفير ملفات Online بالمفتاح العام/الخاص
 
@@ -217,8 +219,8 @@ openssl rsa -in uoadrop-online-private.pem -pubout -out uoadrop-online-public.pe
 ```
 
 - ضع محتوى `uoadrop-online-public.pem` في Vercel داخل `NEXT_PUBLIC_UOADROP_ENCRYPTION_PUBLIC_KEY`.
-- ضع المفتاح الخاص فقط في جهاز المكتبة عبر `UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` أو `onlineEncryptionPrivateKeyBase64` داخل `runtime-config.json`.
-- لا ترفع المفتاح الخاص إلى GitHub أو Vercel.
+- ضع المفتاح الخاص في Vercel فقط عبر `UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` أو `UOADROP_ENCRYPTION_PRIVATE_KEY`.
+- لا تضع المفتاح الخاص في جهاز المكتبة أو GitHub.
 - الطلبات الجديدة فقط تُشفّر عند وجود المفتاح العام في الويب، والطلبات القديمة غير المشفرة تبقى قابلة للاستيراد.
 
 ### اختبار Online بسرعة
@@ -270,11 +272,11 @@ openssl rsa -in uoadrop-online-private.pem -pubout -out uoadrop-online-public.pe
 
 | المشكلة | السبب المرجّح | الحل |
 |---------|---------------|------|
-| الطلب الأونلاين لا يصل للداشبورد | `runtime-config.json` ناقص أو مفتاح غير صحيح | تأكد من وجود `SUPABASE_SERVICE_ROLE_KEY` في إعدادات الديسكتوب |
-| الطلب الأونلاين المشفر لا يصل | المفتاح الخاص غير موجود أو لا يطابق المفتاح العام | تأكد من `UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` وشاهد logs الديسكتوب |
+| الطلب الأونلاين لا يصل للداشبورد | الأونلاين غير مفعل أو Gateway لا يرد | افتح الإعدادات → **فحص اتصال الأونلاين** وتأكد من وجود Token واتصال السيرفر |
+| الطلب الأونلاين المشفر لا يصل | المفتاح الخاص غير مضبوط على Vercel أو لا يطابق المفتاح العام | تأكد من `UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` داخل Vercel وشاهد logs السيرفر |
 | تنبيه التأخير لا يعمل | `pg_cron` غير مفعّل/غير مجدول | تأكد من وجود job `uoadrop_notify_delayed_every_minute` داخل Supabase |
-| ملفات Supabase لا تنحذف | ما مرّت 48 ساعة أو الديسكتوب مطفي أو فشل حذف | افحص `online_files_cleanup_at` وراقب logs الديسكتوب بعد آخر تحديث |
-| إعلان الأونلاين يظهر أعداداً لكن الإرسال يفشل بـ `unauthorized` | Vercel يعمل على نسخة قديمة أو يرفض bearer token | تأكد أن آخر commit منشور وأن `/api/notify/announcement` يقبل مفتاح `service_role` |
+| ملفات Supabase لا تنحذف | ما مرّت 48 ساعة أو الديسكتوب مطفي أو فشل حذف Gateway | افحص `online_files_cleanup_at` وراقب logs الديسكتوب وVercel |
+| إعلان الأونلاين يظهر أعداداً لكن الإرسال يفشل بـ `unauthorized` | التوكن المحلي غير صحيح أو Vercel يعمل على نسخة قديمة | أعد تفعيل الأونلاين وتأكد أن آخر commit منشور وأن `/api/desktop/announcement` يعمل |
 | إعلان الأونلاين لا يرسل Email | SMTP غير مضبوط في Vercel | تأكد من `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM` |
 | إعلان الأونلاين لا يرسل Telegram | Token غير مضبوط أو chat id غير محفوظ | تأكد من `TELEGRAM_BOT_TOKEN` ومن ربط الطالب للبوت حتى يُحفظ `telegram_chat_id` |
 | بعد الضغط على `جاهز` لا يظهر الطلب في الجاهز | نسخة ديسكتوب قديمة أو فلاتر/صفحة قديمة | أعد تشغيل التطبيق؛ الكود الحالي يمسح الفلاتر المخفية ويرجع لأول صفحة تلقائياً |
