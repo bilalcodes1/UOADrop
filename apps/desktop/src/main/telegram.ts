@@ -175,13 +175,13 @@ async function pollTelegramUpdates(): Promise<void> {
 
 export function startTelegramNotificationService(): void {
   if (started) return;
-  started = true;
   if (!isConfigured()) {
     // eslint-disable-next-line no-console
     console.warn('[UOADrop] Telegram notifications disabled: TELEGRAM_BOT_TOKEN is not configured.');
     return;
   }
 
+  started = true;
   // Polling disabled — /start linking is handled by Vercel webhook.
   // Notifications (linked, ready) are sent via notifyServerUrl → Vercel API.
   // eslint-disable-next-line no-console

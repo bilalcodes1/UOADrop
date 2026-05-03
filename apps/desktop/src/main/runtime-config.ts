@@ -1,14 +1,12 @@
 import { app } from 'electron';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 
 type DesktopRuntimeConfig = {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   supabaseServiceRoleKey?: string;
-  onlineModeEnabled?: boolean;
-  onlineDeviceId?: string;
   telegramBotToken?: string;
   notifyServerUrl?: string; // e.g. https://uoadrop.example.com/api/notify/telegram
   webBaseUrl?: string; // e.g. https://uoadrop.example.com
@@ -16,14 +14,12 @@ type DesktopRuntimeConfig = {
   onlineEncryptionPrivateKeyBase64?: string;
 };
 
-export type OnlineModeReason = 'enabled' | 'disabled_by_config' | 'missing_online_device_id' | 'device_not_authorized';
+export type OnlineModeReason = 'enabled' | 'activation_required';
 
 export type OnlineModeStatus = {
   enabled: boolean;
   reason: OnlineModeReason;
-  deviceId: string;
-  configuredDeviceId: string;
-  onlineModeEnabled: boolean;
+  activated: boolean;
   hasSupabaseUrl: boolean;
   hasSupabaseAnonKey: boolean;
   hasServiceRoleKey: boolean;
@@ -31,8 +27,22 @@ export type OnlineModeStatus = {
   hasNotifyServerUrl: boolean;
 };
 
+export type OnlineModeActivationResult = {
+  ok: boolean;
+  error?: 'invalid_activation_password' | 'activation_write_failed';
+  status: OnlineModeStatus;
+};
+
+type OnlineModeActivationRecord = {
+  activated: boolean;
+  activatedAt: string;
+  passphraseHash: string;
+};
+
+const ONLINE_ACTIVATION_PASSPHRASE_HASH = 'fd482f9780b2c21ae943c2aa7c29d822624f5cea7f5fc694ea9abfbfb5ec9207';
+
 let cachedConfig: DesktopRuntimeConfig | null | undefined;
-let cachedOnlineDeviceId: string | undefined;
+let cachedOnlineActivation: boolean | undefined;
 
 function readJsonConfig(filePath: string): DesktopRuntimeConfig | null {
   try {
@@ -77,72 +87,70 @@ export function getDesktopRuntimeConfig(): DesktopRuntimeConfig {
   return cachedConfig;
 }
 
-function readOptionalBoolean(value: unknown): boolean | null {
-  if (typeof value === 'boolean') return value;
-  const normalized = String(value ?? '').trim().toLowerCase();
-  if (!normalized) return null;
-  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
-  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-  return null;
+function getOnlineActivationPath(): string {
+  return join(app.getPath('userData'), 'online-mode-activation.json');
 }
 
-function normalizeOnlineDeviceId(value: string): string {
-  return value.trim().toLowerCase();
+function hashActivationPassphrase(value: string): string {
+  return createHash('sha256').update(value.trim(), 'utf8').digest('hex');
 }
 
-export function getDesktopOnlineDeviceId(): string {
-  if (cachedOnlineDeviceId) return cachedOnlineDeviceId;
-  const userDataPath = app.getPath('userData');
-  const filePath = join(userDataPath, 'online-device-id');
+function isValidActivationPassphrase(value: string): boolean {
+  const actual = Buffer.from(hashActivationPassphrase(value), 'hex');
+  const expected = Buffer.from(ONLINE_ACTIVATION_PASSPHRASE_HASH, 'hex');
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+function isOnlineModeActivated(): boolean {
+  if (cachedOnlineActivation !== undefined) return cachedOnlineActivation;
   try {
+    const filePath = getOnlineActivationPath();
     if (existsSync(filePath)) {
-      const existing = normalizeOnlineDeviceId(readFileSync(filePath, 'utf8'));
-      if (existing) {
-        cachedOnlineDeviceId = existing;
-        return existing;
-      }
+      const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as Partial<OnlineModeActivationRecord>;
+      cachedOnlineActivation = parsed.activated === true && parsed.passphraseHash === ONLINE_ACTIVATION_PASSPHRASE_HASH;
+      return cachedOnlineActivation;
     }
   } catch {
   }
+  cachedOnlineActivation = false;
+  return cachedOnlineActivation;
+}
 
-  const generated = normalizeOnlineDeviceId(randomUUID());
-  try {
-    mkdirSync(userDataPath, { recursive: true });
-    writeFileSync(filePath, `${generated}\n`, 'utf8');
-  } catch {
+export function activateOnlineMode(passphrase: string): OnlineModeActivationResult {
+  if (!isValidActivationPassphrase(passphrase)) {
+    return { ok: false, error: 'invalid_activation_password', status: getOnlineModeStatus() };
   }
-  cachedOnlineDeviceId = generated;
-  return generated;
+
+  try {
+    const userDataPath = app.getPath('userData');
+    const record: OnlineModeActivationRecord = {
+      activated: true,
+      activatedAt: new Date().toISOString(),
+      passphraseHash: ONLINE_ACTIVATION_PASSPHRASE_HASH,
+    };
+    mkdirSync(userDataPath, { recursive: true });
+    writeFileSync(getOnlineActivationPath(), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+    cachedOnlineActivation = true;
+    return { ok: true, status: getOnlineModeStatus() };
+  } catch {
+    return { ok: false, error: 'activation_write_failed', status: getOnlineModeStatus() };
+  }
 }
 
 export function getOnlineModeStatus(): OnlineModeStatus {
   const runtimeConfig = getDesktopRuntimeConfig();
-  const deviceId = getDesktopOnlineDeviceId();
-  const configuredDeviceId = String(process.env.UOADROP_ONLINE_DEVICE_ID ?? runtimeConfig.onlineDeviceId ?? '').trim();
-  const onlineModeEnabled = readOptionalBoolean(process.env.UOADROP_ONLINE_MODE_ENABLED)
-    ?? readOptionalBoolean(runtimeConfig.onlineModeEnabled)
-    ?? false;
+  const activated = isOnlineModeActivated();
   const hasSupabaseUrl = Boolean(String(process.env.VITE_SUPABASE_URL ?? runtimeConfig.supabaseUrl ?? '').trim());
   const hasSupabaseAnonKey = Boolean(String(process.env.VITE_SUPABASE_ANON_KEY ?? runtimeConfig.supabaseAnonKey ?? '').trim());
   const hasServiceRoleKey = Boolean(String(process.env.SUPABASE_SERVICE_ROLE_KEY ?? runtimeConfig.supabaseServiceRoleKey ?? '').trim());
   const hasWebBaseUrl = Boolean(String(process.env.UOADROP_WEB_BASE_URL ?? runtimeConfig.webBaseUrl ?? '').trim());
   const hasNotifyServerUrl = Boolean(String(process.env.UOADROP_NOTIFY_SERVER_URL ?? runtimeConfig.notifyServerUrl ?? '').trim());
-  const normalizedConfiguredDeviceId = normalizeOnlineDeviceId(configuredDeviceId);
-  let reason: OnlineModeReason = 'enabled';
-  if (!onlineModeEnabled) {
-    reason = 'disabled_by_config';
-  } else if (!normalizedConfiguredDeviceId) {
-    reason = 'missing_online_device_id';
-  } else if (normalizeOnlineDeviceId(deviceId) !== normalizedConfiguredDeviceId) {
-    reason = 'device_not_authorized';
-  }
+  const reason: OnlineModeReason = activated ? 'enabled' : 'activation_required';
 
   return {
-    enabled: reason === 'enabled',
+    enabled: activated,
     reason,
-    deviceId,
-    configuredDeviceId,
-    onlineModeEnabled,
+    activated,
     hasSupabaseUrl,
     hasSupabaseAnonKey,
     hasServiceRoleKey,

@@ -111,7 +111,7 @@ async function loadOnlineContactsFromSupabase(): Promise<OnlineAnnouncementConta
 
 async function postAnnouncement(body: Record<string, unknown>): Promise<OnlineAnnouncementResult> {
   const onlineStatus = getOnlineModeStatus();
-  if (!onlineStatus.enabled) return { ok: false, error: onlineStatus.reason, details: onlineStatus.deviceId };
+  if (!onlineStatus.enabled) return { ok: false, error: onlineStatus.reason };
   const url = getAnnouncementUrl();
   const serviceRoleKey = getSupabaseRuntimeConfig().serviceRoleKey;
   if (!url) return { ok: false, error: 'missing_web_base_url' };

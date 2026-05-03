@@ -47,15 +47,19 @@ type DashboardStats = {
 
 type OnlineModeStatus = {
   enabled: boolean;
-  reason: 'enabled' | 'disabled_by_config' | 'missing_online_device_id' | 'device_not_authorized';
-  deviceId: string;
-  configuredDeviceId: string;
-  onlineModeEnabled: boolean;
+  reason: 'enabled' | 'activation_required';
+  activated: boolean;
   hasSupabaseUrl: boolean;
   hasSupabaseAnonKey: boolean;
   hasServiceRoleKey: boolean;
   hasWebBaseUrl: boolean;
   hasNotifyServerUrl: boolean;
+};
+
+type OnlineModeActivationResult = {
+  ok: boolean;
+  error?: 'invalid_activation_password' | 'activation_write_failed';
+  status: OnlineModeStatus;
 };
 
 declare global {
@@ -75,6 +79,7 @@ declare global {
       }) => Promise<{ items: PrintRequest[]; total: number }>;
       getDashboardStats: () => Promise<DashboardStats>;
       getOnlineModeStatus: () => Promise<OnlineModeStatus>;
+      activateOnlineMode: (passphrase: string) => Promise<OnlineModeActivationResult>;
       setRequestStatus: (id: string, status: RequestStatus) => Promise<{ ok: true }>;
       setRequestPrice: (id: string, priceIqd: number) => Promise<{ ok: true }>;
       setRequestWorkflowMeta: (args: {

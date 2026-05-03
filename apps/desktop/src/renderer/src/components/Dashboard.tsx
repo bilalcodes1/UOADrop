@@ -62,10 +62,8 @@ type DashboardStats = {
 };
 type OnlineModeStatus = {
   enabled: boolean;
-  reason: 'enabled' | 'disabled_by_config' | 'missing_online_device_id' | 'device_not_authorized';
-  deviceId: string;
-  configuredDeviceId: string;
-  onlineModeEnabled: boolean;
+  reason: 'enabled' | 'activation_required';
+  activated: boolean;
   hasSupabaseUrl: boolean;
   hasSupabaseAnonKey: boolean;
   hasServiceRoleKey: boolean;
@@ -536,12 +534,8 @@ function formatEventActor(actor: RequestEvent['actor']): string {
 
 function formatAnnouncementError(error?: string): string {
   switch (error) {
-    case 'disabled_by_config':
-      return 'الأونلاين غير مفعل في إعدادات هذا الجهاز';
-    case 'missing_online_device_id':
-      return 'الأونلاين يحتاج onlineDeviceId داخل إعدادات التشغيل';
-    case 'device_not_authorized':
-      return 'هذا الجهاز غير مصرح لتشغيل الأونلاين';
+    case 'activation_required':
+      return 'الأونلاين يحتاج باسورد التفعيل أولاً';
     case 'missing_web_base_url':
       return 'رابط الويب غير مضبوط في إعدادات التشغيل';
     case 'missing_service_role_key':
@@ -566,15 +560,22 @@ function formatAnnouncementError(error?: string): string {
 function formatOnlineModeReason(status?: OnlineModeStatus | null): string {
   switch (status?.reason) {
     case 'enabled':
-      return 'الأونلاين مفعل ومصرح لهذا الجهاز';
-    case 'disabled_by_config':
-      return 'الأونلاين مقفول لأن onlineModeEnabled غير مفعّل';
-    case 'missing_online_device_id':
-      return 'الأونلاين مقفول لأن onlineDeviceId غير موجود في runtime-config';
-    case 'device_not_authorized':
-      return 'الأونلاين مقفول لأن onlineDeviceId لا يطابق هذا الجهاز';
+      return 'الأونلاين مفعل على هذا الجهاز';
+    case 'activation_required':
+      return 'الأونلاين مقفول إلى أن تدخل باسورد التفعيل';
     default:
       return 'جارٍ قراءة حالة الأونلاين';
+  }
+}
+
+function formatOnlineActivationError(error?: string): string {
+  switch (error) {
+    case 'invalid_activation_password':
+      return 'باسورد التفعيل غير صحيح';
+    case 'activation_write_failed':
+      return 'تعذر حفظ تفعيل الأونلاين على هذا الجهاز';
+    default:
+      return 'تعذر تفعيل الأونلاين';
   }
 }
 
@@ -590,6 +591,9 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
   const [accountsBusy, setAccountsBusy] = useState(false);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [onlineModeStatus, setOnlineModeStatus] = useState<OnlineModeStatus | null>(null);
+  const [onlineActivationPassword, setOnlineActivationPassword] = useState('');
+  const [onlineActivationBusy, setOnlineActivationBusy] = useState(false);
+  const [onlineActivationError, setOnlineActivationError] = useState<string | null>(null);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementMessage, setAnnouncementMessage] = useState('');
   const [announcementEmail, setAnnouncementEmail] = useState(true);
@@ -679,6 +683,29 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
     }
   };
 
+  const handleActivateOnlineMode = async (): Promise<void> => {
+    const passphrase = onlineActivationPassword.trim();
+    setOnlineActivationError(null);
+    if (!passphrase) {
+      setOnlineActivationError('أدخل باسورد تفعيل الأونلاين');
+      return;
+    }
+
+    setOnlineActivationBusy(true);
+    try {
+      const res = await window.api.activateOnlineMode(passphrase);
+      setOnlineModeStatus(res.status);
+      if (!res.ok) {
+        setOnlineActivationError(formatOnlineActivationError(res.error));
+        return;
+      }
+      setOnlineActivationPassword('');
+      showToast('تم تفعيل الأونلاين على هذا الجهاز');
+    } finally {
+      setOnlineActivationBusy(false);
+    }
+  };
+
   const handleSendAnnouncement = async (): Promise<void> => {
     const title = announcementTitle.trim();
     const message = announcementMessage.trim();
@@ -750,14 +777,39 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
       <div className="settings-section">
         <div className="settings-section-head">
           <h2 className="settings-section-title">حالة الأونلاين لهذا الجهاز</h2>
-          <p className="settings-section-desc">الأونلاين يعمل فقط إذا كان هذا الجهاز مصرحاً داخل runtime-config. الأجهزة الأخرى تبقى محلية فقط حتى لو ثبت عليها التطبيق.</p>
+          <p className="settings-section-desc">الأونلاين يبقى مقفولاً إلى أن تدخل باسورد التفعيل. بعد التفعيل يُحفظ محلياً على هذا الجهاز.</p>
         </div>
         <div className="settings-fields">
           <div className={`online-mode-card ${onlineModeStatus?.enabled ? 'online-mode-card-enabled' : 'online-mode-card-disabled'}`}>
             <span>{onlineModeStatus?.enabled ? 'Online enabled' : 'Online locked'}</span>
             <strong>{formatOnlineModeReason(onlineModeStatus)}</strong>
-            <code dir="ltr">{onlineModeStatus?.deviceId ?? 'loading...'}</code>
+            <p>{onlineModeStatus?.enabled ? 'طلبات الأونلاين والمزامنة والإعلانات متاحة.' : 'أدخل باسورد التفعيل لفتح ميزات الأونلاين على هذا الجهاز.'}</p>
           </div>
+          {!onlineModeStatus?.enabled && (
+            <>
+              <div className="settings-field">
+                <label className="settings-label">باسورد تفعيل الأونلاين</label>
+                <input
+                  className="settings-input"
+                  type="password"
+                  placeholder="أدخل باسورد التفعيل"
+                  value={onlineActivationPassword}
+                  onChange={(e) => { setOnlineActivationPassword(e.target.value); setOnlineActivationError(null); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handleActivateOnlineMode();
+                  }}
+                />
+              </div>
+              {onlineActivationError && <p className="settings-error">{onlineActivationError}</p>}
+              <button
+                className="btn btn-ready settings-save"
+                disabled={onlineActivationBusy}
+                onClick={() => void handleActivateOnlineMode()}
+              >
+                {onlineActivationBusy ? 'جارٍ التفعيل...' : 'تفعيل الأونلاين'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

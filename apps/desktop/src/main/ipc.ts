@@ -35,14 +35,15 @@ import {
   cancelOnlineRequestMirror,
   downloadOnlineFileToRequestStore,
   repairOnlineRequestLocalFiles,
+  startOnlineWorkflowService,
   syncOnlineRequestMirrorFromLocal,
   syncPaymentAccountsToSupabase,
 } from './online-workflow';
 import { enqueueRequestPrint } from './print-queue';
-import { notifyTelegramReady } from './telegram';
+import { notifyTelegramReady, startTelegramNotificationService } from './telegram';
 import { notifyEmailReady } from './email-notify';
 import { getOnlineAnnouncementPreview, sendOnlineAnnouncement } from './online-announcements';
-import { getOnlineModeStatus } from './runtime-config';
+import { activateOnlineMode, getOnlineModeStatus } from './runtime-config';
 
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
 
@@ -102,6 +103,14 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('dashboard:stats', async () => getDashboardStats());
   ipcMain.handle('online:getStatus', async () => getOnlineModeStatus());
+  ipcMain.handle('online:activate', async (_e, passphrase: string) => {
+    const res = activateOnlineMode(String(passphrase ?? ''));
+    if (res.ok) {
+      startOnlineWorkflowService();
+      startTelegramNotificationService();
+    }
+    return res;
+  });
   ipcMain.handle('requests:setStatus', async (_e, id: string, status: string) => {
     const res = setRequestStatus(id, status as any);
     await syncOnlineMirrorIfNeeded(id);

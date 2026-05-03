@@ -2814,15 +2814,11 @@ body, html, #root {
   font-size: 14px;
 }
 
-.online-mode-card code {
-  display: block;
-  overflow-wrap: anywhere;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.06);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 12px;
+.online-mode-card p {
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin: 0;
+  font-size: 13px;
 }
 
 .online-mode-card-enabled {

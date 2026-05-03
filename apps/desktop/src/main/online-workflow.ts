@@ -735,7 +735,7 @@ export function startOnlineWorkflowService(): void {
   if (started) return;
   const onlineStatus = getOnlineModeStatus();
   if (!onlineStatus.enabled) {
-    console.warn(`[UOADrop] Online workflow disabled: ${onlineStatus.reason}. deviceId=${onlineStatus.deviceId}`);
+    console.warn(`[UOADrop] Online workflow disabled: ${onlineStatus.reason}.`);
     return;
   }
   if (app.isPackaged && !hasProductionServiceRoleKey()) {
