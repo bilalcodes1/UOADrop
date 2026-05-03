@@ -61,6 +61,16 @@ type DashboardStats = {
   repairNeeded: number;
 };
 
+const EMPTY_DASHBOARD_STATS: DashboardStats = {
+  total: 0,
+  online: 0,
+  local: 0,
+  ready: 0,
+  paymentPending: 0,
+  unpriced: 0,
+  repairNeeded: 0,
+};
+
 const ACTIVE_REQUEST_STATUSES: RequestStatus[] = ['pending', 'printing'];
 const ARCHIVE_REQUEST_STATUSES: RequestStatus[] = ['done', 'canceled', 'blocked'];
 const ALL_REQUEST_STATUSES: RequestStatus[] = ['pending', 'printing', 'ready', 'done', 'canceled', 'blocked'];
@@ -881,15 +891,7 @@ export function Dashboard(): JSX.Element {
   const [page, setPage] = useState(0);
   const [listLoading, setListLoading] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
-  const [stats, setStats] = useState<DashboardStats>({
-    total: 0,
-    online: 0,
-    local: 0,
-    ready: 0,
-    paymentPending: 0,
-    unpriced: 0,
-    repairNeeded: 0,
-  });
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_DASHBOARD_STATS);
   const [printer, setPrinter] = useState<{
     status: PrinterStatus;
     printerName: string | null;
@@ -947,18 +949,20 @@ export function Dashboard(): JSX.Element {
     setListLoading(true);
     const statuses = FILTER_STATUS_MAP[filter];
     try {
-      const [res, nextStats] = await Promise.all([
-        window.api.listRequestsPaged({
-          statuses,
-          search: search || undefined,
-          source: sourceFilter === 'all' ? undefined : sourceFilter,
-          payment: paymentFilter === 'all' ? undefined : paymentFilter,
-          limit: PAGE_SIZE,
-          offset: page * PAGE_SIZE,
-        }),
-        window.api.getDashboardStats(),
-      ]);
+      const res = await window.api.listRequestsPaged({
+        statuses,
+        search: search || undefined,
+        source: sourceFilter === 'all' ? undefined : sourceFilter,
+        payment: paymentFilter === 'all' ? undefined : paymentFilter,
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+      });
+      const nextStats = await window.api.getDashboardStats().catch(() => EMPTY_DASHBOARD_STATS);
       if (requestToken !== refreshTokenRef.current) return;
+      if (res.total > 0 && res.items.length === 0 && page > 0) {
+        setPage(0);
+        return;
+      }
       setRequests(res.items);
       setTotal(res.total);
       setStats(nextStats);
@@ -1698,7 +1702,7 @@ export function Dashboard(): JSX.Element {
       ) : (
         <>
       <section className="dashboard-alerts" aria-label="تنبيهات الداشبورد">
-        <button type="button" className="dashboard-alert-card" onClick={() => { setFilter('ready'); setPage(0); }}>
+        <button type="button" className="dashboard-alert-card" onClick={moveToReadyView}>
           <span>جاهزة للاستلام</span>
           <strong>{stats.ready.toLocaleString('ar-IQ')}</strong>
         </button>

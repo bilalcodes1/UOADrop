@@ -715,11 +715,12 @@ export function listRequestsPaged(args: {
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const limit = Math.max(1, Math.min(200, args.limit ?? 50));
-  const offset = Math.max(0, args.offset ?? 0);
 
   const totalRow = d
     .prepare(`SELECT COUNT(1) as c FROM print_requests ${whereSql}`)
     .get(...params) as { c: number };
+  const total = totalRow.c ?? 0;
+  const offset = total > 0 && Math.max(0, args.offset ?? 0) >= total ? 0 : Math.max(0, args.offset ?? 0);
 
   const rows = d
     .prepare(
@@ -739,7 +740,7 @@ export function listRequestsPaged(args: {
 
   const items: PrintRequest[] = rows.map(buildPrintRequest);
 
-  return { items, total: totalRow.c };
+  return { items, total };
 }
 
 export function getDashboardStats(): {
