@@ -169,7 +169,7 @@
 
 1. تأكد أن Supabase مهيأ (الجداول + Storage bucket `print-files`).
 2. في Vercel، ضع متغيرات البيئة الخاصة بـ Supabase و Email/Telegram.
-3. في جهاز المكتبة، جهّز `runtime-config.json` لكي يستطيع الديسكتوب استيراد الطلبات الأونلاين.
+3. في جهاز المكتبة الرئيسي فقط، جهّز `runtime-config.json` لكي يستطيع الديسكتوب استيراد الطلبات الأونلاين.
 4. إذا أردت تشفير ملفات Online، شغّل migration: `supabase/migrations/add_request_file_encryption_metadata.sql`.
 
 ### متغيرات Vercel المطلوبة لمسار Online
@@ -193,6 +193,8 @@ TELEGRAM_BOT_TOKEN=...
 
 ```json
 {
+  "onlineModeEnabled": true,
+  "onlineDeviceId": "DEVICE-ID-FROM-DESKTOP-SETTINGS",
   "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
   "supabaseAnonKey": "...",
   "supabaseServiceRoleKey": "...",
@@ -201,6 +203,9 @@ TELEGRAM_BOT_TOKEN=...
 }
 ```
 
+- `onlineModeEnabled` يجب أن يكون `true` فقط على جهاز المكتبة الرئيسي.
+- `onlineDeviceId` يجب أن يطابق معرّف الجهاز الظاهر داخل الديسكتوب → الإعدادات → **حالة الأونلاين لهذا الجهاز**.
+- إذا ثُبّت التطبيق على جهاز آخر بدون `onlineDeviceId` مطابق، يبقى الداشبورد محلياً فقط ولا يستورد طلبات الأونلاين ولا يرسل إعلانات جماعية.
 - `supabaseServiceRoleKey` مطلوب لاستيراد طلبات الأونلاين، مزامنة الحالة/السعر/الدفع/الحذف، وعدّ مستلمي الإعلان الجماعي.
 - `webBaseUrl` أو أصل `notifyServerUrl` مطلوب لإرسال الإعلان الجماعي عبر `/api/notify/announcement`.
 - لا ترفع `runtime-config.json` إلى GitHub.

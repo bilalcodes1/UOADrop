@@ -58,6 +58,19 @@ export interface DashboardStats {
   repairNeeded: number;
 }
 
+export interface OnlineModeStatus {
+  enabled: boolean;
+  reason: 'enabled' | 'disabled_by_config' | 'missing_online_device_id' | 'device_not_authorized';
+  deviceId: string;
+  configuredDeviceId: string;
+  onlineModeEnabled: boolean;
+  hasSupabaseUrl: boolean;
+  hasSupabaseAnonKey: boolean;
+  hasServiceRoleKey: boolean;
+  hasWebBaseUrl: boolean;
+  hasNotifyServerUrl: boolean;
+}
+
 export const api = {
   unlock: (
     pin: string,
@@ -79,6 +92,9 @@ export const api = {
 
   getDashboardStats: (): Promise<DashboardStats> =>
     ipcRenderer.invoke('dashboard:stats'),
+
+  getOnlineModeStatus: (): Promise<OnlineModeStatus> =>
+    ipcRenderer.invoke('online:getStatus'),
 
   setRequestStatus: (id: string, status: RequestStatus): Promise<{ ok: true }> =>
     ipcRenderer.invoke('requests:setStatus', id, status),

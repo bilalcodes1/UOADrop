@@ -1,6 +1,6 @@
 {
   "name": "@uoadrop/web",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "UOADrop student web app (upload + track)",
   "scripts": {

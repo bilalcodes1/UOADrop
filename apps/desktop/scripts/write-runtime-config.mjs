@@ -8,6 +8,8 @@ const outputPath = process.env.UOADROP_RUNTIME_CONFIG_OUT
 const supabaseUrl = String(process.env.VITE_SUPABASE_URL ?? '').trim();
 const supabaseAnonKey = String(process.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
 const supabaseServiceRoleKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
+const onlineModeEnabled = String(process.env.UOADROP_ONLINE_MODE_ENABLED ?? '').trim();
+const onlineDeviceId = String(process.env.UOADROP_ONLINE_DEVICE_ID ?? '').trim();
 const onlineEncryptionPrivateKey = String(process.env.UOADROP_ENCRYPTION_PRIVATE_KEY ?? '').trim();
 const onlineEncryptionPrivateKeyBase64 = String(process.env.UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64 ?? '').trim();
 
@@ -21,6 +23,14 @@ const payload = {
   supabaseAnonKey,
   supabaseServiceRoleKey,
 };
+
+if (onlineModeEnabled) {
+  payload.onlineModeEnabled = ['1', 'true', 'yes', 'on'].includes(onlineModeEnabled.toLowerCase());
+}
+
+if (onlineDeviceId) {
+  payload.onlineDeviceId = onlineDeviceId;
+}
 
 if (onlineEncryptionPrivateKey) {
   payload.onlineEncryptionPrivateKey = onlineEncryptionPrivateKey.replace(/\\n/g, '\n');

@@ -4,7 +4,7 @@ import { constants as cryptoConstants, createDecipheriv, createHash, privateDecr
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import type { PaymentMethod, PaymentStatus, PrintRequest } from '@uoadrop/shared';
-import { getOnlineEncryptionPrivateKey, getSupabaseRuntimeConfig, hasProductionServiceRoleKey } from './runtime-config';
+import { getOnlineEncryptionPrivateKey, getOnlineModeStatus, getSupabaseRuntimeConfig, hasProductionServiceRoleKey } from './runtime-config';
 import {
   getRequestById,
   importOnlineRequest,
@@ -117,6 +117,8 @@ function sleep(ms: number): Promise<void> {
 }
 
 function readSupabaseConfig(): { url: string; key: string } | null {
+  const onlineStatus = getOnlineModeStatus();
+  if (!onlineStatus.enabled) return null;
   const { url, anonKey, serviceRoleKey } = getSupabaseRuntimeConfig();
   const key = serviceRoleKey || anonKey;
   if (!url || !key) return null;
@@ -138,6 +140,8 @@ export async function syncPaymentAccountsToSupabase(accounts: {
   qiCard: string;
   zainCash: string;
 }): Promise<{ ok: boolean; error?: string }> {
+  const onlineStatus = getOnlineModeStatus();
+  if (!onlineStatus.enabled) return { ok: false, error: onlineStatus.reason };
   const client = getSupabaseClient();
   if (!client) return { ok: false, error: 'missing_supabase_config' };
   const now = new Date().toISOString();
@@ -184,6 +188,8 @@ export async function downloadOnlineFileToRequestStore(args: {
   fileId: string;
   filename: string;
 }): Promise<string> {
+  const onlineStatus = getOnlineModeStatus();
+  if (!onlineStatus.enabled) throw new Error(onlineStatus.reason);
   const dest = getPersistentOnlineFilePath(args);
   await mkdir(dirname(dest), { recursive: true });
   const res = await fetch(args.url);
@@ -526,6 +532,8 @@ export async function repairOnlineRequestLocalFiles(requestId: string): Promise<
   error?: string;
   repairedFiles?: number;
 }> {
+  const onlineStatus = getOnlineModeStatus();
+  if (!onlineStatus.enabled) return { ok: false, error: onlineStatus.reason };
   const current = getRequestById(requestId);
   if (!current) return { ok: false, error: 'not_found' };
   if (current.source !== 'online') return { ok: false, error: 'not_online' };
@@ -582,6 +590,8 @@ export async function syncOnlineRequestMirrorFromLocal(
   requestId: string,
   patch?: SupabaseMirrorPatch,
 ): Promise<void> {
+  const onlineStatus = getOnlineModeStatus();
+  if (!onlineStatus.enabled) return;
   const current = getRequestById(requestId);
   if (!current || current.source !== 'online') return;
   await patchMirror(requestId, {
@@ -591,6 +601,8 @@ export async function syncOnlineRequestMirrorFromLocal(
 }
 
 export async function cancelOnlineRequestMirror(request: PrintRequest): Promise<void> {
+  const onlineStatus = getOnlineModeStatus();
+  if (!onlineStatus.enabled) return;
   if (request.source !== 'online') return;
   await patchMirror(request.id, {
     ...buildMirrorPatchFromLocal({ ...request, status: 'canceled' }),
@@ -721,6 +733,11 @@ async function runStartupSync(): Promise<void> {
 
 export function startOnlineWorkflowService(): void {
   if (started) return;
+  const onlineStatus = getOnlineModeStatus();
+  if (!onlineStatus.enabled) {
+    console.warn(`[UOADrop] Online workflow disabled: ${onlineStatus.reason}. deviceId=${onlineStatus.deviceId}`);
+    return;
+  }
   if (app.isPackaged && !hasProductionServiceRoleKey()) {
     // eslint-disable-next-line no-console
     console.error('[UOADrop] Online workflow disabled: SUPABASE_SERVICE_ROLE_KEY is required in packaged desktop builds.');

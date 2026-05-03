@@ -69,6 +69,8 @@ Do not commit production secrets into the repository.
 VITE_SUPABASE_URL='https://your-project.supabase.co' \
 VITE_SUPABASE_ANON_KEY='your-anon-key' \
 SUPABASE_SERVICE_ROLE_KEY='your-service-role-key' \
+UOADROP_ONLINE_MODE_ENABLED='true' \
+UOADROP_ONLINE_DEVICE_ID='device-id-from-settings-panel' \
 UOADROP_WEB_BASE_URL='https://uoadrop.vercel.app' \
 UOADROP_NOTIFY_SERVER_URL='https://uoadrop.vercel.app/api/notify/telegram' \
 TELEGRAM_BOT_TOKEN='telegram-bot-token' \
@@ -77,6 +79,7 @@ pnpm --filter @uoadrop/desktop runtime-config:write
 ```
 
 This writes `resources/runtime-config.json` for local packaging only. The file is gitignored.
+Online mode is locked by device. Copy the `Device ID` shown in the desktop Settings panel, put it in `UOADROP_ONLINE_DEVICE_ID` / `onlineDeviceId`, and enable `onlineModeEnabled` only on the authorized librarian laptop. Any other installation remains local-only even if the app is installed successfully.
 `UOADROP_ENCRYPTION_PRIVATE_KEY_BASE64` is required only when encrypted online uploads are enabled in the web app.
 `UOADROP_WEB_BASE_URL` or `UOADROP_NOTIFY_SERVER_URL` is required for online announcement sending.
 
@@ -92,7 +95,7 @@ Notes:
 
 - `dist:mac` builds both Apple Silicon (`arm64`) and Intel (`x64`) macOS artifacts.
 - `dist:win` builds Windows `x64` artifacts. Use `dist:win:arm64` only for Windows ARM devices.
-- Packaged desktop builds require `SUPABASE_SERVICE_ROLE_KEY` for the online workflow service.
+- Packaged desktop builds require `onlineModeEnabled: true`, matching `onlineDeviceId`, and `SUPABASE_SERVICE_ROLE_KEY` for the online workflow service.
 - Online announcements also require either `UOADROP_WEB_BASE_URL` or a `notifyServerUrl` whose origin points at the web deployment.
 - The app also looks for `runtime-config.json` in `userData`, next to the packaged executable, or under Electron resources.
 - Local mac packaging is configured unsigned by default. Production signing/notarization should be added as a separate release step.

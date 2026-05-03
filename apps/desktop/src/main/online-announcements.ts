@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { getNotifyServerUrl, getSupabaseRuntimeConfig, getWebBaseUrl } from './runtime-config';
+import { getNotifyServerUrl, getOnlineModeStatus, getSupabaseRuntimeConfig, getWebBaseUrl } from './runtime-config';
 
 export type OnlineAnnouncementCounts = {
   emails: number;
@@ -78,6 +78,8 @@ function buildCounts(contacts: OnlineAnnouncementContacts): OnlineAnnouncementCo
 }
 
 async function loadOnlineContactsFromSupabase(): Promise<OnlineAnnouncementContacts> {
+  const onlineStatus = getOnlineModeStatus();
+  if (!onlineStatus.enabled) throw new Error(onlineStatus.reason);
   const { url, serviceRoleKey } = getSupabaseRuntimeConfig();
   if (!url) throw new Error('missing_supabase_url');
   if (!serviceRoleKey) throw new Error('missing_service_role_key');
@@ -108,6 +110,8 @@ async function loadOnlineContactsFromSupabase(): Promise<OnlineAnnouncementConta
 }
 
 async function postAnnouncement(body: Record<string, unknown>): Promise<OnlineAnnouncementResult> {
+  const onlineStatus = getOnlineModeStatus();
+  if (!onlineStatus.enabled) return { ok: false, error: onlineStatus.reason, details: onlineStatus.deviceId };
   const url = getAnnouncementUrl();
   const serviceRoleKey = getSupabaseRuntimeConfig().serviceRoleKey;
   if (!url) return { ok: false, error: 'missing_web_base_url' };

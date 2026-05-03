@@ -2792,6 +2792,49 @@ body, html, #root {
   line-height: 1.8;
 }
 
+.online-mode-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.online-mode-card span {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+  direction: ltr;
+  text-align: left;
+}
+
+.online-mode-card strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.online-mode-card code {
+  display: block;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.online-mode-card-enabled {
+  border-color: rgba(22, 163, 74, 0.26);
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.online-mode-card-disabled {
+  border-color: rgba(217, 119, 6, 0.24);
+  background: rgba(217, 119, 6, 0.08);
+}
+
 .announcement-stats {
   display: flex;
   flex-wrap: wrap;

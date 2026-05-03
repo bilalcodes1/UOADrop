@@ -60,6 +60,18 @@ type DashboardStats = {
   unpriced: number;
   repairNeeded: number;
 };
+type OnlineModeStatus = {
+  enabled: boolean;
+  reason: 'enabled' | 'disabled_by_config' | 'missing_online_device_id' | 'device_not_authorized';
+  deviceId: string;
+  configuredDeviceId: string;
+  onlineModeEnabled: boolean;
+  hasSupabaseUrl: boolean;
+  hasSupabaseAnonKey: boolean;
+  hasServiceRoleKey: boolean;
+  hasWebBaseUrl: boolean;
+  hasNotifyServerUrl: boolean;
+};
 
 const EMPTY_DASHBOARD_STATS: DashboardStats = {
   total: 0,
@@ -524,6 +536,12 @@ function formatEventActor(actor: RequestEvent['actor']): string {
 
 function formatAnnouncementError(error?: string): string {
   switch (error) {
+    case 'disabled_by_config':
+      return 'الأونلاين غير مفعل في إعدادات هذا الجهاز';
+    case 'missing_online_device_id':
+      return 'الأونلاين يحتاج onlineDeviceId داخل إعدادات التشغيل';
+    case 'device_not_authorized':
+      return 'هذا الجهاز غير مصرح لتشغيل الأونلاين';
     case 'missing_web_base_url':
       return 'رابط الويب غير مضبوط في إعدادات التشغيل';
     case 'missing_service_role_key':
@@ -545,6 +563,21 @@ function formatAnnouncementError(error?: string): string {
   }
 }
 
+function formatOnlineModeReason(status?: OnlineModeStatus | null): string {
+  switch (status?.reason) {
+    case 'enabled':
+      return 'الأونلاين مفعل ومصرح لهذا الجهاز';
+    case 'disabled_by_config':
+      return 'الأونلاين مقفول لأن onlineModeEnabled غير مفعّل';
+    case 'missing_online_device_id':
+      return 'الأونلاين مقفول لأن onlineDeviceId غير موجود في runtime-config';
+    case 'device_not_authorized':
+      return 'الأونلاين مقفول لأن onlineDeviceId لا يطابق هذا الجهاز';
+    default:
+      return 'جارٍ قراءة حالة الأونلاين';
+  }
+}
+
 function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX.Element {
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
@@ -556,6 +589,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
   const [zainCash, setZainCash] = useState('');
   const [accountsBusy, setAccountsBusy] = useState(false);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
+  const [onlineModeStatus, setOnlineModeStatus] = useState<OnlineModeStatus | null>(null);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementMessage, setAnnouncementMessage] = useState('');
   const [announcementEmail, setAnnouncementEmail] = useState(true);
@@ -581,10 +615,19 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
       setZainCash(res.zainCash);
       setAccountsLoaded(true);
     });
+    void window.api.getOnlineModeStatus().then((status) => {
+      if (!active) return;
+      setOnlineModeStatus(status);
+    });
     return () => { active = false; };
   }, []);
 
   const refreshAnnouncementPreview = useCallback(async (): Promise<void> => {
+    if (onlineModeStatus && !onlineModeStatus.enabled) {
+      setAnnouncementCounts(null);
+      setAnnouncementError(formatOnlineModeReason(onlineModeStatus));
+      return;
+    }
     setAnnouncementPreviewBusy(true);
     setAnnouncementError(null);
     try {
@@ -601,11 +644,12 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
     } finally {
       setAnnouncementPreviewBusy(false);
     }
-  }, []);
+  }, [onlineModeStatus]);
 
   useEffect(() => {
+    if (!onlineModeStatus) return;
     void refreshAnnouncementPreview();
-  }, [refreshAnnouncementPreview]);
+  }, [onlineModeStatus, refreshAnnouncementPreview]);
 
   const handleChangePin = async (): Promise<void> => {
     setPinError(null);
@@ -644,6 +688,11 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
     }
     if (!announcementEmail && !announcementTelegram) {
       showToast('اختر البريد أو Telegram للإرسال');
+      return;
+    }
+    if (onlineModeStatus && !onlineModeStatus.enabled) {
+      setAnnouncementError(formatOnlineModeReason(onlineModeStatus));
+      showToast('الأونلاين غير مفعل لهذا الجهاز');
       return;
     }
 
@@ -698,6 +747,22 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
 
   return (
     <section className="settings-panel">
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h2 className="settings-section-title">حالة الأونلاين لهذا الجهاز</h2>
+          <p className="settings-section-desc">الأونلاين يعمل فقط إذا كان هذا الجهاز مصرحاً داخل runtime-config. الأجهزة الأخرى تبقى محلية فقط حتى لو ثبت عليها التطبيق.</p>
+        </div>
+        <div className="settings-fields">
+          <div className={`online-mode-card ${onlineModeStatus?.enabled ? 'online-mode-card-enabled' : 'online-mode-card-disabled'}`}>
+            <span>{onlineModeStatus?.enabled ? 'Online enabled' : 'Online locked'}</span>
+            <strong>{formatOnlineModeReason(onlineModeStatus)}</strong>
+            <code dir="ltr">{onlineModeStatus?.deviceId ?? 'loading...'}</code>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-divider" />
+
       <div className="settings-section">
         <div className="settings-section-head">
           <h2 className="settings-section-title">تغيير PIN الداشبورد</h2>
@@ -812,7 +877,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
             <button
               type="button"
               className="announcement-refresh"
-              disabled={announcementPreviewBusy}
+              disabled={announcementPreviewBusy || !onlineModeStatus?.enabled}
               onClick={() => void refreshAnnouncementPreview()}
             >
               تحديث العدد
@@ -830,6 +895,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
               placeholder="مثال: تنبيه بخصوص استلام الطلبات"
               value={announcementTitle}
               onChange={(e) => setAnnouncementTitle(e.target.value)}
+              disabled={!onlineModeStatus?.enabled}
             />
           </div>
           <div className="settings-field">
@@ -841,6 +907,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
               placeholder="اكتب الإعلان الذي تريد إرساله لكل طلبة الأونلاين..."
               value={announcementMessage}
               onChange={(e) => setAnnouncementMessage(e.target.value)}
+              disabled={!onlineModeStatus?.enabled}
             />
           </div>
           <div className="announcement-channels">
@@ -849,6 +916,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
                 type="checkbox"
                 checked={announcementEmail}
                 onChange={(e) => setAnnouncementEmail(e.target.checked)}
+                disabled={!onlineModeStatus?.enabled}
               />
               <span>إرسال للبريد الإلكتروني</span>
             </label>
@@ -857,6 +925,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
                 type="checkbox"
                 checked={announcementTelegram}
                 onChange={(e) => setAnnouncementTelegram(e.target.checked)}
+                disabled={!onlineModeStatus?.enabled}
               />
               <span>إرسال إلى Telegram</span>
             </label>
@@ -884,7 +953,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
           )}
           <button
             className="btn btn-ready settings-save"
-            disabled={announcementBusy}
+            disabled={announcementBusy || !onlineModeStatus?.enabled}
             onClick={() => void handleSendAnnouncement()}
           >
             {announcementBusy ? 'جارٍ إرسال الإعلان...' : 'إرسال الإعلان للأونلاين'}
