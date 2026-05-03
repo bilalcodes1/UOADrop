@@ -12,6 +12,7 @@ import {
   isPrintQueueBusy,
   type PrintRequest,
   type PrinterStatus,
+  type RequestEvent,
   type RequestFile,
   type RequestStatus,
 } from '@uoadrop/shared';
@@ -48,6 +49,17 @@ const STATUS_COLOR: Record<RequestStatus, string> = {
 
 const PAGE_SIZE = 24;
 type DashboardFilter = 'work' | 'ready' | 'archive' | 'all';
+type SourceFilter = 'all' | 'online' | 'local';
+type PaymentFilter = 'all' | 'pending' | 'verified' | 'rejected' | 'unpaid' | 'unpriced';
+type DashboardStats = {
+  total: number;
+  online: number;
+  local: number;
+  ready: number;
+  paymentPending: number;
+  unpriced: number;
+  repairNeeded: number;
+};
 
 const ACTIVE_REQUEST_STATUSES: RequestStatus[] = ['pending', 'printing'];
 const ARCHIVE_REQUEST_STATUSES: RequestStatus[] = ['done', 'canceled', 'blocked'];
@@ -63,6 +75,19 @@ const STATUS_FILTERS: Array<{ key: DashboardFilter; label: string }> = [
   { key: 'ready', label: 'جاهز للاستلام' },
   { key: 'archive', label: 'الأرشيف' },
   { key: 'all', label: 'الكل' },
+];
+const SOURCE_FILTERS: Array<{ key: SourceFilter; label: string }> = [
+  { key: 'all', label: 'كل المصادر' },
+  { key: 'online', label: 'أونلاين فقط' },
+  { key: 'local', label: 'أوفلاين فقط' },
+];
+const PAYMENT_FILTERS: Array<{ key: PaymentFilter; label: string }> = [
+  { key: 'all', label: 'كل حالات الدفع' },
+  { key: 'pending', label: 'دفع ينتظر التحقق' },
+  { key: 'verified', label: 'دفع مؤكد' },
+  { key: 'rejected', label: 'دفع مرفوض' },
+  { key: 'unpaid', label: 'بدون دفع' },
+  { key: 'unpriced', label: 'بدون سعر' },
 ];
 
 const DATE_FORMATTER = new Intl.DateTimeFormat('ar-IQ', {
@@ -160,14 +185,37 @@ function normalizeSearchValue(value?: string | null): string {
 
 function matchesLiveSearch(req: PrintRequest, query: string): boolean {
   if (!query) return true;
-  const ticket = normalizeSearchValue(req.ticket);
-  const studentName = normalizeSearchValue(req.studentName);
-  const notes = normalizeSearchValue(req.notes);
-  return ticket.includes(query) || studentName.includes(query) || notes.includes(query);
+  const searchableValues = [
+    req.ticket,
+    req.studentName,
+    req.notes,
+    req.studentEmail,
+    req.telegramChatId,
+    req.paymentTransactionRef,
+  ];
+  return searchableValues.some((value) => normalizeSearchValue(value).includes(query));
 }
 
-function requestMatchesDashboardFilter(req: PrintRequest, currentFilter: DashboardFilter): boolean {
-  return FILTER_STATUS_MAP[currentFilter].includes(req.status);
+function requestMatchesSourceFilter(req: PrintRequest, currentSourceFilter: SourceFilter): boolean {
+  return currentSourceFilter === 'all' || req.source === currentSourceFilter;
+}
+
+function requestMatchesPaymentFilter(req: PrintRequest, currentPaymentFilter: PaymentFilter): boolean {
+  if (currentPaymentFilter === 'all') return true;
+  if (currentPaymentFilter === 'unpriced') return !hasFinalPrice(req);
+  if (currentPaymentFilter === 'unpaid') return req.source === 'online' && !req.paymentTransactionRef;
+  return req.source === 'online' && req.paymentStatus === currentPaymentFilter && Boolean(req.paymentTransactionRef);
+}
+
+function requestMatchesDashboardFilter(
+  req: PrintRequest,
+  currentFilter: DashboardFilter,
+  currentSourceFilter: SourceFilter,
+  currentPaymentFilter: PaymentFilter,
+): boolean {
+  return FILTER_STATUS_MAP[currentFilter].includes(req.status)
+    && requestMatchesSourceFilter(req, currentSourceFilter)
+    && requestMatchesPaymentFilter(req, currentPaymentFilter);
 }
 
 function canPrintFromDashboard(req: PrintRequest): boolean {
@@ -431,6 +479,39 @@ type AnnouncementCounts = {
   totalChannels: number;
 };
 
+type RequestEventsPanelState = {
+  request: PrintRequest;
+  events: RequestEvent[];
+  loading: boolean;
+};
+
+const REQUEST_EVENT_LABEL: Record<string, string> = {
+  request_created: 'إنشاء الطلب',
+  file_added: 'إضافة ملف',
+  desk_received: 'استلام الطلب',
+  price_set: 'تحديد السعر',
+  print_queued: 'إضافة للطباعة',
+  printing_started: 'بدء الطباعة',
+  print_spooling: 'تجهيز الطباعة',
+  print_failed: 'فشل الطباعة',
+  print_recovered: 'استعادة الطباعة',
+  ready: 'جاهز للاستلام',
+  picked_up: 'تم التسليم',
+  deleted: 'حذف',
+  status_changed: 'تغيير حالة',
+  cleanup_done: 'تنظيف الملفات السحابية',
+};
+
+function formatRequestEventLabel(event: RequestEvent): string {
+  return REQUEST_EVENT_LABEL[event.type] ?? event.type;
+}
+
+function formatEventActor(actor: RequestEvent['actor']): string {
+  if (actor === 'student') return 'الطالب';
+  if (actor === 'librarian') return 'المكتبة';
+  return 'النظام';
+}
+
 function formatAnnouncementError(error?: string): string {
   switch (error) {
     case 'missing_web_base_url':
@@ -468,6 +549,14 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
   const [announcementCounts, setAnnouncementCounts] = useState<AnnouncementCounts | null>(null);
   const [announcementPreviewBusy, setAnnouncementPreviewBusy] = useState(false);
   const [announcementBusy, setAnnouncementBusy] = useState(false);
+  const [lastAnnouncementResult, setLastAnnouncementResult] = useState<{
+    sentEmail: number;
+    sentTelegram: number;
+    failedEmail: number;
+    failedTelegram: number;
+    skippedEmail: boolean;
+    skippedTelegram: boolean;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -561,6 +650,14 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
       const sentTelegram = res.sent?.telegram ?? 0;
       const failedEmail = res.failed?.emails ?? 0;
       const failedTelegram = res.failed?.telegram ?? 0;
+      setLastAnnouncementResult({
+        sentEmail,
+        sentTelegram,
+        failedEmail,
+        failedTelegram,
+        skippedEmail: Boolean(res.skipped?.emails),
+        skippedTelegram: Boolean(res.skipped?.telegram),
+      });
       setAnnouncementTitle('');
       setAnnouncementMessage('');
       showToast(
@@ -735,6 +832,27 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
               <span>إرسال إلى Telegram</span>
             </label>
           </div>
+          {announcementMessage.trim() && (
+            <div className="announcement-preview">
+              <span>معاينة الرسالة</span>
+              <strong>{announcementTitle.trim() || 'إعلان من المكتبة'}</strong>
+              <p>{announcementMessage.trim()}</p>
+            </div>
+          )}
+          {lastAnnouncementResult && (
+            <div className="announcement-result">
+              <span>آخر إرسال</span>
+              <p>
+                Email {lastAnnouncementResult.sentEmail.toLocaleString('ar-IQ')}
+                {' • '}
+                Telegram {lastAnnouncementResult.sentTelegram.toLocaleString('ar-IQ')}
+                {(lastAnnouncementResult.failedEmail + lastAnnouncementResult.failedTelegram) > 0
+                  ? ` • فشل ${(lastAnnouncementResult.failedEmail + lastAnnouncementResult.failedTelegram).toLocaleString('ar-IQ')}`
+                  : ''}
+                {lastAnnouncementResult.skippedEmail || lastAnnouncementResult.skippedTelegram ? ' • توجد قناة غير مضبوطة' : ''}
+              </p>
+            </div>
+          )}
           <button
             className="btn btn-ready settings-save"
             disabled={announcementBusy}
@@ -756,11 +874,22 @@ export function Dashboard(): JSX.Element {
   const [toast, setToast] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'requests' | 'about' | 'settings'>('requests');
   const [filter, setFilter] = useState<DashboardFilter>('work');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [listLoading, setListLoading] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [stats, setStats] = useState<DashboardStats>({
+    total: 0,
+    online: 0,
+    local: 0,
+    ready: 0,
+    paymentPending: 0,
+    unpriced: 0,
+    repairNeeded: 0,
+  });
   const [printer, setPrinter] = useState<{
     status: PrinterStatus;
     printerName: string | null;
@@ -768,6 +897,7 @@ export function Dashboard(): JSX.Element {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [filesPanel, setFilesPanel] = useState<{ request: PrintRequest; files: RequestFile[] } | null>(null);
+  const [eventsPanel, setEventsPanel] = useState<RequestEventsPanelState | null>(null);
   const [fileOptionDrafts, setFileOptionDrafts] = useState<Record<string, FileOptionDraft>>({});
   const [fileOptionBusy, setFileOptionBusy] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -796,42 +926,48 @@ export function Dashboard(): JSX.Element {
   const updateRequestSnapshot = useCallback((request: PrintRequest): void => {
     setRequests((prev) => {
       const exists = prev.some((r) => r.id === request.id);
-      const matchesFilter = requestMatchesDashboardFilter(request, filter);
+      const matchesFilter = requestMatchesDashboardFilter(request, filter, sourceFilter, paymentFilter);
       if (!matchesFilter) return prev.filter((r) => r.id !== request.id);
       if (!exists) return [request, ...prev];
       return prev.map((r) => (r.id === request.id ? request : r));
     });
-  }, [filter]);
+  }, [filter, sourceFilter, paymentFilter]);
 
   const addRequestSnapshot = useCallback((request: PrintRequest): void => {
-    if (!requestMatchesDashboardFilter(request, filter)) return;
+    if (!requestMatchesDashboardFilter(request, filter, sourceFilter, paymentFilter)) return;
     setRequests((prev) => {
       if (prev.some((r) => r.id === request.id)) return prev;
       return [request, ...prev];
     });
     setTotal((t) => t + 1);
-  }, [filter]);
+  }, [filter, sourceFilter, paymentFilter]);
 
   const refresh = useCallback(async (): Promise<void> => {
     const requestToken = ++refreshTokenRef.current;
     setListLoading(true);
     const statuses = FILTER_STATUS_MAP[filter];
     try {
-      const res = await window.api.listRequestsPaged({
-        statuses,
-        search: search || undefined,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE,
-      });
+      const [res, nextStats] = await Promise.all([
+        window.api.listRequestsPaged({
+          statuses,
+          search: search || undefined,
+          source: sourceFilter === 'all' ? undefined : sourceFilter,
+          payment: paymentFilter === 'all' ? undefined : paymentFilter,
+          limit: PAGE_SIZE,
+          offset: page * PAGE_SIZE,
+        }),
+        window.api.getDashboardStats(),
+      ]);
       if (requestToken !== refreshTokenRef.current) return;
       setRequests(res.items);
       setTotal(res.total);
+      setStats(nextStats);
     } finally {
       if (requestToken === refreshTokenRef.current) {
         setListLoading(false);
       }
     }
-  }, [filter, search, page]);
+  }, [filter, sourceFilter, paymentFilter, search, page]);
 
   // Always-fresh ref so WS callbacks never hold a stale closure
   const refreshRef = useRef(refresh);
@@ -848,7 +984,7 @@ export function Dashboard(): JSX.Element {
   useEffect(() => {
     setPage(0);
     setSelectedIds(new Set());
-  }, [filter, search]);
+  }, [filter, sourceFilter, paymentFilter, search]);
 
   useEffect(() => {
     void refreshRef.current();
@@ -858,7 +994,7 @@ export function Dashboard(): JSX.Element {
     void refresh();
     const id = setInterval(() => void refreshRef.current(), 30_000);
     return () => clearInterval(id);
-  }, [filter, search, page]);
+  }, [filter, sourceFilter, paymentFilter, search, page]);
 
   // ── Real-time updates via direct Electron IPC (zero network hop) ──
   useEffect(() => {
@@ -1099,6 +1235,17 @@ export function Dashboard(): JSX.Element {
     }
   };
 
+  const openEventsPanel = async (req: PrintRequest): Promise<void> => {
+    setEventsPanel({ request: req, events: [], loading: true });
+    try {
+      const res = await window.api.listRequestEvents(req.id, 80);
+      setEventsPanel({ request: req, events: res.items, loading: false });
+    } catch {
+      setEventsPanel({ request: req, events: [], loading: false });
+      showToast('تعذر تحميل سجل الطلب');
+    }
+  };
+
   const handleReady = async (
     req: PrintRequest,
     options?: { switchToReadyView?: boolean; silent?: boolean },
@@ -1153,9 +1300,11 @@ export function Dashboard(): JSX.Element {
 
   const handleDelete = async (req: PrintRequest): Promise<void> => {
     const confirmed = window.confirm(
-      `حذف الطلب ${req.ticket} وكل ملفاته؟ لا يمكن التراجع.`,
+      `تأكيد حذف الطلب\n\nالتذكرة: ${req.ticket}\nالطالب: ${req.studentName || 'بدون اسم'}\n\nسيتم حذف الطلب وكل ملفاته ولا يمكن التراجع.`,
     );
     if (!confirmed) return;
+    const secondConfirmed = window.confirm(`اضغط موافق مرة ثانية لتأكيد حذف ${req.ticket}`);
+    if (!secondConfirmed) return;
     setBusy(req.id);
     try {
       await window.api.deleteRequest(req.id);
@@ -1533,6 +1682,24 @@ export function Dashboard(): JSX.Element {
         </section>
       ) : (
         <>
+      <section className="dashboard-alerts" aria-label="تنبيهات الداشبورد">
+        <button type="button" className="dashboard-alert-card" onClick={() => { setFilter('ready'); setPage(0); }}>
+          <span>جاهزة للاستلام</span>
+          <strong>{stats.ready.toLocaleString('ar-IQ')}</strong>
+        </button>
+        <button type="button" className="dashboard-alert-card dashboard-alert-warning" onClick={() => { setSourceFilter('online'); setPaymentFilter('pending'); setPage(0); }}>
+          <span>دفعات تنتظر التحقق</span>
+          <strong>{stats.paymentPending.toLocaleString('ar-IQ')}</strong>
+        </button>
+        <button type="button" className="dashboard-alert-card" onClick={() => { setPaymentFilter('unpriced'); setPage(0); }}>
+          <span>طلبات بدون سعر</span>
+          <strong>{stats.unpriced.toLocaleString('ar-IQ')}</strong>
+        </button>
+        <button type="button" className="dashboard-alert-card dashboard-alert-danger" onClick={() => { setSourceFilter('online'); setPage(0); }}>
+          <span>تحتاج إصلاح ملفات</span>
+          <strong>{stats.repairNeeded.toLocaleString('ar-IQ')}</strong>
+        </button>
+      </section>
       <div className={`toolbar ${isSearchMode ? 'toolbar-searching' : ''}`}>
         <div className="toolbar-main">
           <div className="filters">
@@ -1560,12 +1727,32 @@ export function Dashboard(): JSX.Element {
                 {f.label}
               </button>
             ))}
+            {SOURCE_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                className={`chip chip-secondary ${sourceFilter === f.key ? 'chip-active' : ''}`}
+                onClick={() => setSourceFilter(f.key)}
+              >
+                {f.label}
+              </button>
+            ))}
+            {PAYMENT_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                className={`chip chip-payment ${paymentFilter === f.key ? 'chip-active' : ''}`}
+                onClick={() => setPaymentFilter(f.key)}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
 
           <div className="toolbar-pills">
             <span className="inline-pill">الصفحة {page + 1} / {pageCount}</span>
             <span className="inline-pill">{liveVisibleCount.toLocaleString('ar-IQ')} ظاهرة</span>
             <span className="inline-pill">{selectedIds.size.toLocaleString('ar-IQ')} محدد</span>
+            <span className="inline-pill">{stats.online.toLocaleString('ar-IQ')} أونلاين</span>
+            <span className="inline-pill">{stats.local.toLocaleString('ar-IQ')} أوفلاين</span>
           </div>
         </div>
 
@@ -1576,7 +1763,7 @@ export function Dashboard(): JSX.Element {
             </span>
             <input
               className="search"
-              placeholder="بحث بالتذكرة أو الاسم..."
+              placeholder="بحث بالتذكرة أو الاسم أو البريد أو رقم الدفع..."
               value={searchInput}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => window.setTimeout(() => setSearchFocused(false), 120)}
@@ -1807,6 +1994,10 @@ export function Dashboard(): JSX.Element {
                   <EyeIcon className="btn-icon" />
                   <span>الملفات</span>
                 </button>
+                <button className="btn btn-open" disabled={busy === req.id} onClick={() => void openEventsPanel(req)}>
+                  <EyeIcon className="btn-icon" />
+                  <span>سجل الطلب</span>
+                </button>
                 <button
                   className={`btn btn-print ${req.status === 'printing' ? 'btn-print-repeat' : ''}`}
                   disabled={
@@ -1972,6 +2163,50 @@ export function Dashboard(): JSX.Element {
                   </article>
                 );
               })}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {eventsPanel && (
+        <div className="files-overlay" onClick={() => setEventsPanel(null)}>
+          <section className="files-drawer events-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="files-drawer-head">
+              <div>
+                <span className="files-drawer-kicker">سجل الطلب</span>
+                <h2>{eventsPanel.request.ticket}</h2>
+                <p>يعرض أهم خطوات الطلب من الإنشاء إلى الطباعة والتسليم والدفع.</p>
+              </div>
+              <button className="files-drawer-close" onClick={() => setEventsPanel(null)} aria-label="إغلاق">
+                <CloseIcon className="search-clear-icon" />
+              </button>
+            </div>
+
+            <div className="events-list">
+              {eventsPanel.loading ? (
+                <div className="events-empty">جارٍ تحميل سجل الطلب...</div>
+              ) : eventsPanel.events.length === 0 ? (
+                <div className="events-empty">لا توجد أحداث مسجلة لهذا الطلب بعد.</div>
+              ) : (
+                eventsPanel.events.map((event) => (
+                  <article key={event.id} className="event-item">
+                    <div className="event-dot" aria-hidden="true" />
+                    <div className="event-content">
+                      <div className="event-title-row">
+                        <strong>{formatRequestEventLabel(event)}</strong>
+                        <span>{formatStamp(event.createdAt)}</span>
+                      </div>
+                      <p>
+                        {formatEventActor(event.actor)}
+                        {event.status ? ` • ${STATUS_LABEL[event.status]}` : ''}
+                      </p>
+                      {event.details && Object.keys(event.details).length > 0 && (
+                        <pre>{JSON.stringify(event.details, null, 2)}</pre>
+                      )}
+                    </div>
+                  </article>
+                ))
+              )}
             </div>
           </section>
         </div>

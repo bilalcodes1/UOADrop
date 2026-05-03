@@ -35,6 +35,16 @@ type OnlineAnnouncementResult = {
   };
 };
 
+type DashboardStats = {
+  total: number;
+  online: number;
+  local: number;
+  ready: number;
+  paymentPending: number;
+  unpriced: number;
+  repairNeeded: number;
+};
+
 declare global {
   interface Window {
     api: {
@@ -45,9 +55,12 @@ declare global {
       listRequestsPaged: (args: {
         statuses?: RequestStatus[];
         search?: string;
+        source?: 'local' | 'online';
+        payment?: 'pending' | 'verified' | 'rejected' | 'unpaid' | 'unpriced';
         limit?: number;
         offset?: number;
       }) => Promise<{ items: PrintRequest[]; total: number }>;
+      getDashboardStats: () => Promise<DashboardStats>;
       setRequestStatus: (id: string, status: RequestStatus) => Promise<{ ok: true }>;
       setRequestPrice: (id: string, priceIqd: number) => Promise<{ ok: true }>;
       setRequestWorkflowMeta: (args: {

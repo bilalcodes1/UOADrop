@@ -679,6 +679,8 @@ export function existsRequestFileBySha256(requestId: string, sha256: string): bo
 export function listRequestsPaged(args: {
   statuses?: RequestStatus[];
   search?: string;
+  source?: 'local' | 'online';
+  payment?: 'pending' | 'verified' | 'rejected' | 'unpaid' | 'unpriced';
   limit?: number;
   offset?: number;
 }): { items: PrintRequest[]; total: number } {
@@ -690,10 +692,25 @@ export function listRequestsPaged(args: {
     where.push(`status IN (${args.statuses.map(() => '?').join(',')})`);
     params.push(...args.statuses);
   }
+  if (args.source === 'local' || args.source === 'online') {
+    where.push('source = ?');
+    params.push(args.source);
+  }
+  if (args.payment) {
+    if (args.payment === 'pending' || args.payment === 'verified' || args.payment === 'rejected') {
+      where.push('source = ? AND payment_status = ? AND COALESCE(payment_transaction_ref, "") != ""');
+      params.push('online', args.payment);
+    } else if (args.payment === 'unpaid') {
+      where.push('source = ? AND COALESCE(payment_transaction_ref, "") = ""');
+      params.push('online');
+    } else if (args.payment === 'unpriced') {
+      where.push('(price_iqd <= 0 OR final_price_confirmed_at IS NULL)');
+    }
+  }
   if (args.search && args.search.trim().length > 0) {
-    where.push('(ticket LIKE ? OR COALESCE(student_name,"") LIKE ? OR COALESCE(notes,"") LIKE ?)');
+    where.push('(ticket LIKE ? OR COALESCE(student_name,"") LIKE ? OR COALESCE(notes,"") LIKE ? OR COALESCE(student_email,"") LIKE ? OR COALESCE(telegram_chat_id,"") LIKE ? OR COALESCE(payment_transaction_ref,"") LIKE ?)');
     const like = `%${args.search.trim()}%`;
-    params.push(like, like, like);
+    params.push(like, like, like, like, like, like);
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -723,6 +740,47 @@ export function listRequestsPaged(args: {
   const items: PrintRequest[] = rows.map(buildPrintRequest);
 
   return { items, total: totalRow.c };
+}
+
+export function getDashboardStats(): {
+  total: number;
+  online: number;
+  local: number;
+  ready: number;
+  paymentPending: number;
+  unpriced: number;
+  repairNeeded: number;
+} {
+  const d = getDb();
+  const row = d.prepare(
+    `SELECT
+       COUNT(1) as total,
+       SUM(CASE WHEN source = 'online' THEN 1 ELSE 0 END) as online,
+       SUM(CASE WHEN source = 'local' THEN 1 ELSE 0 END) as local,
+       SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END) as ready,
+       SUM(CASE WHEN source = 'online' AND payment_status = 'pending' AND COALESCE(payment_transaction_ref, '') != '' THEN 1 ELSE 0 END) as paymentPending,
+       SUM(CASE WHEN (price_iqd <= 0 OR final_price_confirmed_at IS NULL) AND status IN ('pending', 'printing') THEN 1 ELSE 0 END) as unpriced,
+       SUM(CASE WHEN source = 'online' AND print_queue_error = 'missing_local_files' AND online_files_cleanup_at IS NULL THEN 1 ELSE 0 END) as repairNeeded
+     FROM print_requests`,
+  ).get() as {
+    total: number | null;
+    online: number | null;
+    local: number | null;
+    ready: number | null;
+    paymentPending: number | null;
+    unpriced: number | null;
+    repairNeeded: number | null;
+  };
+
+  return {
+    total: row.total ?? 0,
+    online: row.online ?? 0,
+    local: row.local ?? 0,
+    ready: row.ready ?? 0,
+    paymentPending: row.paymentPending ?? 0,
+    unpriced: row.unpriced ?? 0,
+    repairNeeded: row.repairNeeded ?? 0,
+  };
 }
 
 export function listRequests(): PrintRequest[] {

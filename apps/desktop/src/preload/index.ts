@@ -48,6 +48,16 @@ export interface OnlineAnnouncementResult {
   };
 }
 
+export interface DashboardStats {
+  total: number;
+  online: number;
+  local: number;
+  ready: number;
+  paymentPending: number;
+  unpriced: number;
+  repairNeeded: number;
+}
+
 export const api = {
   unlock: (
     pin: string,
@@ -60,10 +70,15 @@ export const api = {
   listRequestsPaged: (args: {
     statuses?: RequestStatus[];
     search?: string;
+    source?: 'local' | 'online';
+    payment?: 'pending' | 'verified' | 'rejected' | 'unpaid' | 'unpriced';
     limit?: number;
     offset?: number;
   }): Promise<{ items: PrintRequest[]; total: number }> =>
     ipcRenderer.invoke('requests:listPaged', args),
+
+  getDashboardStats: (): Promise<DashboardStats> =>
+    ipcRenderer.invoke('dashboard:stats'),
 
   setRequestStatus: (id: string, status: RequestStatus): Promise<{ ok: true }> =>
     ipcRenderer.invoke('requests:setStatus', id, status),

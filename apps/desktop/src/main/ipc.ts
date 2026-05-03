@@ -9,6 +9,7 @@ import {
   markRequestDone,
   deleteRequest,
   ensureLibrarianPin,
+  getDashboardStats,
   getRequestById,
   getSetting,
   importOnlineRequest,
@@ -82,6 +83,8 @@ export function registerIpcHandlers(): void {
       args: {
         statuses?: string[];
         search?: string;
+        source?: 'local' | 'online';
+        payment?: 'pending' | 'verified' | 'rejected' | 'unpaid' | 'unpriced';
         limit?: number;
         offset?: number;
       },
@@ -89,10 +92,13 @@ export function registerIpcHandlers(): void {
       listRequestsPaged({
         statuses: args?.statuses as any,
         search: args?.search,
+        source: args?.source,
+        payment: args?.payment,
         limit: args?.limit,
         offset: args?.offset,
       }),
   );
+  ipcMain.handle('dashboard:stats', async () => getDashboardStats());
   ipcMain.handle('requests:setStatus', async (_e, id: string, status: string) => {
     const res = setRequestStatus(id, status as any);
     await syncOnlineMirrorIfNeeded(id);
