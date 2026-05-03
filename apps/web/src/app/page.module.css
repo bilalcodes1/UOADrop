@@ -99,6 +99,29 @@
   font-weight: 600;
 }
 
+.identityLogos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.identityLogos img {
+  width: 54px;
+  height: 38px;
+  object-fit: contain;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.identityLogos img:nth-child(3),
+.identityLogos img:nth-child(4) {
+  width: 74px;
+}
+
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr);
@@ -197,6 +220,96 @@
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
 }
 
+.guideCard {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(79, 70, 229, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(79, 70, 229, 0.12), transparent 42%),
+    #fff;
+}
+
+.guideSteps {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.guideStep {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.9);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.guideStepActive {
+  transform: translateX(-4px);
+  border-color: rgba(79, 70, 229, 0.32);
+  box-shadow: 0 16px 34px rgba(79, 70, 229, 0.1);
+  background: #eef2ff;
+}
+
+.guideStepDone {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: #f0fdf4;
+}
+
+.guideNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  color: #4338ca;
+  background: #e0e7ff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.guideStepDone .guideNumber {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.guideStep strong {
+  display: block;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.guideStep p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.guidePointer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: #4f46e5;
+  font-size: 11px;
+  font-weight: 900;
+  animation: pointerNudge 1.15s ease-in-out infinite;
+}
+
+@keyframes pointerNudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-5px); }
+}
+
 .sideEyebrow {
   display: inline-flex;
   align-items: center;
@@ -292,6 +405,12 @@
   border-radius: 24px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.uploadFirstSection {
+  border-color: rgba(79, 70, 229, 0.2);
+  background:
+    linear-gradient(180deg, rgba(79, 70, 229, 0.04) 0%, rgba(255, 255, 255, 0.98) 100%);
 }
 
 .sectionEyebrow {
@@ -522,6 +641,14 @@
   gap: 12px;
 }
 
+.uploadFirstSection .dropzone {
+  min-height: 280px;
+  border-color: rgba(79, 70, 229, 0.26);
+  background:
+    radial-gradient(circle at top, rgba(79, 70, 229, 0.08), transparent 46%),
+    #fcfdff;
+}
+
 .dropzone:hover,
 .dropzoneDragging {
   border-color: #4f46e5;
@@ -683,6 +810,11 @@
   font-size: 14px;
   font-weight: 900;
   flex: 0 0 auto;
+}
+
+.inlineIcon {
+  width: 22px;
+  height: 22px;
 }
 
 .fileMetaBlock {
@@ -955,10 +1087,21 @@
 }
 
 .uploadingIcon {
-  font-size: 2.5rem;
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
   margin-bottom: 1rem;
+  border-radius: 20px;
+  color: #4f46e5;
+  background: #eef2ff;
   animation: spin 1.5s linear infinite;
+}
+
+.uploadingSvg {
+  width: 30px;
+  height: 30px;
 }
 
 @keyframes spin {
@@ -1714,8 +1857,17 @@
 }
 
 .creditsMeta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: #64748b;
   font-weight: 700;
+}
+
+.socialIcon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
 }
 
 .creditsLink {
@@ -1920,26 +2072,56 @@
 /* ─────── Payment Flow ─────── */
 .paymentCard {
   margin-top: 20px;
-  padding: 22px 24px;
-  background: linear-gradient(135deg, #fefce8 0%, #fffbeb 100%);
-  border: 1px solid #fde68a;
-  border-radius: 22px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(79, 70, 229, 0.1), transparent 38%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 26px;
   display: flex;
   flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
+}
+
+.paymentHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 14px;
 }
 
-.paymentCardTitle {
-  font-size: 16px;
-  font-weight: 700;
-  color: #92400e;
+.paymentEyebrow {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: #4338ca;
+  background: rgba(79, 70, 229, 0.08);
+  font-size: 11px;
+  font-weight: 900;
 }
 
-.paymentCardDesc {
-  font-size: 13.5px;
-  color: #78350f;
-  line-height: 1.75;
-  margin: 0;
+.paymentCardTitle {
+  display: block;
+  font-size: 16px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.paymentAmount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid rgba(22, 163, 74, 0.18);
+  font-size: 15px;
+  font-weight: 950;
 }
 
 .paymentMethods {
@@ -1953,14 +2135,15 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 14px 18px;
-  border-radius: 16px;
-  border: 2px solid #e5e7eb;
+  min-height: 78px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
   background: #fff;
   cursor: pointer;
   font-family: inherit;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 850;
   color: #374151;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.12s;
 }
@@ -1973,22 +2156,21 @@
 
 .paymentMethodBtnActive {
   border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18), 0 4px 16px rgba(79, 70, 229, 0.1);
-  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.14), 0 14px 28px rgba(79, 70, 229, 0.12);
+  background: linear-gradient(135deg, #eef2ff, #ffffff);
   color: #3730a3;
 }
 
 .paymentMethodIcon {
-  width: 36px;
-  height: 36px;
+  width: 72px;
+  height: 42px;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .paymentForm {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  gap: 12px;
   margin-top: 4px;
 }
 
@@ -1997,16 +2179,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #fff;
-  border: 1px solid #fde68a;
+  padding: 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
 }
 
 .paymentAccountBox span {
   font-size: 12.5px;
-  font-weight: 600;
-  color: #92400e;
+  font-weight: 800;
+  color: #64748b;
 }
 
 .paymentAccountBox strong {
@@ -2018,16 +2200,16 @@
 
 .paymentLabel {
   font-size: 13px;
-  font-weight: 600;
-  color: #92400e;
+  font-weight: 800;
+  color: #0f172a;
 }
 
 .paymentInput {
   font-family: "SF Mono", "Fira Code", monospace;
   font-size: 15px;
   padding: 12px 16px;
-  border-radius: 14px;
-  border: 1px solid #d4d4d8;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
   background: #fff;
   color: #18181b;
   outline: none;
@@ -2046,8 +2228,8 @@
 }
 
 .paymentSubmitBtn {
-  padding: 12px 20px;
-  border-radius: 14px;
+  padding: 13px 20px;
+  border-radius: 16px;
   border: none;
   background: linear-gradient(135deg, #4f46e5, #7c3aed);
   color: #fff;
@@ -2056,7 +2238,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
-  align-self: flex-start;
+  align-self: stretch;
 }
 
 .paymentSubmitBtn:hover {
@@ -2104,12 +2286,21 @@
 }
 
 .paymentMethodLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   font-weight: 600;
   color: #6b7280;
   background: #f3f4f6;
   padding: 4px 10px;
   border-radius: 8px;
+}
+
+.paymentStatusIcon {
+  width: 42px;
+  height: 24px;
+  object-fit: contain;
 }
 
 .paymentRefDisplay {

@@ -260,6 +260,45 @@ function readStoredFormPrefs(): {
   }
 }
 
+function FileIcon() {
+  return (
+    <svg className={styles.inlineIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7 3.75h6.2L18 8.55v11.7H7V3.75z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M13 4v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.5 13h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9.5 16.5h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function UploadingIcon() {
+  return (
+    <svg className={styles.uploadingSvg} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M8.5 6.5L12 3l3.5 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 14v3.5A2.5 2.5 0 007.5 20h9a2.5 2.5 0 002.5-2.5V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function InstagramIcon() {
+  return (
+    <svg className={styles.socialIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="16.7" cy="7.3" r="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function TelegramIcon() {
+  return (
+    <svg className={styles.socialIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M21 5.2L18.1 19c-.2.9-.9 1.1-1.6.7l-4.4-3.3-2.1 2c-.2.2-.4.4-.9.4l.3-4.6 8.4-7.6c.4-.3-.1-.5-.5-.2L7 13.1l-4.5-1.4c-1-.3-1-.9.2-1.4L20.1 3.7c.8-.3 1.4.2.9 1.5z" fill="currentColor" />
+    </svg>
+  );
+}
+
 export default function UploadPage() {
   const [state, setState] = useState<PageState>('form');
   const [name, setName] = useState('');
@@ -525,22 +564,45 @@ export default function UploadPage() {
   const defaultsValue = formatDefaultOptionsText(defaultSettings);
   const readinessValue = state === 'uploading'
     ? 'جاري الرفع'
-    : !name.trim()
-      ? 'الاسم مطلوب'
-      : files.length === 0
-        ? 'بانتظار الملفات'
+    : files.length === 0
+      ? 'بانتظار الملفات'
+      : !name.trim()
+        ? 'الاسم مطلوب'
         : 'جاهز للإرسال';
   const readinessHint = state === 'uploading'
     ? `يتم الآن رفع ${Math.max(currentFile, 1)} من ${Math.max(files.length, 1)} ملفات.`
-    : !name.trim()
-      ? 'أدخل اسم الطالب أولاً للمتابعة.'
-      : files.length === 0
-        ? 'أضف ملفاً واحداً على الأقل حتى يصبح الطلب جاهزاً.'
+    : files.length === 0
+      ? 'أضف ملفاً واحداً على الأقل.'
+      : !name.trim()
+        ? 'اكتب اسم الطالب للمتابعة.'
         : 'يمكنك إرسال الطلب الآن وسيظهر مباشرة في لوحة الطباعة.';
   const notificationSummary = [
     notifyEmail && email.trim() ? 'البريد الإلكتروني' : '',
     notifyTelegram ? 'Telegram' : '',
-  ].filter(Boolean).join(' • ') || 'لا توجد قنوات إشعار مفعلة';
+  ].filter(Boolean).join(' • ') || 'اختياري';
+  const guideSteps = [
+    {
+      step: '1',
+      title: 'ارفع الملفات',
+      hint: files.length ? filesCountLabel : 'اضغط منطقة الرفع',
+      active: files.length === 0,
+      done: files.length > 0,
+    },
+    {
+      step: '2',
+      title: 'اكتب الاسم',
+      hint: name.trim() ? 'تم إدخال الاسم' : 'مطلوب للإرسال',
+      active: files.length > 0 && !name.trim(),
+      done: Boolean(name.trim()),
+    },
+    {
+      step: '3',
+      title: 'أرسل الطلب',
+      hint: files.length > 0 && name.trim() ? 'جاهز الآن' : 'يفتح بعد الخطوتين',
+      active: files.length > 0 && Boolean(name.trim()),
+      done: false,
+    },
+  ];
 
   return (
     <div className={styles.pageShell}>
@@ -552,14 +614,21 @@ export default function UploadPage() {
             </div>
 
             <div className={styles.heroCopy}>
-              <span className={styles.heroKicker}>منصة رفع ملفات الطباعة</span>
-              <h1 className={styles.heroTitle}>ارفع ملفاتك للطباعة بسرعة ووضوح</h1>
-              <p className={styles.heroSub}>صفحة الرفع الأونلاين بنفس هوية صفحة الرفع الأساسية، مع وصول مباشر إلى لوحة المكتبة بعد الإرسال.</p>
+              <span className={styles.heroKicker}>UOADrop Online</span>
+              <h1 className={styles.heroTitle}>ارفع الملف أولاً</h1>
+              <p className={styles.heroSub}>اختر ملفاتك، اكتب اسمك، أرسل الطلب.</p>
 
               <div className={styles.heroPills}>
-                <span className={styles.heroPill}>مصدر الطلب: أونلاين</span>
-                <span className={styles.heroPill}>التذكرة تظهر بعد الإرسال</span>
-                <span className={styles.heroPill}>PDF · Office · صور</span>
+                <span className={styles.heroPill}>ملفات</span>
+                <span className={styles.heroPill}>اسم</span>
+                <span className={styles.heroPill}>إرسال</span>
+              </div>
+
+              <div className={styles.identityLogos} aria-label="هوية UOADrop">
+                <img src="/university-of-anbar.svg" alt="جامعة الأنبار" />
+                <img src="/cs-college.svg" alt="كلية علوم الحاسوب" />
+                <img src="/Qicard.png" alt="Qi Card" />
+                <img src="/zaincash.png" alt="ZainCash" />
               </div>
             </div>
           </div>
@@ -581,140 +650,19 @@ export default function UploadPage() {
               <>
                 <div className={styles.sectionHead}>
                   <div>
-                    <h2 className={styles.sectionTitle}>تفاصيل الطلب</h2>
-                    <p className={styles.sectionSub}>ارفع ملفاتك واضبط الإعدادات الأساسية ليصل الطلب إلى المكتبة بنفس تجربة الواجهة الأساسية.</p>
+                    <h2 className={styles.sectionTitle}>ابدأ بالملفات</h2>
+                    <p className={styles.sectionSub}>ثلاث خطوات فقط.</p>
                   </div>
-                  <span className={styles.sectionBadge}>الخطوة الأولى</span>
+                  <span className={styles.sectionBadge}>ابدأ هنا</span>
                 </div>
 
                 <div className={styles.formStack}>
-                  <section className={styles.formSection}>
-                    <span className={styles.sectionEyebrow}>1. المعلومات الأساسية</span>
-                    <h3 className={styles.formSectionTitle}>بيانات الطالب</h3>
-
-                    <div className={styles.fieldGrid}>
-                      <div className={`${styles.field} ${styles.fieldFull}`}>
-                        <label className={styles.label}>
-                          اسم الطالب <span className={styles.required}>*</span>
-                        </label>
-                        <input
-                          className={styles.input}
-                          type="text"
-                          placeholder="اكتب اسم الطالب"
-                          value={name}
-                          onChange={e => setName(e.target.value)}
-                          autoComplete="name"
-                        />
-                      </div>
-                      <div className={`${styles.field} ${styles.fieldFull}`}>
-                        <label className={styles.label}>
-                          ملاحظات الطالب <span className={styles.optionalHint}>(اختياري)</span>
-                        </label>
-                        <textarea
-                          className={styles.textarea}
-                          placeholder="مثال: طباعة الصفحات الفردية فقط، أو أي تعليمات خاصة..."
-                          value={notes}
-                          onChange={e => setNotes(e.target.value)}
-                          maxLength={500}
-                          rows={2}
-                        />
-                        <span className={styles.fieldHelp}>اكتب أي تعليمات خاصة حتى تظهر مباشرة لصاحب المكتبة داخل لوحة الطلبات.</span>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className={styles.formSection}>
-                    <span className={styles.sectionEyebrow}>2. الإشعارات الاختيارية</span>
-                    <h3 className={styles.formSectionTitle}>كيف تريد أن تصلك التحديثات؟</h3>
-
-                    <div className={styles.notificationStack}>
-                      <div className={styles.notificationCard}>
-                        <label className={styles.notificationToggle}>
-                          <input
-                            type="checkbox"
-                            checked={notifyEmail}
-                            onChange={e => setNotifyEmail(e.target.checked)}
-                          />
-                          <span>تفعيل إشعارات البريد الإلكتروني</span>
-                        </label>
-                        <input
-                          className={styles.input}
-                          type="email"
-                          placeholder="student@uoanbar.edu.iq"
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          autoComplete="email"
-                          dir="ltr"
-                        />
-                      </div>
-
-                      <div className={styles.notificationCard}>
-                        <label className={styles.notificationToggle}>
-                          <input
-                            type="checkbox"
-                            checked={notifyTelegram}
-                            onChange={e => setNotifyTelegram(e.target.checked)}
-                          />
-                          <span>تفعيل إشعارات Telegram</span>
-                        </label>
-                        <p className={styles.notificationHint}>بعد إرسال الطلب سيظهر لك زر واحد يفتح تطبيق Telegram مباشرة على بوت الإشعارات ليبدأ الربط.</p>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className={styles.formSection}>
-                    <span className={styles.sectionEyebrow}>3. الإعدادات الافتراضية</span>
-                    <h3 className={styles.formSectionTitle}>كيف تريد أن يبدأ الطلب؟</h3>
-
-                    <div className={`${styles.fieldGrid} ${styles.defaultGrid}`}>
-                      <div className={styles.field}>
-                        <label className={styles.label}>عدد النسخ الافتراضي</label>
-                        <input
-                          className={styles.input}
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={defaultSettings.copies}
-                          onChange={e => setDefaultSettings(prev => ({
-                            ...prev,
-                            copies: Math.max(1, Math.min(10, Number(e.target.value) || 1)),
-                          }))}
-                          inputMode="numeric"
-                        />
-                      </div>
-
-                      <div className={styles.field}>
-                        <label className={styles.label}>نوع الطباعة الافتراضي</label>
-                        <select
-                          className={styles.input}
-                          value={String(defaultSettings.color)}
-                          onChange={e => setDefaultSettings(prev => ({ ...prev, color: e.target.value === 'true' }))}
-                        >
-                          <option value="false">أبيض وأسود</option>
-                          <option value="true">ملونة</option>
-                        </select>
-                      </div>
-
-                      <div className={styles.field}>
-                        <label className={styles.label}>الطباعة على وجهين افتراضياً</label>
-                        <select
-                          className={styles.input}
-                          value={String(defaultSettings.doubleSided)}
-                          onChange={e => setDefaultSettings(prev => ({ ...prev, doubleSided: e.target.value === 'true' }))}
-                        >
-                          <option value="true">نعم</option>
-                          <option value="false">لا</option>
-                        </select>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className={styles.formSection}>
+                  <section className={`${styles.formSection} ${styles.uploadFirstSection}`}>
                     <div className={styles.queueShell}>
                       <div className={styles.queueHead}>
                         <div>
-                          <span className={styles.sectionEyebrow}>4. الملفات</span>
-                          <h3 className={styles.formSectionTitle}>أضف الملفات المطلوب طباعتها</h3>
+                          <span className={styles.sectionEyebrow}>1. الملفات</span>
+                          <h3 className={styles.formSectionTitle}>ارفع ملفاتك</h3>
                         </div>
                         <div className={styles.queueCount}>{filesCountLabel}</div>
                       </div>
@@ -741,16 +689,15 @@ export default function UploadPage() {
                             <circle cx="212" cy="34" r="6" fill="#4F46E5" fillOpacity="0.14" />
                           </svg>
                         </div>
-                        <div className={styles.dropBig}>ابدأ من هنا وأضف ملفاتك</div>
+                        <div className={styles.dropBig}>اسحب أو اضغط للاختيار</div>
                         <div className={styles.dropActions}>
-                          <span className={styles.dropCta}>اختيار الملفات الآن</span>
+                          <span className={styles.dropCta}>اختيار الملفات</span>
                         </div>
                         <div className={styles.dropMeta}>
-                          <span className={styles.dropMetaPill}>حد أقصى 10 ملفات</span>
-                          <span className={styles.dropMetaPill}>50 MB لكل ملف</span>
+                          <span className={styles.dropMetaPill}>10 ملفات</span>
+                          <span className={styles.dropMetaPill}>50MB</span>
                           <span className={styles.dropMetaPill}>PDF · Office · صور</span>
                         </div>
-                        <p className={styles.dropzoneHint}>PDF · DOCX · PPTX · XLSX · JPG · PNG — حد أقصى 50 MB للملف</p>
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -763,8 +710,8 @@ export default function UploadPage() {
 
                       {files.length === 0 && (
                         <div className={styles.queueEmpty}>
-                          <strong>ما أضفت أي ملف بعد</strong>
-                          <span>اسحب الملفات هنا أو استخدم زر الاختيار للبدء برفع الطلب.</span>
+                          <strong>بانتظار الملفات</strong>
+                          <span>ابدأ من المربع أعلاه.</span>
                         </div>
                       )}
 
@@ -774,7 +721,7 @@ export default function UploadPage() {
                             <li key={entry.id} className={styles.fileItem}>
                               <div className={styles.fileHeader}>
                                 <div className={styles.fileMain}>
-                                  <span className={styles.fileIconBadge}>📄</span>
+                                  <span className={styles.fileIconBadge} aria-hidden="true"><FileIcon /></span>
                                   <div className={styles.fileMetaBlock}>
                                     <span className={styles.fileOverline}>ملف للطباعة</span>
                                     <span className={styles.fileName}>{entry.file.name}</span>
@@ -840,6 +787,128 @@ export default function UploadPage() {
                     </div>
                   </section>
 
+                  <section className={styles.formSection}>
+                    <span className={styles.sectionEyebrow}>2. البيانات</span>
+                    <h3 className={styles.formSectionTitle}>اسم الطالب</h3>
+
+                    <div className={styles.fieldGrid}>
+                      <div className={`${styles.field} ${styles.fieldFull}`}>
+                        <label className={styles.label}>
+                          الاسم <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          className={styles.input}
+                          type="text"
+                          placeholder="اكتب اسمك"
+                          value={name}
+                          onChange={e => setName(e.target.value)}
+                          autoComplete="name"
+                        />
+                      </div>
+                      <div className={`${styles.field} ${styles.fieldFull}`}>
+                        <label className={styles.label}>
+                          ملاحظات <span className={styles.optionalHint}>(اختياري)</span>
+                        </label>
+                        <textarea
+                          className={styles.textarea}
+                          placeholder="صفحات معينة أو تعليمات..."
+                          value={notes}
+                          onChange={e => setNotes(e.target.value)}
+                          maxLength={500}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className={styles.formSection}>
+                    <span className={styles.sectionEyebrow}>3. الطباعة</span>
+                    <h3 className={styles.formSectionTitle}>إعداد سريع</h3>
+
+                    <div className={`${styles.fieldGrid} ${styles.defaultGrid}`}>
+                      <div className={styles.field}>
+                        <label className={styles.label}>نسخ</label>
+                        <input
+                          className={styles.input}
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={defaultSettings.copies}
+                          onChange={e => setDefaultSettings(prev => ({
+                            ...prev,
+                            copies: Math.max(1, Math.min(10, Number(e.target.value) || 1)),
+                          }))}
+                          inputMode="numeric"
+                        />
+                      </div>
+
+                      <div className={styles.field}>
+                        <label className={styles.label}>اللون</label>
+                        <select
+                          className={styles.input}
+                          value={String(defaultSettings.color)}
+                          onChange={e => setDefaultSettings(prev => ({ ...prev, color: e.target.value === 'true' }))}
+                        >
+                          <option value="false">أبيض وأسود</option>
+                          <option value="true">ملونة</option>
+                        </select>
+                      </div>
+
+                      <div className={styles.field}>
+                        <label className={styles.label}>وجهين</label>
+                        <select
+                          className={styles.input}
+                          value={String(defaultSettings.doubleSided)}
+                          onChange={e => setDefaultSettings(prev => ({ ...prev, doubleSided: e.target.value === 'true' }))}
+                        >
+                          <option value="true">نعم</option>
+                          <option value="false">لا</option>
+                        </select>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className={styles.formSection}>
+                    <span className={styles.sectionEyebrow}>4. إشعارات</span>
+                    <h3 className={styles.formSectionTitle}>اختياري</h3>
+
+                    <div className={styles.notificationStack}>
+                      <div className={styles.notificationCard}>
+                        <label className={styles.notificationToggle}>
+                          <input
+                            type="checkbox"
+                            checked={notifyEmail}
+                            onChange={e => setNotifyEmail(e.target.checked)}
+                          />
+                          <span>Email</span>
+                        </label>
+                        {notifyEmail && (
+                          <input
+                            className={styles.input}
+                            type="email"
+                            placeholder="student@uoanbar.edu.iq"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            autoComplete="email"
+                            dir="ltr"
+                          />
+                        )}
+                      </div>
+
+                      <div className={styles.notificationCard}>
+                        <label className={styles.notificationToggle}>
+                          <input
+                            type="checkbox"
+                            checked={notifyTelegram}
+                            onChange={e => setNotifyTelegram(e.target.checked)}
+                          />
+                          <span>Telegram</span>
+                        </label>
+                        {notifyTelegram && <p className={styles.notificationHint}>اربط البوت بعد الإرسال.</p>}
+                      </div>
+                    </div>
+                  </section>
+
                   <div className={styles.actionPanel}>
                     {error && <p className={styles.error}>{error}</p>}
 
@@ -850,7 +919,7 @@ export default function UploadPage() {
                     >
                       إرسال الطلب إلى المكتبة
                     </button>
-                    <p className={styles.footerNote}>بعد الإرسال ستظهر لك التذكرة مباشرة، مع تتبع حي للحالة داخل صفحة النجاح.</p>
+                    <p className={styles.footerNote}>التذكرة تظهر بعد الإرسال.</p>
                   </div>
                 </div>
               </>
@@ -858,29 +927,49 @@ export default function UploadPage() {
           </section>
 
           <aside className={styles.sidePanel}>
+            <div className={`${styles.sideCard} ${styles.guideCard}`}>
+              <span className={styles.sideEyebrow}>تلميحات</span>
+              <h3>اتبع المؤشر</h3>
+              <div className={styles.guideSteps}>
+                {guideSteps.map(step => (
+                  <div
+                    key={step.step}
+                    className={`${styles.guideStep} ${step.active ? styles.guideStepActive : ''} ${step.done ? styles.guideStepDone : ''}`}
+                  >
+                    <span className={styles.guideNumber}>{step.step}</span>
+                    <div>
+                      <strong>{step.title}</strong>
+                      <p>{step.hint}</p>
+                    </div>
+                    {step.active && <span className={styles.guidePointer}>هنا</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className={styles.sideCard}>
-              <span className={styles.sideEyebrow}>ملخص حي</span>
-              <h3>جاهزية الطلب الآن</h3>
+              <span className={styles.sideEyebrow}>ملخص</span>
+              <h3>حالة الطلب</h3>
               <div className={styles.summaryStack}>
                 <div className={styles.summaryItem}>
-                  <span>الملفات المختارة</span>
+                  <span>الملفات</span>
                   <strong className={styles.sideValue}>{filesCountLabel}</strong>
                   <p className={styles.sideHint}>{filesHint}</p>
                 </div>
 
                 <div className={styles.summaryItem}>
-                  <span>الإعداد الافتراضي الحالي</span>
+                  <span>الطباعة</span>
                   <strong className={styles.sideValueSmall}>{defaultsValue}</strong>
                 </div>
 
                 <div className={styles.summaryItem}>
-                  <span>حالة الإرسال</span>
+                  <span>الإرسال</span>
                   <strong className={styles.sideValue}>{readinessValue}</strong>
                   <p className={styles.sideHint}>{readinessHint}</p>
                 </div>
 
                 <div className={styles.summaryItem}>
-                  <span>قنوات الإشعار</span>
+                  <span>الإشعارات</span>
                   <strong className={styles.sideValueSmall}>{notificationSummary}</strong>
                 </div>
               </div>
@@ -905,8 +994,8 @@ function UploadingScreen({
 }) {
   return (
     <div className={styles.uploadingCard}>
-      <span className={styles.uploadingIcon}>⏳</span>
-      <p className={styles.uploadingTitle}>جارٍ رفع الملفات...</p>
+      <span className={styles.uploadingIcon}><UploadingIcon /></span>
+      <p className={styles.uploadingTitle}>جارٍ الرفع...</p>
       <div className={styles.progressBar}>
         <div className={styles.progressFill} style={{ width: `${progress}%` }} />
       </div>
@@ -1213,6 +1302,8 @@ function SuccessPanel({
 
   const selectedPaymentAccount = selectedPaymentMethod ? paymentAccounts[selectedPaymentMethod] : '';
   const selectedPaymentLabel = selectedPaymentMethod === 'qicard' ? 'Qi Card' : 'ZainCash';
+  const submittedPaymentLabel = paymentMethod === 'qicard' ? 'Qi Card' : paymentMethod === 'zaincash' ? 'ZainCash' : 'الدفع الإلكتروني';
+  const submittedPaymentLogo = paymentMethod === 'qicard' ? '/Qicard.png' : paymentMethod === 'zaincash' ? '/zaincash.png' : '';
 
   return (
     <>
@@ -1273,12 +1364,13 @@ function SuccessPanel({
 
       {finalPriceConfirmedAt && priceIqd > 0 && !paymentTransactionRef && !['done', 'canceled', 'blocked'].includes(status) && (
         <div className={styles.paymentCard}>
-          <strong className={styles.paymentCardTitle}>الدفع الإلكتروني</strong>
-          <p className={styles.paymentCardDesc}>
-            المبلغ المطلوب: <strong dir="ltr">{formatPriceValue(priceIqd)}</strong>
-            <br />
-            اختر وسيلة الدفع، حوّل المبلغ، ثم أدخل رقم عملية التحويل أدناه.
-          </p>
+          <div className={styles.paymentHead}>
+            <div>
+              <span className={styles.paymentEyebrow}>الدفع</span>
+              <strong className={styles.paymentCardTitle}>اختر الطريقة</strong>
+            </div>
+            <strong className={styles.paymentAmount} dir="ltr">{formatPriceValue(priceIqd)}</strong>
+          </div>
 
           <div className={styles.paymentMethods}>
             <button
@@ -1302,7 +1394,7 @@ function SuccessPanel({
           {selectedPaymentMethod && (
             <div className={styles.paymentForm}>
               <div className={styles.paymentAccountBox}>
-                <span>رقم حساب {selectedPaymentLabel}</span>
+                <span>حساب {selectedPaymentLabel}</span>
                 {paymentAccountsLoaded && selectedPaymentAccount ? (
                   <strong dir="ltr">{selectedPaymentAccount}</strong>
                 ) : paymentAccountsLoaded ? (
@@ -1311,12 +1403,12 @@ function SuccessPanel({
                   <strong>جارٍ التحميل...</strong>
                 )}
               </div>
-              <label className={styles.paymentLabel}>رقم عملية التحويل</label>
+              <label className={styles.paymentLabel}>رقم العملية</label>
               <input
                 className={styles.paymentInput}
                 type="text"
                 dir="ltr"
-                placeholder="أدخل رقم العملية بعد التحويل"
+                placeholder="Transaction ID"
                 value={transactionInput}
                 onChange={(e) => { setTransactionInput(e.target.value); setPaymentError(null); }}
               />
@@ -1353,7 +1445,7 @@ function SuccessPanel({
                   }
                 }}
               >
-                {paymentBusy ? 'جارٍ الإرسال...' : 'إرسال رقم العملية'}
+                {paymentBusy ? 'جارٍ الإرسال...' : 'تأكيد الدفع'}
               </button>
             </div>
           )}
@@ -1367,7 +1459,10 @@ function SuccessPanel({
             <span className={`${styles.paymentStatusBadge} ${paymentStatus === 'verified' ? styles.paymentStatusVerified : paymentStatus === 'rejected' ? styles.paymentStatusRejected : styles.paymentStatusPending}`}>
               {paymentStatus === 'verified' ? 'تم تأكيد الدفع' : paymentStatus === 'rejected' ? 'الدفع مرفوض' : 'بانتظار تأكيد المكتبة'}
             </span>
-            <span className={styles.paymentMethodLabel}>{paymentMethod === 'qicard' ? 'Qi Card' : 'ZainCash'}</span>
+            <span className={styles.paymentMethodLabel}>
+              {submittedPaymentLogo && <img src={submittedPaymentLogo} alt={submittedPaymentLabel} className={styles.paymentStatusIcon} />}
+              <span>{submittedPaymentLabel}</span>
+            </span>
           </div>
           <div className={styles.paymentRefDisplay} dir="ltr">{paymentTransactionRef}</div>
           {paymentStatus === 'pending' && (
@@ -1506,26 +1601,22 @@ function ProjectCreditsSection() {
           <article className={styles.creditsCard}>
             <span className={styles.creditsLabel}>المطور</span>
             <h3>بلال زامل احمد</h3>
-            <p>تولّى <span className={styles.creditsInlineEmphasis}>بلال زامل احمد</span> تصميم النظام وتنفيذه وصياغة واجهته وتوحيد هويته البصرية لتظهر منصة <span className={styles.creditsInlineEmphasis}>UOADrop</span> بصورة واضحة واحترافية.</p>
+            <p><span className={styles.creditsInlineEmphasis}>بلال زامل احمد</span> طالب مرحلة ثانية في <span className={styles.creditsInlineEmphasis}>علوم الحاسوب</span>، مهتم بتحويل المشاكل الواقعية إلى حلول برمجية عملية وفي متناول الجميع.</p>
             <ul className={styles.creditsMeta}>
               <li>
-                <span>Instagram</span>
+                <span><InstagramIcon /> Instagram</span>
                 <a className={styles.creditsLink} href="https://instagram.com/bilalcodes1" target="_blank" rel="noreferrer">bilalcodes1</a>
               </li>
               <li>
-                <span>Telegram</span>
+                <span><TelegramIcon /> Telegram</span>
                 <a className={styles.creditsLink} href="https://t.me/bilalcodes1" target="_blank" rel="noreferrer">bilalcodes1</a>
-              </li>
-              <li>
-                <span>Email</span>
-                <a className={styles.creditsLink} href="mailto:bil24c1055@uoanbar.edu.iq">bil24c1055@uoanbar.edu.iq</a>
               </li>
             </ul>
           </article>
 
           <article className={`${styles.creditsCard} ${styles.creditsCardWide}`}>
             <span className={styles.creditsLabel}>الهدف من المشروع</span>
-            <p>يهدف <span className={styles.creditsInlineEmphasis}>UOADrop</span> إلى تقليل الوقت والجهد في رفع ملفات الطباعة ومتابعة الطلبات داخل المكتبة، عبر تجربة أسرع وأكثر وضوحاً واحترافية لكل من <span className={styles.creditsInlineEmphasis}>الطالب</span> و<span className={styles.creditsInlineEmphasis}>إدارة الطباعة</span>.</p>
+            <p>يهدف <span className={styles.creditsInlineEmphasis}>UOADrop</span> إلى تنظيم رفع ملفات الطباعة، تقليل الرسائل المتفرقة، وإيصال الطلبات مباشرة إلى داشبورد المكتب بطريقة واضحة وسريعة.</p>
           </article>
 
           <article className={`${styles.creditsCard} ${styles.creditsCardWide}`}>
