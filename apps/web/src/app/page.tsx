@@ -1338,7 +1338,22 @@ function SuccessPanel({
   };
 
   const connectTelegram = () => {
-    window.open(webLink, '_blank', 'noopener,noreferrer');
+    let fallbackTimer: number | undefined;
+    const handlePageHide = () => {
+      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
+    };
+
+    window.addEventListener('pagehide', handlePageHide, { once: true });
+    document.addEventListener('visibilitychange', handleVisibilityChange, { once: true });
+    fallbackTimer = window.setTimeout(() => {
+      window.removeEventListener('pagehide', handlePageHide);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.location.assign(webLink);
+    }, 1800);
+    window.location.assign(deepLink);
   };
 
   const selectedPaymentAccount = selectedPaymentMethod ? paymentAccounts[selectedPaymentMethod] : '';
