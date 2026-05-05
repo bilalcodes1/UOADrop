@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
 
 async function supaRest(path: string, opts?: { method?: string; body?: unknown }) {
   const method = opts?.method ?? 'GET';
@@ -35,6 +36,13 @@ async function sendTg(chatId: string, text: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!TELEGRAM_WEBHOOK_SECRET) {
+      console.error('[telegram-webhook] missing TELEGRAM_WEBHOOK_SECRET');
+      return NextResponse.json({ ok: false, error: 'missing_telegram_webhook_secret' }, { status: 500 });
+    }
+    if (req.headers.get('x-telegram-bot-api-secret-token') !== TELEGRAM_WEBHOOK_SECRET) {
+      return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+    }
     if (!SUPABASE_URL || !SUPABASE_KEY || !TELEGRAM_BOT_TOKEN) {
       console.error('[telegram-webhook] missing env vars');
       return NextResponse.json({ ok: false, error: 'config' }, { status: 500 });
