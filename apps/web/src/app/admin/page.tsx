@@ -81,6 +81,33 @@ function getCodeStatus(code: ActivationCodeRow): { label: string; active: boolea
   return { label: 'جاهز', active: true };
 }
 
+function formatAdminError(value: unknown): string {
+  const message = value instanceof Error ? value.message : String(value ?? '');
+  const messages: Record<string, string> = {
+    unauthorized: 'الباسورد غير صحيح.',
+    missing_admin_password: 'باسورد الأدمن غير مهيأ على السيرفر.',
+    invalid_library: 'تأكد من اسم المكتبة والرابط المختصر.',
+    not_found: 'المسار غير موجود.',
+    server_error: 'حدث خطأ في الخادم.',
+    http_400: 'الطلب غير صحيح.',
+    http_401: 'الباسورد غير صحيح.',
+    http_404: 'المسار غير موجود.',
+    http_500: 'حدث خطأ في الخادم.',
+  };
+  return messages[message.trim()] ?? 'حدث خطأ، حاول مرة ثانية.';
+}
+
+function formatActivationLabel(value?: string | null): string {
+  const label = String(value ?? '').trim();
+  if (!label) return 'تفعيل تطبيق المكتبة';
+  return label.replace(/^Desktop setup/i, 'تفعيل تطبيق المكتبة');
+}
+
+function formatDeviceName(device: DeviceRow): string {
+  const name = String(device.libraries?.name || device.name || '').trim();
+  return /^desktop device$/i.test(name) || !name ? 'جهاز تطبيق المكتبة' : name;
+}
+
 function StatusDot({ active }: { active: boolean }) {
   return <span className={`${styles.statusDot} ${active ? styles.statusDotActive : styles.statusDotMuted}`} />;
 }
@@ -114,7 +141,7 @@ export default function AdminPage() {
     });
     const payload = (await res.json().catch(() => ({}))) as AdminPayload;
     if (!res.ok || payload.ok === false) {
-      throw new Error(payload.details || payload.error || `http_${res.status}`);
+      throw new Error(payload.error || `http_${res.status}`);
     }
     return payload;
   };
@@ -134,7 +161,7 @@ export default function AdminPage() {
       const firstLibrary = (librariesPayload.libraries ?? [])[0];
       setSelectedLibraryId((current) => current || firstLibrary?.id || '');
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(formatAdminError(err));
       setAuthorized(false);
     } finally {
       setBusy(false);
@@ -150,7 +177,7 @@ export default function AdminPage() {
       setAuthorized(true);
       await loadAdminData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(formatAdminError(err));
     } finally {
       setBusy(false);
     }
@@ -169,7 +196,7 @@ export default function AdminPage() {
       setLibrarySlug('');
       await loadAdminData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(formatAdminError(err));
     } finally {
       setBusy(false);
     }
@@ -183,12 +210,12 @@ export default function AdminPage() {
     try {
       const payload = await adminRequest(`/libraries/${selectedLibraryId}/activation-codes`, {
         method: 'POST',
-        body: JSON.stringify({ label: `Desktop setup — ${selectedExpiry.label}`, expiresInDays: selectedExpiry.days }),
+        body: JSON.stringify({ label: `تفعيل تطبيق المكتبة — ${selectedExpiry.label}`, expiresInDays: selectedExpiry.days }),
       });
       setGeneratedCode(payload.code ?? '');
       await loadAdminData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(formatAdminError(err));
     } finally {
       setBusy(false);
     }
@@ -204,7 +231,7 @@ export default function AdminPage() {
       });
       await loadAdminData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(formatAdminError(err));
     } finally {
       setBusy(false);
     }
@@ -221,10 +248,10 @@ export default function AdminPage() {
         <section className={styles.loginCard}>
           <div className={styles.brandRow}>
             <div className={styles.brandMark}>
-              <img className={styles.brandMarkLogo} src="/uoadrop-logo.png" alt="UOADrop" />
+              <img className={styles.brandMarkLogo} src="/uoadrop-logo.png" alt="يو أو أي دروب" />
             </div>
             <div>
-              <p className={styles.kicker}>UOADrop Admin</p>
+              <p className={styles.kicker}>لوحة إدارة يو أو أي دروب</p>
               <strong>إدارة منظومة المكتبات</strong>
             </div>
           </div>
@@ -233,7 +260,7 @@ export default function AdminPage() {
           <input
             className={styles.input}
             type="password"
-            placeholder="Admin password"
+            placeholder="باسورد الأدمن"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') void unlock(); }}
@@ -253,18 +280,18 @@ export default function AdminPage() {
         <div className={styles.headerCopy}>
           <div className={styles.brandRow}>
             <div className={styles.brandMark}>
-              <img className={styles.brandMarkLogo} src="/uoadrop-logo.png" alt="UOADrop" />
+              <img className={styles.brandMarkLogo} src="/uoadrop-logo.png" alt="يو أو أي دروب" />
             </div>
             <div>
-              <p className={styles.kicker}>UOADrop Admin</p>
+              <p className={styles.kicker}>لوحة إدارة يو أو أي دروب</p>
               <h1>إدارة المكتبات</h1>
             </div>
           </div>
-          <p>قاعدة واحدة متعددة المكتبات، كل ديسكتوب يرتبط بمكتبته من كود تفعيل مستقل.</p>
+          <p>قاعدة واحدة متعددة المكتبات، كل تطبيق مكتبة يرتبط بمكتبته من كود تفعيل مستقل.</p>
           <div className={styles.heroPills}>
             <span>مكتبات متعددة</span>
             <span>أكواد آمنة</span>
-            <span>هوية UOADrop</span>
+            <span>هوية يو أو أي دروب</span>
           </div>
         </div>
         <div className={styles.headerActions}>
@@ -311,12 +338,12 @@ export default function AdminPage() {
           <div className={styles.panelHead}>
             <div>
               <h2>إضافة مكتبة</h2>
-              <p>أنشئ مكتبة جديدة، ثم ولّد لها كود تفعيل للديسكتوب.</p>
+              <p>أنشئ مكتبة جديدة، ثم ولّد لها كود تفعيل لتطبيق المكتبة.</p>
             </div>
           </div>
           <div className={styles.formStack}>
             <input className={styles.input} placeholder="اسم المكتبة" value={libraryName} onChange={(event) => setLibraryName(event.target.value)} />
-            <input className={styles.input} placeholder="الرابط المختصر مثل cs-library" value={librarySlug} onChange={(event) => setLibrarySlug(normalizeSlug(event.target.value))} />
+            <input className={styles.input} placeholder="الرابط المختصر بالأحرف الإنجليزية" value={librarySlug} onChange={(event) => setLibrarySlug(normalizeSlug(event.target.value))} />
             <button className={styles.primaryButton} disabled={busy || !libraryName.trim()} onClick={() => void createLibrary()}>إنشاء مكتبة</button>
           </div>
         </div>
@@ -324,7 +351,7 @@ export default function AdminPage() {
         <div className={styles.panel}>
           <div className={styles.panelHead}>
             <div>
-              <h2>كود تفعيل ديسكتوب</h2>
+              <h2>كود تفعيل تطبيق المكتبة</h2>
               <p>يعرض مرة واحدة. أعطه لأمين المكتبة عند أول تشغيل للتطبيق.</p>
             </div>
           </div>
@@ -397,14 +424,14 @@ export default function AdminPage() {
           <div className={styles.panelHead}>
             <div>
               <h2>الأجهزة</h2>
-              <p>آخر اتصال لكل تطبيق ديسكتوب مفعل.</p>
+              <p>آخر اتصال لكل تطبيق مكتبة مفعل.</p>
             </div>
           </div>
           <div className={styles.listStack}>
             {devices.map((device) => (
               <div key={device.id} className={styles.listItem}>
                 <div>
-                  <strong>{device.libraries?.name || device.name || 'Desktop device'}</strong>
+                  <strong>{formatDeviceName(device)}</strong>
                   <span dir="ltr">{device.device_id}</span>
                 </div>
                 <small>آخر اتصال: {formatDate(device.last_seen_at)}</small>
@@ -418,7 +445,7 @@ export default function AdminPage() {
           <div className={styles.panelHead}>
             <div>
               <h2>أكواد التفعيل</h2>
-              <p>لا يتم تخزين الكود نفسه، فقط hash آمن.</p>
+              <p>لا يتم تخزين الكود نفسه، فقط بصمة آمنة.</p>
             </div>
           </div>
           <div className={styles.listStack}>
@@ -428,7 +455,7 @@ export default function AdminPage() {
                 <div key={code.id} className={styles.listItem}>
                   <div>
                     <strong>{code.libraries?.name || code.library_id}</strong>
-                    <span>{code.label || 'Desktop setup'}</span>
+                    <span>{formatActivationLabel(code.label)}</span>
                   </div>
                   <div className={styles.listMeta}>
                     <span className={`${styles.codeState} ${status.active ? styles.codeStateActive : ''}`}>{status.label}</span>
