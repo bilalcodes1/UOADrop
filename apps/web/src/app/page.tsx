@@ -24,6 +24,7 @@ type SuccessInfo = {
   ticket: string;
   requestId: string;
   libraryId?: string;
+  libraryName?: string;
   warning?: string;
   telegramEnabled?: boolean;
 };
@@ -582,6 +583,7 @@ export default function UploadPage() {
         ticket,
         requestId,
         libraryId: library?.id,
+        libraryName: library?.name,
         warning: warning || undefined,
         telegramEnabled: notifyTelegram,
       });
@@ -624,6 +626,7 @@ export default function UploadPage() {
     notifyEmail && email.trim() ? 'البريد الإلكتروني' : '',
     notifyTelegram ? 'Telegram' : '',
   ].filter(Boolean).join(' • ') || 'اختياري';
+  const libraryDisplayName = library?.name || (libraryLookupDone ? 'المكتبة الافتراضية' : 'جارٍ تحميل المكتبة');
   const guideSteps = [
     {
       step: '1',
@@ -663,6 +666,7 @@ export default function UploadPage() {
               <p className={styles.heroSub}>اختر ملفاتك، اكتب اسمك، أرسل الطلب.</p>
 
               <div className={styles.heroPills}>
+                <span className={`${styles.heroPill} ${styles.libraryHeroPill}`}>المكتبة: {libraryDisplayName}</span>
                 <span className={styles.heroPill}>ملفات</span>
                 <span className={styles.heroPill}>اسم</span>
                 <span className={styles.heroPill}>إرسال</span>
@@ -687,6 +691,7 @@ export default function UploadPage() {
                 ticket={success.ticket}
                 requestId={success.requestId}
                 libraryId={success.libraryId}
+                libraryName={success.libraryName}
                 warning={success.warning}
                 telegramEnabled={success.telegramEnabled}
                 onNew={resetForm}
@@ -997,6 +1002,11 @@ export default function UploadPage() {
               <h3>حالة الطلب</h3>
               <div className={styles.summaryStack}>
                 <div className={styles.summaryItem}>
+                  <span>المكتبة</span>
+                  <strong className={styles.sideValueSmall}>{libraryDisplayName}</strong>
+                </div>
+
+                <div className={styles.summaryItem}>
                   <span>الملفات</span>
                   <strong className={styles.sideValue}>{filesCountLabel}</strong>
                   <p className={styles.sideHint}>{filesHint}</p>
@@ -1055,6 +1065,7 @@ function SuccessPanel({
   ticket,
   requestId,
   libraryId,
+  libraryName,
   warning,
   telegramEnabled,
   onNew,
@@ -1062,6 +1073,7 @@ function SuccessPanel({
   ticket: string;
   requestId: string;
   libraryId?: string;
+  libraryName?: string;
   warning?: string;
   telegramEnabled?: boolean;
   onNew: () => void;
@@ -1083,7 +1095,7 @@ function SuccessPanel({
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccounts>({ qicard: '', zaincash: '' });
   const [paymentAccountsLoaded, setPaymentAccountsLoaded] = useState(false);
-  const { deepLink, webLink } = buildTelegramLinks(ticket);
+  const { deepLink, webLink } = buildTelegramLinks(requestId);
 
   type TrackerState = '' | 'done' | 'current' | 'warn';
 
@@ -1360,6 +1372,7 @@ function SuccessPanel({
   const selectedPaymentLabel = selectedPaymentMethod === 'qicard' ? 'Qi Card' : 'ZainCash';
   const submittedPaymentLabel = paymentMethod === 'qicard' ? 'Qi Card' : paymentMethod === 'zaincash' ? 'ZainCash' : 'الدفع الإلكتروني';
   const submittedPaymentLogo = paymentMethod === 'qicard' ? '/Qicard.png' : paymentMethod === 'zaincash' ? '/zaincash.png' : '';
+  const successLibraryName = libraryName || 'المكتبة';
 
   return (
     <>
@@ -1381,6 +1394,7 @@ function SuccessPanel({
 
         <div className={styles.successCopy}>
           <h1 className={styles.successHeadline}>تم استلام الطلب</h1>
+          <div className={styles.libraryBadge}>المكتبة: {successLibraryName}</div>
           <div className={styles.statusMetaRow}>
             <div className={`${styles.statusPill} ${styles.pulseLive}`}>{meta.badge}</div>
             <div className={styles.updateStamp}>{formatUpdatedStamp(lastUpdatedAt)}</div>

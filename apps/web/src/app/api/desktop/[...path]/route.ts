@@ -93,6 +93,7 @@ type ContactRow = {
 
 type TelegramRequestRow = {
   id: string;
+  library_id: string | null;
   ticket: string;
   student_name: string | null;
   status: string;
@@ -103,6 +104,7 @@ type TelegramRequestRow = {
 
 type EmailRequestRow = {
   id: string;
+  library_id: string | null;
   ticket: string;
   student_name: string | null;
   student_email: string | null;
@@ -168,6 +170,22 @@ function formatStudentName(name?: string | null): string {
   return normalized || 'الطالب';
 }
 
+async function resolveLibraryDisplayName(
+  admin: ReturnType<typeof getAdminClient>,
+  libraryId?: string | null,
+  auth?: DesktopAuth,
+): Promise<string> {
+  const fallback = String(auth?.libraryName || auth?.librarySlug || '').trim() || 'المكتبة';
+  if (!libraryId) return fallback;
+  const { data } = await admin
+    .from('libraries')
+    .select('name, slug')
+    .eq('id', libraryId)
+    .maybeSingle();
+  const row = data as { name?: string | null; slug?: string | null } | null;
+  return String(row?.name || row?.slug || fallback).trim() || fallback;
+}
+
 function sanitizePatch(body: Record<string, unknown>): Record<string, unknown> {
   const allowed = new Set([
     'status',
@@ -214,23 +232,24 @@ async function loadOnlineContacts(auth: DesktopAuth): Promise<{ emails: string[]
   return { emails: [...emails], telegramChatIds: [...telegram] };
 }
 
-function buildEmailHtml(title: string, message: string): string {
+function buildEmailHtml(title: string, message: string, libraryName: string): string {
   const safeTitle = escapeHtml(title || 'إعلان من المكتبة');
   const safeMessage = escapeHtml(message).replace(/\n/g, '<br />');
+  const safeLibraryName = escapeHtml(libraryName);
   return `
     <div dir="rtl" style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;line-height:1.8;color:#0f172a;">
       <div style="border:1px solid #e5e7eb;border-radius:18px;padding:22px;background:#ffffff;">
-        <p style="margin:0 0 10px;color:#4f46e5;font-weight:700;">UOADrop</p>
+        <p style="margin:0 0 10px;color:#4f46e5;font-weight:700;">UOADrop — ${safeLibraryName}</p>
         <h2 style="margin:0 0 16px;color:#111827;">${safeTitle}</h2>
         <p style="margin:0;color:#334155;white-space:normal;">${safeMessage}</p>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
-        <p style="margin:0;color:#64748b;font-size:12px;">هذه رسالة جماعية لطلبات الرفع الأونلاين في UOADrop.</p>
+        <p style="margin:0;color:#64748b;font-size:12px;">هذه رسالة جماعية لطلبات الرفع الأونلاين في ${safeLibraryName}.</p>
       </div>
     </div>
   `;
 }
 
-async function sendEmails(emails: string[], title: string, message: string): Promise<{ sent: number; failed: number; skipped: boolean }> {
+async function sendEmails(emails: string[], title: string, message: string, libraryName: string): Promise<{ sent: number; failed: number; skipped: boolean }> {
   if (emails.length === 0) return { sent: 0, failed: 0, skipped: false };
   if (!EMAIL_USER || !EMAIL_PASS) return { sent: 0, failed: emails.length, skipped: true };
   const transporter = nodemailer.createTransport({
@@ -239,8 +258,8 @@ async function sendEmails(emails: string[], title: string, message: string): Pro
     secure: EMAIL_PORT === 465,
     auth: { user: EMAIL_USER, pass: EMAIL_PASS },
   });
-  const subject = title ? `UOADrop — ${title}` : 'UOADrop — إعلان من المكتبة';
-  const html = buildEmailHtml(title, message);
+  const subject = title ? `UOADrop — ${libraryName} — ${title}` : `UOADrop — ${libraryName} — إعلان من المكتبة`;
+  const html = buildEmailHtml(title, message, libraryName);
   let sent = 0;
   let failed = 0;
   for (const email of emails) {
@@ -254,26 +273,28 @@ async function sendEmails(emails: string[], title: string, message: string): Pro
   return { sent, failed, skipped: false };
 }
 
-function buildRequestEmailSubject(event: EmailNotificationBody['event'], ticket: string): string {
+function buildRequestEmailSubject(event: EmailNotificationBody['event'], ticket: string, libraryName: string): string {
   return event === 'ready'
-    ? `UOADrop — طلبك جاهز للاستلام #${ticket}`
-    : `UOADrop — تم استلام طلبك #${ticket}`;
+    ? `UOADrop — ${libraryName} — طلبك جاهز للاستلام #${ticket}`
+    : `UOADrop — ${libraryName} — تم استلام طلبك #${ticket}`;
 }
 
-function buildRequestEmailHtml(event: EmailNotificationBody['event'], row: EmailRequestRow): string {
+function buildRequestEmailHtml(event: EmailNotificationBody['event'], row: EmailRequestRow, libraryName: string): string {
   const name = formatStudentName(row.student_name);
+  const safeLibraryName = escapeHtml(libraryName);
   if (event === 'received') {
     return `
       <div dir="rtl" style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
         <h2 style="color:#2563eb;">✅ تم استلام طلبك</h2>
         <p>مرحباً ${escapeHtml(name)}،</p>
-        <p>تم استلام طلب الطباعة الخاص بك بنجاح.</p>
+        <p>تم استلام طلب الطباعة الخاص بك بنجاح في ${safeLibraryName}.</p>
         <table style="margin:16px 0;border-collapse:collapse;">
+          <tr><td style="padding:4px 12px;font-weight:bold;">المكتبة</td><td style="padding:4px 12px;">${safeLibraryName}</td></tr>
           <tr><td style="padding:4px 12px;font-weight:bold;">رقم التذكرة</td><td style="padding:4px 12px;">${escapeHtml(row.ticket)}</td></tr>
         </table>
         <p>سنرسل لك بريداً إلكترونياً عندما يصبح طلبك جاهزاً للاستلام.</p>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
-        <p style="color:#6b7280;font-size:12px;">UOADrop — نظام طباعة المكتبة الجامعية</p>
+        <p style="color:#6b7280;font-size:12px;">UOADrop — ${safeLibraryName}</p>
       </div>
     `;
   }
@@ -284,23 +305,24 @@ function buildRequestEmailHtml(event: EmailNotificationBody['event'], row: Email
     : 'يتم تأكيده من موظف المكتبة';
   return `
     <div dir="rtl" style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-      <h2 style="color:#16a34a;">📦 طلبك جاهز للاستلام</h2>
-      <p>مرحباً ${escapeHtml(name)}،</p>
-      <p>طلب الطباعة الخاص بك جاهز. يرجى مراجعة المكتبة لاستلامه.</p>
+        <h2 style="color:#16a34a;">📦 طلبك جاهز للاستلام</h2>
+        <p>مرحباً ${escapeHtml(name)}،</p>
+      <p>طلب الطباعة الخاص بك جاهز. يرجى مراجعة ${safeLibraryName} لاستلامه.</p>
       <table style="margin:16px 0;border-collapse:collapse;">
+        <tr><td style="padding:4px 12px;font-weight:bold;">المكتبة</td><td style="padding:4px 12px;">${safeLibraryName}</td></tr>
         <tr><td style="padding:4px 12px;font-weight:bold;">رقم التذكرة</td><td style="padding:4px 12px;">${escapeHtml(row.ticket)}</td></tr>
         <tr><td style="padding:4px 12px;font-weight:bold;">السعر النهائي</td><td style="padding:4px 12px;">${escapeHtml(priceLine)}</td></tr>
       </table>
       <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
-      <p style="color:#6b7280;font-size:12px;">UOADrop — نظام طباعة المكتبة الجامعية</p>
+      <p style="color:#6b7280;font-size:12px;">UOADrop — ${safeLibraryName}</p>
     </div>
   `;
 }
 
-async function sendTelegramMessages(chatIds: string[], title: string, message: string): Promise<{ sent: number; failed: number; skipped: boolean }> {
+async function sendTelegramMessages(chatIds: string[], title: string, message: string, libraryName: string): Promise<{ sent: number; failed: number; skipped: boolean }> {
   if (chatIds.length === 0) return { sent: 0, failed: 0, skipped: false };
   if (!TELEGRAM_BOT_TOKEN) return { sent: 0, failed: chatIds.length, skipped: true };
-  const text = ['📢 إعلان من UOADrop', title ? `العنوان: ${title}` : '', message].filter(Boolean).join('\n\n');
+  const text = [`📢 إعلان من ${libraryName}`, title ? `العنوان: ${title}` : '', message].filter(Boolean).join('\n\n');
   let sent = 0;
   let failed = 0;
   for (const chatId of chatIds) {
@@ -332,7 +354,7 @@ async function handleEmailNotification(body: EmailNotificationBody, auth: Deskto
   const admin = getAdminClient();
   let query = admin
     .from('print_requests')
-    .select('id, ticket, student_name, student_email, status, price_iqd, final_price_confirmed_at')
+    .select('id, library_id, ticket, student_name, student_email, status, price_iqd, final_price_confirmed_at')
     .eq('id', requestId)
     .eq('source', 'online');
   query = applyLibraryScope(query, auth);
@@ -343,6 +365,7 @@ async function handleEmailNotification(body: EmailNotificationBody, auth: Deskto
 
   const email = normalizeEmail(row.student_email);
   if (!email) return json({ ok: false, error: 'no_email' });
+  const libraryName = await resolveLibraryDisplayName(admin, row.library_id, auth);
 
   const transporter = nodemailer.createTransport({
     host: EMAIL_HOST,
@@ -353,14 +376,16 @@ async function handleEmailNotification(body: EmailNotificationBody, auth: Deskto
   await transporter.sendMail({
     from: EMAIL_FROM,
     to: email,
-    subject: buildRequestEmailSubject(event, row.ticket),
-    html: buildRequestEmailHtml(event, row),
+    subject: buildRequestEmailSubject(event, row.ticket, libraryName),
+    html: buildRequestEmailHtml(event, row, libraryName),
   });
   return json({ ok: true });
 }
 
 async function handleAnnouncement(body: AnnouncementBody, auth: DesktopAuth) {
+  const admin = getAdminClient();
   const contacts = await loadOnlineContacts(auth);
+  const libraryName = await resolveLibraryDisplayName(admin, auth.libraryId, auth);
   const counts = {
     emails: contacts.emails.length,
     telegram: contacts.telegramChatIds.length,
@@ -375,8 +400,8 @@ async function handleAnnouncement(body: AnnouncementBody, auth: DesktopAuth) {
   if (!message) return json({ ok: false, error: 'missing_message' }, { status: 400 });
   if (!sendEmail && !sendTelegram) return json({ ok: false, error: 'no_channels' }, { status: 400 });
 
-  const emailResult = sendEmail ? await sendEmails(contacts.emails, title, message) : { sent: 0, failed: 0, skipped: false };
-  const telegramResult = sendTelegram ? await sendTelegramMessages(contacts.telegramChatIds, title, message) : { sent: 0, failed: 0, skipped: false };
+  const emailResult = sendEmail ? await sendEmails(contacts.emails, title, message, libraryName) : { sent: 0, failed: 0, skipped: false };
+  const telegramResult = sendTelegram ? await sendTelegramMessages(contacts.telegramChatIds, title, message, libraryName) : { sent: 0, failed: 0, skipped: false };
   return json({
     ok: true,
     counts,
@@ -399,7 +424,7 @@ async function handleTelegramNotification(body: TelegramNotificationBody, auth: 
   const admin = getAdminClient();
   let query = admin
     .from('print_requests')
-    .select('id, ticket, student_name, status, price_iqd, final_price_confirmed_at, telegram_chat_id')
+    .select('id, library_id, ticket, student_name, status, price_iqd, final_price_confirmed_at, telegram_chat_id')
     .eq('id', requestId)
     .eq('source', 'online');
   query = applyLibraryScope(query, auth);
@@ -410,12 +435,14 @@ async function handleTelegramNotification(body: TelegramNotificationBody, auth: 
 
   const chatId = normalizeChatId(row.telegram_chat_id);
   if (!chatId) return json({ ok: false, error: 'no_chat' });
+  const libraryName = await resolveLibraryDisplayName(admin, row.library_id, auth);
 
   const lines: string[] = [];
   if (event === 'linked') {
     lines.push(
-      '✅ تم ربط إشعارات UOADrop بنجاح',
+      `✅ تم ربط إشعارات ${libraryName} بنجاح`,
       `مرحباً ${formatStudentName(row.student_name)}`,
+      `المكتبة: ${libraryName}`,
       `رقم التذكرة: ${row.ticket}`,
       'سنرسل لك تحديثاً عندما يصبح الطلب جاهزاً للاستلام.',
     );
@@ -427,16 +454,17 @@ async function handleTelegramNotification(body: TelegramNotificationBody, auth: 
     lines.push(
       '📦 طلبك جاهز للاستلام',
       `مرحباً ${formatStudentName(row.student_name)}`,
+      `المكتبة: ${libraryName}`,
       `رقم التذكرة: ${row.ticket}`,
       priceLine,
-      'يرجى مراجعة المكتبة لاستلام الطلب.',
+      `يرجى مراجعة ${libraryName} لاستلام الطلب.`,
     );
   }
 
   const resp = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: lines.join('\n'), parse_mode: 'HTML', disable_web_page_preview: true }),
+    body: JSON.stringify({ chat_id: chatId, text: lines.join('\n'), disable_web_page_preview: true }),
   });
   if (!resp.ok) {
     const details = await resp.text().catch(() => '');
@@ -665,6 +693,46 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       const { error: filesError } = await deleteQuery;
       if (filesError) throw filesError;
       return json({ ok: true, removedFiles: storagePaths.length });
+    }
+
+    if (path.length === 3 && path[0] === 'requests' && path[2] === 'tracking-cleanup') {
+      const requestId = String(path[1] ?? '');
+      const belongs = await requestBelongsToAuth(admin, requestId, auth);
+      if (!belongs) return json({ ok: false, error: 'not_found' }, { status: 404 });
+      let requestQuery = admin
+        .from('print_requests')
+        .select('id, status, picked_up_at')
+        .eq('id', requestId)
+        .eq('source', 'online');
+      requestQuery = applyLibraryScope(requestQuery, auth);
+      const { data: requestRow, error: requestError } = await requestQuery.maybeSingle();
+      if (requestError) throw requestError;
+      if (!requestRow) return json({ ok: false, error: 'not_found' }, { status: 404 });
+      if (requestRow.status !== 'done' || !requestRow.picked_up_at) {
+        return json({ ok: false, error: 'not_delivered' }, { status: 409 });
+      }
+
+      let filesQuery = admin
+        .from('request_files')
+        .select('storage_path')
+        .eq('request_id', requestId);
+      filesQuery = applyLibraryScope(filesQuery, auth);
+      const { data, error } = await filesQuery;
+      if (error) throw error;
+      const storagePaths = [...new Set(((data ?? []) as Array<{ storage_path: string | null }>).map((file) => file.storage_path).filter(Boolean) as string[])];
+      if (storagePaths.length > 0) {
+        const { error: storageError } = await admin.storage.from('print-files').remove(storagePaths);
+        if (storageError) throw storageError;
+      }
+      let deleteFilesQuery = admin.from('request_files').delete().eq('request_id', requestId);
+      deleteFilesQuery = applyLibraryScope(deleteFilesQuery, auth);
+      const { error: filesError } = await deleteFilesQuery;
+      if (filesError) throw filesError;
+      let deleteRequestQuery = admin.from('print_requests').delete().eq('id', requestId).eq('source', 'online');
+      deleteRequestQuery = applyLibraryScope(deleteRequestQuery, auth);
+      const { error: deleteError } = await deleteRequestQuery;
+      if (deleteError) throw deleteError;
+      return json({ ok: true, removedFiles: storagePaths.length, removedTracking: true });
     }
 
     return json({ ok: false, error: 'not_found' }, { status: 404 });

@@ -33,6 +33,7 @@ import { getCachedPrinterStatus } from './printer';
 import { emit as emitAppEvent } from './events';
 import {
   cancelOnlineRequestMirror,
+  cleanupDeliveredOnlineTracking,
   downloadOnlineFileToRequestStore,
   repairOnlineRequestLocalFiles,
   startOnlineWorkflowService,
@@ -123,6 +124,8 @@ export function registerIpcHandlers(): void {
         void notifyTelegramReady(req);
         if (req.studentEmail) void notifyEmailReady(req);
       }
+    } else if (status === 'done') {
+      void cleanupDeliveredOnlineTracking(id);
     }
     return res;
   });
@@ -176,6 +179,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('requests:markDone', async (_e, id: string) => {
     const res = markRequestDone(id);
     await syncOnlineMirrorIfNeeded(id);
+    void cleanupDeliveredOnlineTracking(id);
     emitAppEvent({ type: 'requests:changed', reason: 'picked-up', requestId: id, payload: res.request });
     return res;
   });

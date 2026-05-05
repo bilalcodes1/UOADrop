@@ -105,7 +105,6 @@ const FILE_LIST_RETRIES = 8;
 const FILE_LIST_DELAY_MS = 1_200;
 const DOWNLOAD_RETRIES = 8;
 const DOWNLOAD_DELAY_MS = 1_000;
-const ONLINE_FILE_RETENTION_HOURS = 48;
 const ONLINE_FILE_ENCRYPTION_ALGORITHM = 'AES-256-GCM+RSA-OAEP-SHA256';
 const AES_GCM_AUTH_TAG_BYTES = 16;
 
@@ -370,14 +369,22 @@ async function prepareLocalFiles(requestId: string, files: GatewayFileRow[]): Pr
   return localFiles;
 }
 
-async function cleanupRemoteSource(requestId: string, files: GatewayFileRow[]): Promise<boolean> {
-  void files;
+async function cleanupRemoteSource(requestId: string): Promise<boolean> {
   try {
     const res = await gatewayRequest<{ ok: boolean }>(`/requests/${encodeURIComponent(requestId)}/cleanup`, { method: 'POST' });
     return Boolean(res?.ok);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(`[UOADrop] Cleanup failed for ${requestId}: ${String((err as Error)?.message ?? err).slice(0, 200)}`);
+    return false;
+  }
+}
+
+async function cleanupRemoteTracking(requestId: string): Promise<boolean> {
+  try {
+    const res = await gatewayRequest<{ ok: boolean }>(`/requests/${encodeURIComponent(requestId)}/tracking-cleanup`, { method: 'POST' });
+    return Boolean(res?.ok);
+  } catch {
     return false;
   }
 }
@@ -406,7 +413,7 @@ async function importPendingRow(row: GatewayRequestRow): Promise<PrintRequest | 
     if (files.length === 0) return null;
 
     const localFiles = await prepareLocalFiles(row.id, files);
-    if (localFiles.length === 0) return null;
+    if (localFiles.length !== files.length) return null;
 
     await patchMirror(row.id, {
       import_state: 'downloaded',
@@ -470,8 +477,35 @@ async function importPendingRow(row: GatewayRequestRow): Promise<PrintRequest | 
 
     await patchMirror(row.id, payload);
 
+    let cleanupAt: string | null = null;
+    if (await cleanupRemoteSource(row.id)) {
+      cleanupAt = new Date().toISOString();
+      await patchMirror(row.id, {
+        import_state: 'cleanup_done',
+        online_files_cleanup_at: cleanupAt,
+        source_of_truth: 'desktop',
+      });
+      setRequestWorkflowMeta({
+        id: row.id,
+        sourceOfTruth: 'desktop',
+        importState: 'cleanup_done',
+        onlineFilesCleanupAt: cleanupAt,
+      });
+      logRequestEvent({
+        requestId: row.id,
+        type: 'cleanup_done',
+        actor: 'system',
+      });
+    }
+
     const syncedPayment = syncLocalPaymentFromRemoteRow(row);
-    const finalRequest = syncedPayment ?? getRequestById(row.id) ?? { ...imported, importState: 'cleanup_pending', sourceOfTruth: 'desktop', deskReceivedAt };
+    const finalRequest = syncedPayment ?? getRequestById(row.id) ?? {
+      ...imported,
+      importState: cleanupAt ? 'cleanup_done' : 'cleanup_pending',
+      sourceOfTruth: 'desktop',
+      deskReceivedAt,
+      onlineFilesCleanupAt: cleanupAt ?? undefined,
+    };
     emitAppEvent({ type: 'requests:changed', reason: 'created', requestId: finalRequest.id, payload: finalRequest });
     if (finalRequest.telegramChatId) void notifyTelegramRequestReceived(finalRequest);
     if (finalRequest.studentEmail) void notifyEmailReceived(finalRequest);
@@ -566,6 +600,12 @@ export async function cancelOnlineRequestMirror(request: PrintRequest): Promise<
   });
 }
 
+export async function cleanupDeliveredOnlineTracking(requestId: string): Promise<void> {
+  const current = getRequestById(requestId);
+  if (!current || current.source !== 'online' || current.status !== 'done' || !current.pickedUpAt) return;
+  await cleanupRemoteTracking(requestId);
+}
+
 async function runIntakePass(): Promise<void> {
   if (intakeBusy) return;
   if (!getDesktopGatewayConfig()) return;
@@ -590,19 +630,16 @@ async function runCleanupPass(): Promise<void> {
   if (!getDesktopGatewayConfig()) return;
   cleanupBusy = true;
   try {
-    const cutoff = new Date(Date.now() - ONLINE_FILE_RETENTION_HOURS * 60 * 60 * 1000).toISOString();
     const payload = await gatewayRequest<{ ok: boolean; rows: GatewayRequestRow[] }>('/requests?mode=all');
     const rows = payload?.rows ?? [];
     const cleanupCandidates = rows.filter((row) =>
       row.source_of_truth === 'desktop'
       && !!row.desk_received_at
-      && row.desk_received_at <= cutoff
       && !row.online_files_cleanup_at,
     );
 
     for (const row of cleanupCandidates) {
-      const files = await listRemoteFiles(row.id);
-      const cleaned = await cleanupRemoteSource(row.id, files);
+      const cleaned = await cleanupRemoteSource(row.id);
       if (!cleaned) continue;
 
       const cleanupAt = new Date().toISOString();
@@ -624,6 +661,16 @@ async function runCleanupPass(): Promise<void> {
       });
       const updated = getRequestById(row.id);
       emitAppEvent({ type: 'requests:changed', reason: 'workflow-meta', requestId: row.id, payload: updated ?? undefined });
+    }
+
+    const trackingCleanupCandidates = rows.filter((row) =>
+      row.source_of_truth === 'desktop'
+      && row.status === 'done'
+      && !!row.picked_up_at,
+    );
+
+    for (const row of trackingCleanupCandidates) {
+      await cleanupRemoteTracking(row.id);
     }
   } catch (err) {
     // eslint-disable-next-line no-console

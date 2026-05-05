@@ -36,7 +36,6 @@ import {
   purgeOldPinAttempts,
   recalcRequestPages,
   setRequestFilePages,
-  setRequestStatus,
 } from './db';
 import { countFilePages } from './page-counter';
 import {
@@ -44,6 +43,7 @@ import {
   COMPLETED_REQUEST_RETENTION_DAYS,
   READY_REQUEST_RETENTION_DAYS,
 } from '@uoadrop/shared';
+import { getOnlineModeStatus } from './runtime-config';
 
 const DEFAULT_PORT = 3737;
 const PUBLISHED_ONLINE_UPLOAD_URL = 'https://uoadrop.vercel.app/';
@@ -124,9 +124,10 @@ export async function startLocalServer(): Promise<{ port: number }> {
 
   const getStudentHtml = (): string => {
     const studentHtmlPath = resolveResourcePath('student.html');
-    return studentHtmlPath && existsSync(studentHtmlPath)
+    const html = studentHtmlPath && existsSync(studentHtmlPath)
       ? readFileSync(studentHtmlPath, 'utf8')
       : '<!doctype html><html><body><h1>UOADrop</h1><p>student.html not found</p></body></html>';
+    return html.replace(/__UOADROP_LIBRARY_NAME__/g, escapeHtml(getLocalLibraryDisplayName()));
   };
 
   const sendResourceAsset = (reply: any, filename: string, contentType: string) => {
@@ -396,12 +397,7 @@ export async function startLocalServer(): Promise<{ port: number }> {
   });
 
   server.post('/requests/:id/status', async (req: any, reply: any) => {
-    const { id } = req.params as { id: string };
-    const body = req.body as { status?: string };
-    if (!body?.status) return reply.code(400).send({ ok: false, error: 'missing status' });
-    setRequestStatus(id, body.status as any);
-    emit({ type: 'requests:changed', reason: 'status', requestId: id });
-    return { ok: true };
+    return reply.code(410).send({ ok: false, error: 'deprecated_use_desktop_dashboard' });
   });
 
   // Upload file for existing request (streaming + magic-bytes + whitelist)
@@ -653,6 +649,21 @@ function firstLanIpv4(): string | null {
 function defaultUploadUrl(port: number): string {
   const ip = firstLanIpv4() ?? 'localhost';
   return `http://${ip}:${port}/`;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char] ?? char));
+}
+
+function getLocalLibraryDisplayName(): string {
+  const status = getOnlineModeStatus();
+  return String(status.libraryName || status.librarySlug || 'المكتبة المحلية').trim() || 'المكتبة المحلية';
 }
 
 function resolveResourcePath(filename: string): string | null {
