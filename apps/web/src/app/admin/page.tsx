@@ -221,7 +221,7 @@ export default function AdminPage() {
         <section className={styles.loginCard}>
           <div className={styles.brandRow}>
             <div className={styles.brandMark}>
-              <img src="/uoadrop-logo.png" alt="UOADrop" />
+              <img className={styles.brandMarkLogo} src="/uoadrop-logo.png" alt="UOADrop" />
             </div>
             <div>
               <p className={styles.kicker}>UOADrop Admin</p>
@@ -253,7 +253,7 @@ export default function AdminPage() {
         <div className={styles.headerCopy}>
           <div className={styles.brandRow}>
             <div className={styles.brandMark}>
-              <img src="/uoadrop-logo.png" alt="UOADrop" />
+              <img className={styles.brandMarkLogo} src="/uoadrop-logo.png" alt="UOADrop" />
             </div>
             <div>
               <p className={styles.kicker}>UOADrop Admin</p>
