@@ -1,6 +1,10 @@
 .shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100vw;
   min-height: 100vh;
   padding: 24px;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top right, rgba(79, 70, 229, 0.16), transparent 22%),
     linear-gradient(180deg, #e8edff 0%, #eef2ff 24%, #f8fafc 100%);
@@ -10,6 +14,8 @@
 .loginCard,
 .panel,
 .statCard {
+  box-sizing: border-box;
+  min-width: 0;
   border: 1px solid rgba(148, 163, 184, 0.24);
   background: rgba(255, 255, 255, 0.86);
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
@@ -30,6 +36,12 @@
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 22px;
+  width: 100%;
+  min-width: 0;
+}
+
+.brandRow > div:last-child {
+  min-width: 0;
 }
 
 .loginCard h1,
@@ -151,8 +163,9 @@
 }
 
 .header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "actions copy";
   align-items: flex-start;
   gap: 24px;
   margin-bottom: 20px;
@@ -161,7 +174,8 @@
   color: #fff;
   background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
-  overflow: hidden;
+  direction: ltr;
+  overflow: clip;
 }
 
 .header h1 {
@@ -185,15 +199,20 @@
 }
 
 .headerCopy {
+  grid-area: copy;
   display: grid;
   gap: 16px;
+  width: 100%;
   min-width: 0;
+  direction: rtl;
 }
 
 .headerActions {
+  grid-area: actions;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  direction: rtl;
 }
 
 .heroPills {
@@ -219,7 +238,7 @@
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -244,7 +263,7 @@
 
 .gridTwo {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -270,7 +289,7 @@
 
 .expiryGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 10px;
 }
 
@@ -436,6 +455,13 @@
 
   .header {
     display: grid;
+    grid-template-areas:
+      "copy"
+      "actions";
+  }
+
+  .headerActions {
+    justify-self: stretch;
   }
 
   .statsGrid {
