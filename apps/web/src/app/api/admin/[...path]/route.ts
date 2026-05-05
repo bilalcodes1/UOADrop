@@ -17,6 +17,12 @@ type ActivationCodeBody = {
   expiresInDays?: number | null;
 };
 
+type DatabaseError = {
+  code?: string;
+  message?: string;
+  details?: string;
+};
+
 const ADMIN_PASSWORD = String(process.env.UOADROP_ADMIN_PASSWORD ?? '').trim();
 
 function getPath(ctx: RouteContext): string[] {
@@ -50,8 +56,23 @@ function normalizeSlug(value: string): string {
     .slice(0, 64);
 }
 
+function resolveLibrarySlug(slugValue: string | undefined, nameValue: string): string {
+  const preferred = normalizeSlug(slugValue ?? '');
+  const fallback = normalizeSlug(nameValue);
+  const base = preferred || fallback;
+  if (!base) return nameValue ? `library-${randomBytes(3).toString('hex')}` : '';
+  if (base.length >= 3) return base;
+  return normalizeSlug(`${base}-library`);
+}
+
 function normalizeName(value: string): string {
   return String(value ?? '').trim().slice(0, 160);
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  const value = error as DatabaseError;
+  const text = `${value?.message ?? ''} ${value?.details ?? ''}`;
+  return value?.code === '23505' || /duplicate key|unique constraint/i.test(text);
 }
 
 function hashActivationCode(value: string): string {
@@ -128,19 +149,19 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     if (path.length === 1 && path[0] === 'libraries') {
       const body = (await req.json().catch(() => ({}))) as LibraryBody;
       const name = normalizeName(body.name ?? '');
-      const slug = normalizeSlug(body.slug || name);
+      const slug = resolveLibrarySlug(body.slug, name);
       if (!name || slug.length < 3) return json({ ok: false, error: 'invalid_library' }, { status: 400 });
       const { data, error } = await admin
         .from('libraries')
         .insert({ name, slug, status: 'active' })
         .select('id, slug, name, status, created_at, updated_at')
         .single();
+      if (isUniqueViolation(error)) return json({ ok: false, error: 'library_exists' }, { status: 409 });
       if (error) throw error;
-      const { error: paymentError } = await admin.from('payment_settings').insert([
+      await admin.from('payment_settings').upsert([
         { library_id: data.id, key: 'qicard', account_number: '' },
         { library_id: data.id, key: 'zaincash', account_number: '' },
-      ]);
-      if (paymentError) throw paymentError;
+      ], { onConflict: 'library_id,key' });
       return json({ ok: true, library: data });
     }
 

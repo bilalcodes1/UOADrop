@@ -87,11 +87,13 @@ function formatAdminError(value: unknown): string {
     unauthorized: 'الباسورد غير صحيح.',
     missing_admin_password: 'باسورد الأدمن غير مهيأ على السيرفر.',
     invalid_library: 'تأكد من اسم المكتبة والرابط المختصر.',
+    library_exists: 'هذا الرابط المختصر مستخدم من مكتبة ثانية.',
     not_found: 'المسار غير موجود.',
     server_error: 'حدث خطأ في الخادم.',
     http_400: 'الطلب غير صحيح.',
     http_401: 'الباسورد غير صحيح.',
     http_404: 'المسار غير موجود.',
+    http_409: 'هذا الرابط المختصر مستخدم من مكتبة ثانية.',
     http_500: 'حدث خطأ في الخادم.',
   };
   return messages[message.trim()] ?? 'حدث خطأ، حاول مرة ثانية.';
@@ -117,6 +119,7 @@ export default function AdminPage() {
   const [authorized, setAuthorized] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [libraries, setLibraries] = useState<LibraryRow[]>([]);
   const [devices, setDevices] = useState<DeviceRow[]>([]);
   const [activationCodes, setActivationCodes] = useState<ActivationCodeRow[]>([]);
@@ -149,6 +152,7 @@ export default function AdminPage() {
   const loadAdminData = async () => {
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       const [librariesPayload, devicesPayload, codesPayload] = await Promise.all([
         adminRequest('/libraries'),
@@ -171,6 +175,7 @@ export default function AdminPage() {
   const unlock = async () => {
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       await adminRequest('/status');
       window.sessionStorage.setItem(ADMIN_PASSWORD_KEY, password);
@@ -187,14 +192,17 @@ export default function AdminPage() {
     if (!libraryName.trim()) return;
     setBusy(true);
     setError('');
+    setNotice('');
     try {
-      await adminRequest('/libraries', {
+      const payload = await adminRequest('/libraries', {
         method: 'POST',
         body: JSON.stringify({ name: libraryName, slug: librarySlug || normalizeSlug(libraryName) }),
       });
       setLibraryName('');
       setLibrarySlug('');
       await loadAdminData();
+      if (payload.library?.id) setSelectedLibraryId(payload.library.id);
+      setNotice(`تم إنشاء مكتبة ${payload.library?.name ?? libraryName.trim()} بنجاح. الرابط: ${payload.library?.slug ?? ''}`);
     } catch (err) {
       setError(formatAdminError(err));
     } finally {
@@ -206,6 +214,7 @@ export default function AdminPage() {
     if (!selectedLibraryId) return;
     setBusy(true);
     setError('');
+    setNotice('');
     setGeneratedCode('');
     try {
       const payload = await adminRequest(`/libraries/${selectedLibraryId}/activation-codes`, {
@@ -224,6 +233,7 @@ export default function AdminPage() {
   const toggleLibrary = async (library: LibraryRow) => {
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       await adminRequest(`/libraries/${library.id}`, {
         method: 'PATCH',
@@ -342,9 +352,11 @@ export default function AdminPage() {
             </div>
           </div>
           <div className={styles.formStack}>
-            <input className={styles.input} placeholder="اسم المكتبة" value={libraryName} onChange={(event) => setLibraryName(event.target.value)} />
-            <input className={styles.input} placeholder="الرابط المختصر بالأحرف الإنجليزية" value={librarySlug} onChange={(event) => setLibrarySlug(normalizeSlug(event.target.value))} />
-            <button className={styles.primaryButton} disabled={busy || !libraryName.trim()} onClick={() => void createLibrary()}>إنشاء مكتبة</button>
+            <input className={styles.input} placeholder="اسم المكتبة" value={libraryName} onChange={(event) => setLibraryName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createLibrary(); }} />
+            <input className={styles.input} placeholder="الرابط المختصر بالأحرف الإنجليزية مثل cs" value={librarySlug} onChange={(event) => setLibrarySlug(normalizeSlug(event.target.value))} onKeyDown={(event) => { if (event.key === 'Enter') void createLibrary(); }} />
+            <button className={styles.primaryButton} disabled={busy || !libraryName.trim()} onClick={() => void createLibrary()}>{busy ? 'جارٍ الإنشاء...' : 'إنشاء مكتبة'}</button>
+            {error && <div className={styles.errorBox}>{error}</div>}
+            {notice && <div className={styles.noticeBox}>{notice}</div>}
           </div>
         </div>
 
