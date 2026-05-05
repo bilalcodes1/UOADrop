@@ -14,7 +14,7 @@ type LibraryBody = {
 
 type ActivationCodeBody = {
   label?: string;
-  expiresInDays?: number;
+  expiresInDays?: number | null;
 };
 
 const ADMIN_PASSWORD = String(process.env.UOADROP_ADMIN_PASSWORD ?? '').trim();
@@ -63,6 +63,13 @@ function generateActivationCode(): string {
   const bytes = randomBytes(10);
   const body = Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
   return `UOA-${body.slice(0, 4)}-${body.slice(4, 8)}-${body.slice(8)}`;
+}
+
+function resolveActivationExpiry(value: number | null | undefined): string | null {
+  if (value === null) return null;
+  const expiresInDays = Number(value ?? 7);
+  if (!Number.isFinite(expiresInDays) || expiresInDays <= 0) return null;
+  return new Date(Date.now() + Math.min(expiresInDays, 365) * 24 * 60 * 60 * 1000).toISOString();
 }
 
 export async function GET(req: NextRequest, ctx: RouteContext) {
@@ -141,10 +148,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       const libraryId = String(path[1] ?? '');
       const body = (await req.json().catch(() => ({}))) as ActivationCodeBody;
       const code = generateActivationCode();
-      const expiresInDays = Number(body.expiresInDays ?? 14);
-      const expiresAt = Number.isFinite(expiresInDays) && expiresInDays > 0
-        ? new Date(Date.now() + Math.min(expiresInDays, 365) * 24 * 60 * 60 * 1000).toISOString()
-        : null;
+      const expiresAt = resolveActivationExpiry(body.expiresInDays);
       const { data, error } = await admin
         .from('library_activation_codes')
         .insert({

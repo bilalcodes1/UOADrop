@@ -47,7 +47,17 @@ type AdminPayload = {
   code?: string;
 };
 
+type ExpiryOption = '7' | '30' | '365' | 'never';
+type ExpiryChoice = { value: ExpiryOption; label: string; hint: string; days: number | null };
+
 const ADMIN_PASSWORD_KEY = 'uoadrop:admin:password';
+const DEFAULT_EXPIRY_OPTION: ExpiryChoice = { value: '7', label: 'أسبوع', hint: 'صالح لمدة 7 أيام', days: 7 };
+const EXPIRY_OPTIONS: ExpiryChoice[] = [
+  DEFAULT_EXPIRY_OPTION,
+  { value: '30', label: 'شهر', hint: 'صالح لمدة 30 يوم', days: 30 },
+  { value: '365', label: 'سنة', hint: 'صالح لمدة سنة كاملة', days: 365 },
+  { value: 'never', label: 'لا نهائي', hint: 'يبقى صالحاً بدون تاريخ انتهاء', days: null },
+];
 
 function normalizeSlug(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
@@ -58,6 +68,17 @@ function formatDate(value?: string | null): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleString('ar-IQ', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function formatExpiry(value?: string | null): string {
+  return value ? formatDate(value) : 'بدون انتهاء';
+}
+
+function getCodeStatus(code: ActivationCodeRow): { label: string; active: boolean } {
+  if (code.revoked_at) return { label: 'ملغي', active: false };
+  if (code.used_at) return { label: 'مستخدم', active: false };
+  if (code.expires_at && new Date(code.expires_at).getTime() < Date.now()) return { label: 'منتهي', active: false };
+  return { label: 'جاهز', active: true };
 }
 
 function StatusDot({ active }: { active: boolean }) {
@@ -75,9 +96,12 @@ export default function AdminPage() {
   const [libraryName, setLibraryName] = useState('');
   const [librarySlug, setLibrarySlug] = useState('');
   const [selectedLibraryId, setSelectedLibraryId] = useState('');
+  const [activationExpiry, setActivationExpiry] = useState<ExpiryOption>('7');
   const [generatedCode, setGeneratedCode] = useState('');
 
   const activeLibraries = useMemo(() => libraries.filter((library) => library.status === 'active'), [libraries]);
+  const activeCodes = useMemo(() => activationCodes.filter((code) => getCodeStatus(code).active), [activationCodes]);
+  const selectedExpiry = EXPIRY_OPTIONS.find((option) => option.value === activationExpiry) ?? DEFAULT_EXPIRY_OPTION;
 
   const adminRequest = async (path: string, init?: RequestInit): Promise<AdminPayload> => {
     const res = await fetch(`/api/admin${path}`, {
@@ -159,7 +183,7 @@ export default function AdminPage() {
     try {
       const payload = await adminRequest(`/libraries/${selectedLibraryId}/activation-codes`, {
         method: 'POST',
-        body: JSON.stringify({ label: 'Desktop setup', expiresInDays: 14 }),
+        body: JSON.stringify({ label: `Desktop setup — ${selectedExpiry.label}`, expiresInDays: selectedExpiry.days }),
       });
       setGeneratedCode(payload.code ?? '');
       await loadAdminData();
@@ -195,8 +219,15 @@ export default function AdminPage() {
     return (
       <main className={styles.shell} dir="rtl">
         <section className={styles.loginCard}>
-          <div className={styles.brandMark}>U</div>
-          <p className={styles.kicker}>UOADrop Admin</p>
+          <div className={styles.brandRow}>
+            <div className={styles.brandMark}>
+              <img src="/uoadrop-logo.png" alt="UOADrop" />
+            </div>
+            <div>
+              <p className={styles.kicker}>UOADrop Admin</p>
+              <strong>إدارة منظومة المكتبات</strong>
+            </div>
+          </div>
           <h1>لوحة إدارة المكتبات</h1>
           <p>أدخل باسورد الأدمن لإدارة المكتبات، الأجهزة، وأكواد التفعيل.</p>
           <input
@@ -219,10 +250,22 @@ export default function AdminPage() {
   return (
     <main className={styles.shell} dir="rtl">
       <header className={styles.header}>
-        <div>
-          <p className={styles.kicker}>UOADrop Admin</p>
-          <h1>إدارة المكتبات</h1>
-          <p>قاعدة واحدة متعددة المكتبات، كل ديسكتوب يرتبط بمكتبته من كود التفعيل.</p>
+        <div className={styles.headerCopy}>
+          <div className={styles.brandRow}>
+            <div className={styles.brandMark}>
+              <img src="/uoadrop-logo.png" alt="UOADrop" />
+            </div>
+            <div>
+              <p className={styles.kicker}>UOADrop Admin</p>
+              <h1>إدارة المكتبات</h1>
+            </div>
+          </div>
+          <p>قاعدة واحدة متعددة المكتبات، كل ديسكتوب يرتبط بمكتبته من كود تفعيل مستقل.</p>
+          <div className={styles.heroPills}>
+            <span>مكتبات متعددة</span>
+            <span>أكواد آمنة</span>
+            <span>هوية UOADrop</span>
+          </div>
         </div>
         <div className={styles.headerActions}>
           <button className={styles.secondaryButton} disabled={busy} onClick={() => void loadAdminData()}>تحديث</button>
@@ -254,7 +297,11 @@ export default function AdminPage() {
           <strong>{devices.length.toLocaleString('ar-IQ')}</strong>
         </div>
         <div className={styles.statCard}>
-          <span>أكواد التفعيل</span>
+          <span>الأكواد الجاهزة</span>
+          <strong>{activeCodes.length.toLocaleString('ar-IQ')}</strong>
+        </div>
+        <div className={styles.statCard}>
+          <span>كل الأكواد</span>
           <strong>{activationCodes.length.toLocaleString('ar-IQ')}</strong>
         </div>
       </section>
@@ -288,8 +335,26 @@ export default function AdminPage() {
                 <option key={library.id} value={library.id}>{library.name}</option>
               ))}
             </select>
+            <div className={styles.expiryGrid}>
+              {EXPIRY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`${styles.expiryOption} ${activationExpiry === option.value ? styles.expiryOptionActive : ''}`}
+                  onClick={() => setActivationExpiry(option.value)}
+                >
+                  <strong>{option.label}</strong>
+                  <span>{option.hint}</span>
+                </button>
+              ))}
+            </div>
             <button className={styles.primaryButton} disabled={busy || !selectedLibraryId} onClick={() => void createActivationCode()}>توليد كود</button>
-            {generatedCode && <div className={styles.generatedCode} dir="ltr">{generatedCode}</div>}
+            {generatedCode && (
+              <div className={styles.generatedCode}>
+                <span>انسخ الكود الآن، لن يظهر مرة ثانية</span>
+                <strong dir="ltr">{generatedCode}</strong>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -357,15 +422,21 @@ export default function AdminPage() {
             </div>
           </div>
           <div className={styles.listStack}>
-            {activationCodes.map((code) => (
-              <div key={code.id} className={styles.listItem}>
-                <div>
-                  <strong>{code.libraries?.name || code.library_id}</strong>
-                  <span>{code.used_at ? 'مستخدم' : code.revoked_at ? 'ملغي' : 'جاهز'}</span>
+            {activationCodes.map((code) => {
+              const status = getCodeStatus(code);
+              return (
+                <div key={code.id} className={styles.listItem}>
+                  <div>
+                    <strong>{code.libraries?.name || code.library_id}</strong>
+                    <span>{code.label || 'Desktop setup'}</span>
+                  </div>
+                  <div className={styles.listMeta}>
+                    <span className={`${styles.codeState} ${status.active ? styles.codeStateActive : ''}`}>{status.label}</span>
+                    <small>الصلاحية: {formatExpiry(code.expires_at)}</small>
+                  </div>
                 </div>
-                <small>ينتهي: {formatDate(code.expires_at)}</small>
-              </div>
-            ))}
+              );
+            })}
             {activationCodes.length === 0 && <div className={styles.emptyState}>لا توجد أكواد تفعيل بعد.</div>}
           </div>
         </div>
