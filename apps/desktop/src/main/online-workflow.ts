@@ -18,6 +18,7 @@ import { notifyTelegramRequestReceived } from './telegram';
 
 type GatewayRequestRow = {
   id: string;
+  library_id?: string | null;
   ticket: string;
   student_name: string | null;
   student_email: string | null;
@@ -45,6 +46,7 @@ type GatewayRequestRow = {
 
 type GatewayFileRow = {
   id: string;
+  library_id?: string | null;
   request_id: string;
   filename: string;
   mime_type: string | null;

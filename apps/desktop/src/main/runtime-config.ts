@@ -15,6 +15,9 @@ export type OnlineModeStatus = {
   reason: OnlineModeReason;
   activated: boolean;
   deviceId: string;
+  libraryId?: string;
+  librarySlug?: string;
+  libraryName?: string;
   webBaseUrl: string;
   hasGatewayUrl: boolean;
   hasDesktopToken: boolean;
@@ -40,12 +43,18 @@ type OnlineModeActivationRecord = {
   deviceId: string;
   token: string;
   webBaseUrl: string;
+  libraryId?: string;
+  librarySlug?: string;
+  libraryName?: string;
 };
 
 export type DesktopGatewayConfig = {
   baseUrl: string;
   token: string;
   deviceId: string;
+  libraryId?: string;
+  librarySlug?: string;
+  libraryName?: string;
 };
 
 const DEFAULT_WEB_BASE_URL = 'https://uoadrop.vercel.app';
@@ -105,6 +114,10 @@ function normalizeBaseUrl(value: string): string {
   return value.trim().replace(/\/$/, '');
 }
 
+function normalizeWebBaseUrl(value: string): string {
+  return normalizeBaseUrl(value).replace(/\/api\/desktop$/i, '');
+}
+
 export function getDesktopDeviceId(): string {
   if (cachedDesktopDeviceId) return cachedDesktopDeviceId;
   const userDataPath = app.getPath('userData');
@@ -132,7 +145,7 @@ export function getDesktopDeviceId(): string {
 
 export function getDesktopGatewayBaseUrl(): string {
   const runtimeConfig = getDesktopRuntimeConfig();
-  return normalizeBaseUrl(String(
+  return normalizeWebBaseUrl(String(
     process.env.UOADROP_DESKTOP_GATEWAY_URL
       ?? runtimeConfig.desktopGatewayUrl
       ?? process.env.UOADROP_WEB_BASE_URL
@@ -153,7 +166,10 @@ function getOnlineActivationRecord(): OnlineModeActivationRecord | null {
           activatedAt: String(parsed.activatedAt ?? ''),
           deviceId: String(parsed.deviceId),
           token: String(parsed.token),
-          webBaseUrl: normalizeBaseUrl(String(parsed.webBaseUrl || getDesktopGatewayBaseUrl())),
+          webBaseUrl: normalizeWebBaseUrl(String(parsed.webBaseUrl || getDesktopGatewayBaseUrl())),
+          ...(parsed.libraryId ? { libraryId: String(parsed.libraryId) } : {}),
+          ...(parsed.librarySlug ? { librarySlug: String(parsed.librarySlug) } : {}),
+          ...(parsed.libraryName ? { libraryName: String(parsed.libraryName) } : {}),
         };
         return cachedOnlineActivationRecord;
       }
@@ -173,17 +189,32 @@ export async function activateOnlineMode(passphrase: string): Promise<OnlineMode
   if (!webBaseUrl) return { ok: false, error: 'missing_gateway_url', status: getOnlineModeStatus() };
   const deviceId = getDesktopDeviceId();
   let token = '';
+  let activationPayload: {
+    libraryId?: string;
+    librarySlug?: string;
+    libraryName?: string;
+    library?: { id?: string; slug?: string; name?: string };
+  } = {};
   try {
     const res = await fetch(`${webBaseUrl}/api/desktop/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ passphrase, deviceId }),
     });
-    const payload = (await res.json().catch(() => ({}))) as { ok?: boolean; token?: string; error?: OnlineModeActivationResult['error'] };
+    const payload = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      token?: string;
+      error?: OnlineModeActivationResult['error'];
+      libraryId?: string;
+      librarySlug?: string;
+      libraryName?: string;
+      library?: { id?: string; slug?: string; name?: string };
+    };
     if (!res.ok || !payload.ok || !payload.token) {
       return { ok: false, error: payload.error ?? 'server_error', status: getOnlineModeStatus() };
     }
     token = payload.token;
+    activationPayload = payload;
   } catch {
     return { ok: false, error: 'activation_network_error', status: getOnlineModeStatus() };
   }
@@ -196,6 +227,9 @@ export async function activateOnlineMode(passphrase: string): Promise<OnlineMode
       deviceId,
       token,
       webBaseUrl,
+      ...(activationPayload.libraryId || activationPayload.library?.id ? { libraryId: String(activationPayload.libraryId || activationPayload.library?.id) } : {}),
+      ...(activationPayload.librarySlug || activationPayload.library?.slug ? { librarySlug: String(activationPayload.librarySlug || activationPayload.library?.slug) } : {}),
+      ...(activationPayload.libraryName || activationPayload.library?.name ? { libraryName: String(activationPayload.libraryName || activationPayload.library?.name) } : {}),
     };
     mkdirSync(userDataPath, { recursive: true });
     writeFileSync(getOnlineActivationPath(), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
@@ -218,6 +252,9 @@ export function getOnlineModeStatus(): OnlineModeStatus {
     reason,
     activated,
     deviceId: activationRecord?.deviceId || getDesktopDeviceId(),
+    ...(activationRecord?.libraryId ? { libraryId: activationRecord.libraryId } : {}),
+    ...(activationRecord?.librarySlug ? { librarySlug: activationRecord.librarySlug } : {}),
+    ...(activationRecord?.libraryName ? { libraryName: activationRecord.libraryName } : {}),
     webBaseUrl,
     hasGatewayUrl: Boolean(webBaseUrl),
     hasDesktopToken: Boolean(activationRecord?.token),
@@ -236,6 +273,9 @@ export function getDesktopGatewayConfig(): DesktopGatewayConfig | null {
     baseUrl: activationRecord.webBaseUrl || getDesktopGatewayBaseUrl(),
     token: activationRecord.token,
     deviceId: activationRecord.deviceId,
+    ...(activationRecord.libraryId ? { libraryId: activationRecord.libraryId } : {}),
+    ...(activationRecord.librarySlug ? { librarySlug: activationRecord.librarySlug } : {}),
+    ...(activationRecord.libraryName ? { libraryName: activationRecord.libraryName } : {}),
   };
 }
 
@@ -275,9 +315,4 @@ export async function checkOnlineGatewayDiagnostics(): Promise<OnlineGatewayDiag
       status: getOnlineModeStatus(),
     };
   }
-}
-
-export function getWebBaseUrl(): string {
-  if (!isOnlineModeAuthorized()) return '';
-  return getDesktopGatewayConfig()?.baseUrl ?? '';
 }

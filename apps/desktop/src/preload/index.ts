@@ -63,6 +63,9 @@ export interface OnlineModeStatus {
   reason: 'enabled' | 'activation_required' | 'missing_gateway_url';
   activated: boolean;
   deviceId: string;
+  libraryId?: string;
+  librarySlug?: string;
+  libraryName?: string;
   webBaseUrl: string;
   hasGatewayUrl: boolean;
   hasDesktopToken: boolean;

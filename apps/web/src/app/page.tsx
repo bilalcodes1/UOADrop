@@ -23,6 +23,7 @@ type PageState = 'form' | 'uploading' | 'success';
 type SuccessInfo = {
   ticket: string;
   requestId: string;
+  libraryId?: string;
   warning?: string;
   telegramEnabled?: boolean;
 };
@@ -30,6 +31,12 @@ type SuccessInfo = {
 type PaymentAccounts = {
   qicard: string;
   zaincash: string;
+};
+
+type LibraryInfo = {
+  id: string;
+  slug: string;
+  name: string;
 };
 
 const DEFAULT_SETTINGS: PrintSettings = {
@@ -61,6 +68,7 @@ const MAX_FILES = 10;
 const ONLINE_UPLOAD_CONCURRENCY = 3;
 const TELEGRAM_BOT_USERNAME = 'uoadrop_bot';
 const FORM_PREFS_KEY = 'uoadrop:web:upload-form-prefs';
+const DEFAULT_LIBRARY_SLUG = String(process.env.NEXT_PUBLIC_UOADROP_DEFAULT_LIBRARY_SLUG ?? 'main-library').trim() || 'main-library';
 const ONLINE_ENCRYPTION_PUBLIC_KEY = String(process.env.NEXT_PUBLIC_UOADROP_ENCRYPTION_PUBLIC_KEY ?? '').trim();
 const ONLINE_FILE_ENCRYPTION_ALGORITHM = 'AES-256-GCM+RSA-OAEP-SHA256';
 
@@ -260,6 +268,17 @@ function readStoredFormPrefs(): {
   }
 }
 
+function readLibrarySlugFromUrl(): string {
+  try {
+    const url = new URL(window.location.href);
+    const raw = url.searchParams.get('library') || url.searchParams.get('l') || DEFAULT_LIBRARY_SLUG;
+    const slug = raw.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || DEFAULT_LIBRARY_SLUG;
+  } catch {
+    return DEFAULT_LIBRARY_SLUG;
+  }
+}
+
 function FileIcon() {
   return (
     <svg className={styles.inlineIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -312,6 +331,8 @@ export default function UploadPage() {
   const [progress, setProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState(0);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
+  const [library, setLibrary] = useState<LibraryInfo | null>(null);
+  const [libraryLookupDone, setLibraryLookupDone] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -344,6 +365,24 @@ export default function UploadPage() {
       // Ignore storage errors.
     }
   }, [name, notes, email, notifyEmail, notifyTelegram, defaultSettings]);
+
+  useEffect(() => {
+    let active = true;
+    const loadLibrary = async () => {
+      const slug = readLibrarySlugFromUrl();
+      const { data, error } = await supabase
+        .from('libraries')
+        .select('id, slug, name')
+        .eq('slug', slug)
+        .eq('status', 'active')
+        .maybeSingle();
+      if (!active) return;
+      if (!error && data) setLibrary(data as LibraryInfo);
+      setLibraryLookupDone(true);
+    };
+    void loadLibrary();
+    return () => { active = false; };
+  }, []);
 
   const addFiles = useCallback((incoming: File[]) => {
     const valid = incoming.filter(f => Boolean(getSupportedMimeType(f)));
@@ -393,6 +432,8 @@ export default function UploadPage() {
     setError('');
     if (!name.trim()) { setError('اسم الطالب مطلوب'); return; }
     if (files.length === 0) { setError('اختر ملفاً واحداً على الأقل'); return; }
+    if (!libraryLookupDone) { setError('جاري تحميل إعدادات المكتبة، انتظر لحظة'); return; }
+    if (!library && readLibrarySlugFromUrl() !== DEFAULT_LIBRARY_SLUG) { setError('رابط المكتبة غير صحيح أو غير مفعّل'); return; }
     const normalizedEmail = email.trim();
     if (notifyEmail && !normalizedEmail) { setError('أدخل البريد الإلكتروني أو ألغِ خيار إشعارات البريد الإلكتروني'); return; }
     const emailForNotifications = notifyEmail ? normalizedEmail : '';
@@ -406,6 +447,7 @@ export default function UploadPage() {
       const ticket = generateTicket();
       const trimmedNotes = notes.trim().slice(0, 500);
       const rawBaseRequestPayload = {
+        ...(library?.id ? { library_id: library.id } : {}),
         ticket,
         student_name: name.trim(),
         student_email: emailForNotifications || null,
@@ -482,7 +524,8 @@ export default function UploadPage() {
         const safeName = entry.file.name.replace(/\s+/g, '_').replace(/[^\w.\-]/g, '_');
         const encrypted = encryptionRecipient ? await encryptOnlineFile(entry.file, encryptionRecipient, mimeType) : null;
         const uploadBody = encrypted ? encrypted.blob : entry.file;
-        const storagePath = `${requestId}/${Date.now()}-${index}-${entry.id}-${safeName}${encrypted ? '.enc' : ''}`;
+        const storagePrefix = library?.id ? `${library.id}/` : '';
+        const storagePath = `${storagePrefix}${requestId}/${Date.now()}-${index}-${entry.id}-${safeName}${encrypted ? '.enc' : ''}`;
 
         const { error: uploadErr } = await supabase.storage
           .from('print-files')
@@ -538,6 +581,7 @@ export default function UploadPage() {
       setSuccess({
         ticket,
         requestId,
+        libraryId: library?.id,
         warning: warning || undefined,
         telegramEnabled: notifyTelegram,
       });
@@ -642,6 +686,7 @@ export default function UploadPage() {
               <SuccessPanel
                 ticket={success.ticket}
                 requestId={success.requestId}
+                libraryId={success.libraryId}
                 warning={success.warning}
                 telegramEnabled={success.telegramEnabled}
                 onNew={resetForm}
@@ -1009,12 +1054,14 @@ function UploadingScreen({
 function SuccessPanel({
   ticket,
   requestId,
+  libraryId,
   warning,
   telegramEnabled,
   onNew,
 }: {
   ticket: string;
   requestId: string;
+  libraryId?: string;
   warning?: string;
   telegramEnabled?: boolean;
   onNew: () => void;
@@ -1084,10 +1131,12 @@ function SuccessPanel({
   useEffect(() => {
     let active = true;
     const loadPaymentAccounts = async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('payment_settings')
         .select('key, account_number')
         .in('key', ['qicard', 'zaincash']);
+      if (libraryId) query = query.eq('library_id', libraryId);
+      const { data } = await query;
       if (!active) return;
       const next: PaymentAccounts = { qicard: '', zaincash: '' };
       for (const row of data ?? []) {
@@ -1100,7 +1149,7 @@ function SuccessPanel({
     };
     void loadPaymentAccounts();
     return () => { active = false; };
-  }, []);
+  }, [libraryId]);
 
   useEffect(() => {
     let timer: number | null = null;
@@ -1289,15 +1338,7 @@ function SuccessPanel({
   };
 
   const connectTelegram = () => {
-    const fallbackTimer = window.setTimeout(() => {
-      if (document.visibilityState === 'visible') {
-        window.open(webLink, '_blank', 'noopener,noreferrer');
-      }
-    }, 700);
-
-    window.location.href = deepLink;
-
-    window.setTimeout(() => window.clearTimeout(fallbackTimer), 1800);
+    window.open(webLink, '_blank', 'noopener,noreferrer');
   };
 
   const selectedPaymentAccount = selectedPaymentMethod ? paymentAccounts[selectedPaymentMethod] : '';

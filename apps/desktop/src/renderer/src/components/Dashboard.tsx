@@ -65,6 +65,9 @@ type OnlineModeStatus = {
   reason: 'enabled' | 'activation_required' | 'missing_gateway_url';
   activated: boolean;
   deviceId: string;
+  libraryId?: string;
+  librarySlug?: string;
+  libraryName?: string;
   webBaseUrl: string;
   hasGatewayUrl: boolean;
   hasDesktopToken: boolean;
@@ -813,6 +816,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
             <div className="online-mode-diagnostics">
               <span>Gateway: {onlineModeStatus?.hasGatewayUrl ? 'جاهز' : 'غير مضبوط'}</span>
               <span>Token: {onlineModeStatus?.hasDesktopToken ? 'محفوظ' : 'غير موجود'}</span>
+              <span>Library: {onlineModeStatus?.libraryName || onlineModeStatus?.librarySlug || 'غير محددة'}</span>
               <span>Server: {onlineDiagnostics ? (onlineDiagnostics.serverReachable ? 'متصل' : 'غير متصل') : 'غير مفحوص'}</span>
               <span>Pending: {onlineDiagnostics?.pendingOnlineRequests?.toLocaleString('ar-IQ') ?? '-'}</span>
               {onlineDiagnostics?.error && <span>Error: {onlineDiagnostics.error}</span>}
@@ -852,6 +856,65 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
               </button>
             </>
           )}
+        </div>
+      </div>
+
+      <div className="settings-divider" />
+
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h2 className="settings-section-title">ثبات QR الأوفلاين والشبكة</h2>
+          <p className="settings-section-desc">هذه التعليمات تضمن أن الطالب عندما يمسح باركود الأوفلاين يفتح نفس صفحة الرفع على لابتوب المكتبة.</p>
+        </div>
+        <div className="settings-fields">
+          <div className="offline-network-card">
+            <div className="offline-network-card-head">
+              <span>Offline QR</span>
+              <strong>ثبّت عنوان اللابتوب قبل طباعة الملصق</strong>
+              <p>إذا تغيّر IP اللابتوب، الباركود القديم لن يفتح. الحل الأفضل هو حجز نفس IP من الراوتر باستخدام MAC Address.</p>
+            </div>
+            <div className="offline-network-steps">
+              <div className="offline-network-step">
+                <span>1</span>
+                <div>
+                  <strong>ثبّت DHCP Reservation</strong>
+                  <p>من إعدادات الراوتر اربط MAC Address الخاص بواي فاي اللابتوب مع IP ثابت مثل 192.168.1.9.</p>
+                </div>
+              </div>
+              <div className="offline-network-step">
+                <span>2</span>
+                <div>
+                  <strong>تأكد من Private Wi‑Fi Address</strong>
+                  <p>على macOS إذا كان Private Wi‑Fi Address مفعلاً، استخدم نفس العنوان الظاهر للراوتر أو عطّله لهذه الشبكة.</p>
+                </div>
+              </div>
+              <div className="offline-network-step">
+                <span>3</span>
+                <div>
+                  <strong>اطبع الملصق بعد التثبيت</strong>
+                  <p>افتح ملصق الأوفلاين وتأكد أن الرابط أسفل QR يبدأ بـ IP اللابتوب وليس localhost.</p>
+                </div>
+              </div>
+            </div>
+            <div className="offline-network-checklist">
+              <div>
+                <span>الرابط المتوقع</span>
+                <strong dir="ltr">http://192.168.1.9:3737/</strong>
+              </div>
+              <div>
+                <span>شرط الشبكة</span>
+                <strong>الموبايل واللابتوب على نفس الراوتر</strong>
+              </div>
+              <div>
+                <span>إعداد الراوتر</span>
+                <strong>أوقف Guest / AP Isolation / Client Isolation</strong>
+              </div>
+              <div>
+                <span>إعداد macOS</span>
+                <strong>اسمح للتطبيق باستقبال الاتصالات من الشبكة</strong>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

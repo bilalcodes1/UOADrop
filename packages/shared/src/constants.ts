@@ -15,7 +15,6 @@ export const PIN_BCRYPT_ROUNDS = 12;
 // File limits
 export const MAX_FILE_SIZE_MB = 50;
 export const MAX_FILES_PER_REQUEST = 10;
-export const MAX_TOTAL_SIZE_MB = 200;
 
 // Allowed MIME + magic bytes
 export const ALLOWED_EXTENSIONS = [

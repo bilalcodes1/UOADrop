@@ -14,6 +14,9 @@ const BLOCKED_DESKTOP_ACTIVATION_PASSWORDS = new Set(['bilalcodes1']);
 export type DesktopTokenPayload = {
   typ: typeof DESKTOP_TOKEN_TYPE;
   deviceId: string;
+  libraryId?: string;
+  librarySlug?: string;
+  libraryName?: string;
   iat: number;
   exp: number;
   nonce: string;
@@ -21,6 +24,9 @@ export type DesktopTokenPayload = {
 
 export type DesktopAuth = {
   deviceId: string;
+  libraryId?: string;
+  librarySlug?: string;
+  libraryName?: string;
   payload: DesktopTokenPayload;
 };
 
@@ -66,12 +72,18 @@ function signPayload(encodedPayload: string): string {
   return createHmac('sha256', DESKTOP_TOKEN_SECRET).update(encodedPayload).digest('base64url');
 }
 
-export function createDesktopToken(deviceId: string): string {
+export function createDesktopToken(
+  deviceId: string,
+  library?: { id?: string | null; slug?: string | null; name?: string | null },
+): string {
   assertServerEnv();
   const now = Math.floor(Date.now() / 1000);
   const payload: DesktopTokenPayload = {
     typ: DESKTOP_TOKEN_TYPE,
     deviceId: String(deviceId || '').trim().slice(0, 120),
+    ...(library?.id ? { libraryId: String(library.id).trim() } : {}),
+    ...(library?.slug ? { librarySlug: String(library.slug).trim().slice(0, 120) } : {}),
+    ...(library?.name ? { libraryName: String(library.name).trim().slice(0, 180) } : {}),
     iat: now,
     exp: now + TOKEN_TTL_SECONDS,
     nonce: randomBytes(16).toString('base64url'),
@@ -99,7 +111,13 @@ export function verifyDesktopToken(token: string): DesktopAuth | null {
     if (payload.typ !== DESKTOP_TOKEN_TYPE) return null;
     if (!payload.deviceId || typeof payload.deviceId !== 'string') return null;
     if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
-    return { deviceId: payload.deviceId, payload: payload as DesktopTokenPayload };
+    return {
+      deviceId: payload.deviceId,
+      libraryId: typeof payload.libraryId === 'string' ? payload.libraryId : undefined,
+      librarySlug: typeof payload.librarySlug === 'string' ? payload.librarySlug : undefined,
+      libraryName: typeof payload.libraryName === 'string' ? payload.libraryName : undefined,
+      payload: payload as DesktopTokenPayload,
+    };
   } catch {
     return null;
   }
