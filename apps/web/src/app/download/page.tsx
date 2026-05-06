@@ -141,6 +141,11 @@ const verificationItems = [
     title: 'لا تضع الأسرار داخل الديسكتوب',
     text: 'لا يحتاج التطبيق إلى service-role keys أو Telegram bot token أو SMTP password داخل ملفات الديسكتوب.',
   },
+  {
+    title: 'رسالة damaged على macOS',
+    text: 'إذا ظهرت رسالة “UOADrop is damaged and can’t be opened”، انسخ التطبيق إلى Applications ثم أزل quarantine من Terminal.',
+    command: 'xattr -dr com.apple.quarantine /Applications/UOADrop.app',
+  },
 ];
 
 const timeline: TimelineItem[] = [
@@ -883,6 +888,7 @@ export default function DownloadPage() {
                 <div className={styles.verificationIcon}><ShieldIcon /></div>
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
+                {'command' in item ? <code className={styles.verificationCommand}>{item.command}</code> : null}
               </article>
             ))}
           </div>
