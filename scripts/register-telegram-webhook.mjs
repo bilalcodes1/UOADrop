@@ -3,17 +3,22 @@
  * One-time script to register the Telegram webhook URL.
  *
  * Usage:
- *   TELEGRAM_BOT_TOKEN=xxx node scripts/register-telegram-webhook.mjs
+ *   TELEGRAM_BOT_TOKEN=xxx TELEGRAM_WEBHOOK_SECRET=xxx node scripts/register-telegram-webhook.mjs
  *
  * Or with .env:
  *   node scripts/register-telegram-webhook.mjs
  */
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://uoadrop.vercel.app/api/telegram/webhook';
 
 if (!TOKEN) {
   console.error('Missing TELEGRAM_BOT_TOKEN env var');
+  process.exit(1);
+}
+if (!SECRET) {
+  console.error('Missing TELEGRAM_WEBHOOK_SECRET env var');
   process.exit(1);
 }
 
@@ -25,6 +30,7 @@ async function main() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       url: WEBHOOK_URL,
+      secret_token: SECRET,
       allowed_updates: ['message'],
       drop_pending_updates: true,
     }),

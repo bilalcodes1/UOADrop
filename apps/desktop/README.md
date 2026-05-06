@@ -50,7 +50,7 @@ The Settings panel includes `إعلان جماعي للأونلاين`.
 - Sending is delegated to the web API `/api/desktop/announcement`.
 - Desktop sends only its activation token. Supabase service-role credentials stay on the web deployment.
 - Email delivery requires SMTP variables on the web deployment.
-- Telegram delivery requires `TELEGRAM_BOT_TOKEN` on the web deployment.
+- Telegram delivery requires the Telegram bot credential on the web deployment.
 
 ## Dev
 

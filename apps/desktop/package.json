@@ -1,8 +1,8 @@
 {
   "name": "@uoadrop/desktop",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
-  "description": "UOADrop librarian Electron app (dashboard + local server + printing)",
+  "description": "UOADrop print office Electron app (dashboard + local server + online gateway)",
   "author": "Bilal <asel64152@icloud.com>",
   "main": "dist/main/index.js",
   "scripts": {

@@ -67,6 +67,7 @@ export interface OnlineModeStatus {
   librarySlug?: string;
   libraryName?: string;
   webBaseUrl: string;
+  onlineUploadUrl: string;
   hasGatewayUrl: boolean;
   hasDesktopToken: boolean;
 }

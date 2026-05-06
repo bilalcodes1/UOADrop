@@ -48,6 +48,13 @@ function playSystemDing(): void {
 }
 
 const isDev = !app.isPackaged;
+const devInstanceId = isDev
+  ? String(process.env.UOADROP_DESKTOP_INSTANCE_ID ?? '').trim().replace(/[^a-zA-Z0-9_-]+/g, '').slice(0, 60)
+  : '';
+
+if (devInstanceId) {
+  app.setPath('userData', join(app.getPath('appData'), `UOADrop-${devInstanceId}`));
+}
 
 // ─────────────────────────────────────────
 // Single-instance lock (docs/DECISIONS.md)
@@ -100,7 +107,7 @@ function createMainWindow(): void {
     show: false,
     autoHideMenuBar: true,
     icon: iconPath,
-    title: 'UOADrop — لوحة المكتبة',
+    title: devInstanceId ? `UOADrop — لوحة المكتبة (${devInstanceId})` : 'UOADrop — لوحة المكتبة',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

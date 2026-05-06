@@ -257,7 +257,7 @@ export async function startLocalServer(): Promise<{ port: number }> {
   });
 
   server.get('/online-wall-sign', async (_req: any, reply: any) => {
-    const url = onlineUploadUrl();
+    const url = getOnlineModeStatus().onlineUploadUrl;
     const dataUrl = await QRCode.toDataURL(url, { width: 420, margin: 1 });
     reply.header('content-type', 'text/html; charset=utf-8');
     return [
@@ -649,28 +649,6 @@ function firstLanIpv4(): string | null {
 function defaultUploadUrl(port: number): string {
   const ip = firstLanIpv4() ?? 'localhost';
   return `http://${ip}:${port}/`;
-}
-
-function normalizeOnlineLibrarySlug(value: string | undefined): string {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 64);
-}
-
-function onlineUploadUrl(): string {
-  const status = getOnlineModeStatus();
-  const baseUrl = String(status.webBaseUrl || PUBLISHED_ONLINE_UPLOAD_URL).trim() || PUBLISHED_ONLINE_UPLOAD_URL;
-  const librarySlug = normalizeOnlineLibrarySlug(status.librarySlug);
-  try {
-    const url = new URL(baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
-    if (librarySlug) url.searchParams.set('library', librarySlug);
-    return url.toString();
-  } catch {
-    return librarySlug ? `${PUBLISHED_ONLINE_UPLOAD_URL}?library=${encodeURIComponent(librarySlug)}` : PUBLISHED_ONLINE_UPLOAD_URL;
-  }
 }
 
 function escapeHtml(value: string): string {

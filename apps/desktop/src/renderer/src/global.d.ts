@@ -50,7 +50,11 @@ type OnlineModeStatus = {
   reason: 'enabled' | 'activation_required' | 'missing_gateway_url';
   activated: boolean;
   deviceId: string;
+  libraryId?: string;
+  librarySlug?: string;
+  libraryName?: string;
   webBaseUrl: string;
+  onlineUploadUrl: string;
   hasGatewayUrl: boolean;
   hasDesktopToken: boolean;
 };

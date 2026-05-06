@@ -19,6 +19,7 @@ export type OnlineModeStatus = {
   librarySlug?: string;
   libraryName?: string;
   webBaseUrl: string;
+  onlineUploadUrl: string;
   hasGatewayUrl: boolean;
   hasDesktopToken: boolean;
 };
@@ -116,6 +117,27 @@ function normalizeBaseUrl(value: string): string {
 
 function normalizeWebBaseUrl(value: string): string {
   return normalizeBaseUrl(value).replace(/\/api\/desktop$/i, '');
+}
+
+function normalizeLibrarySlug(value: string | undefined): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
+function buildOnlineUploadUrl(webBaseUrl: string, librarySlug?: string): string {
+  const baseUrl = webBaseUrl || DEFAULT_WEB_BASE_URL;
+  const slug = normalizeLibrarySlug(librarySlug);
+  try {
+    const url = new URL(baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
+    if (slug) url.searchParams.set('library', slug);
+    return url.toString();
+  } catch {
+    return slug ? `${DEFAULT_WEB_BASE_URL}/?library=${encodeURIComponent(slug)}` : `${DEFAULT_WEB_BASE_URL}/`;
+  }
 }
 
 export function getDesktopDeviceId(): string {
@@ -256,6 +278,7 @@ export function getOnlineModeStatus(): OnlineModeStatus {
     ...(activationRecord?.librarySlug ? { librarySlug: activationRecord.librarySlug } : {}),
     ...(activationRecord?.libraryName ? { libraryName: activationRecord.libraryName } : {}),
     webBaseUrl,
+    onlineUploadUrl: buildOnlineUploadUrl(webBaseUrl, activationRecord?.librarySlug),
     hasGatewayUrl: Boolean(webBaseUrl),
     hasDesktopToken: Boolean(activationRecord?.token),
   };

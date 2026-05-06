@@ -4,9 +4,9 @@
 
 > **تنبيه مهم:** هذا المستند يصف نظام الإشعارات لمسار **Online**. داخل التطبيق المحلي (Offline/LAN) ما زالت الإشعارات الأساسية هي **إشعارات نظام محلية داخل Electron** عند وصول طلب/ملف جديد.
 
-إشعارات تلقائية لبلال (Online فقط) عبر البريد الإلكتروني وتيليجرام، عند كل تحوّل في حالة طلبه.
+إشعارات تلقائية لطلاب الأونلاين عبر البريد الإلكتروني وتيليجرام، عند تحوّل حالة الطلب.
 
-> **ملاحظة مهمة**: الإشعارات **حصرية لبلال (Online)**. ملاك (Offline) تستلم مطبوعاتها يدوياً من سعد في المكتبة، فلا حاجة لإشعارها.
+> **ملاحظة مهمة**: الإشعارات الخارجية مخصصة لمسار **Online**. طلبات Offline/LAN تظهر لصاحب المكتب داخل الداشبورد مع إشعارات النظام المحلية.
 
 ---
 
@@ -14,9 +14,9 @@
 
 التنفيذ الحالي يعتمد على Next.js APIs داخل `apps/web` وليس Supabase Edge Functions:
 
-- `/api/notify/email` لإشعار البريد عند استلام/جاهزية الطلب.
+- `/api/desktop/email` لإشعار البريد عند استلام/جاهزية الطلب عبر Desktop Gateway.
 - `/api/desktop/telegram` لإشعار Telegram عند الربط/الجاهزية عبر Desktop Gateway.
-- `/api/telegram/webhook` لربط `telegram_chat_id` بالطلب عبر البوت.
+- `/api/telegram/webhook` لربط `telegram_chat_id` بالطلب عبر البوت، ويفضل حمايته بـ `TELEGRAM_WEBHOOK_SECRET`.
 - `/api/desktop/announcement` للإعلان الجماعي للأونلاين فقط عبر Desktop Gateway.
 - `/api/cron/notify-delayed` لتنبيه الطلبات المتأخرة.
 
@@ -31,10 +31,10 @@
 
 ---
 
-## 1. لماذا لبلال فقط؟
+## 1. لماذا للأونلاين فقط؟
 
-- **بلال من خارج المكتبة**: لا يعرف متى طلبه جاهز → يحتاج إشعار.
-- **ملاك داخل المكتبة**: تنتظر عند الطاولة → تستلم مباشرة، الإشعار overkill.
+- **الطالب من خارج المكتب**: لا يعرف متى طلبه جاهز → يحتاج إشعار.
+- **الطالب داخل المكتب**: يتابع مباشرة مع المكتب أو ينتظر عند الطاولة → الإشعار الخارجي غير ضروري غالباً.
 - **تقليل التعقيد والتكلفة**: الإشعارات تستهلك quota، نستخدمها فقط حيث تضيف قيمة.
 
 ---
@@ -46,15 +46,15 @@
 | # | الحدث | التوقيت | 📧 Email | 💬 Telegram |
 |---|------|---------|:--:|:--:|
 | 1 | **Received** | فور رفع الطلب | ❌ | ✅ |
-| 2 | **Printing** | سعد ضغط "طباعة" | ❌ | ✅ |
-| 3 | **Done** | سعد ضغط "جهز" | ✅ | ✅ |
+| 2 | **Printing** | صاحب المكتب ضغط "طباعة" | ❌ | ✅ |
+| 3 | **Done** | صاحب المكتب ضغط "جهز" | ✅ | ✅ |
 | 4 | **Blocked** (C6) | مشكلة طابعة/ورق | ✅ | ✅ |
 | 5 | **Canceled** (C6) | إلغاء في وقت مبكر | ❌ | ✅ |
 
 - **Email**: فقط عند `done` (جاهزية) أو `blocked` (مشكلة تحتاج تدخل الطالب) — تقدير أقصى ~600 email/شهر < 3000 quota.
 - **Telegram**: كل الأحداث (مجاني بلا حدود، خفيف وفوري).
 
-> ملاحظة تنفيذية: في النظام الحالي يتم إرسال إشعارات Telegram لحالات `received` و`ready` عبر Desktop Gateway، أما البريد فيبقى عبر `/api/notify/email`.
+> ملاحظة تنفيذية: في النظام الحالي يتم إرسال إشعارات Telegram والبريد لحالات `received` و`ready` عبر Desktop Gateway.
 > الإشعارات الأخرى المذكورة هنا قد تكون مخططة أو تعتمد على توسعة لاحقة في الداشبورد.
 
 ---
@@ -62,13 +62,13 @@
 ## 3. قنوات الإشعار
 
 ### 📧 البريد الإلكتروني
-- بلال يُدخل `email` (اختياري) في نموذج الرفع.
+- الطالب يُدخل `email` (اختياري) في نموذج الرفع.
 - إذا أدخله → يُحفظ في `student_email` ويستطيع النظام إرسال إشعارات الطلب والإعلانات الجماعية للأونلاين.
 - إذا تركه فارغاً → لا إرسال.
 - **المزوّد الحالي**: SMTP عبر `nodemailer` داخل Next.js API.
 
 ### 💬 Telegram
-- بلال يربط حسابه عبر البوت حتى يُحفظ `telegram_chat_id` داخل Supabase.
+- الطالب يربط حسابه عبر البوت حتى يُحفظ `telegram_chat_id` داخل Supabase.
 - أول مرة: يحتاج يبدأ محادثة مع البوت عبر `/start <ticket>`.
 - بعدها، كل الإشعارات تأتي تلقائياً.
 
@@ -101,7 +101,7 @@
 ```
 ┌────────────────────────────────────────────┐
 │  Web app (Next.js على Vercel)               │
-│  - /api/notify/email                        │
+│  - /api/desktop/email                       │
 │  - /api/desktop/telegram                    │
 │  - /api/desktop/announcement                │
 │  - /api/cron/notify-delayed                 │
@@ -160,9 +160,9 @@ CREATE TRIGGER trg_notify
 ```
 
 ### 5.2 الآلية الحالية
-1. بلال يرفع الطلب → يتم حفظ `student_email` و/أو تفضيل Telegram في Supabase.
+1. الطالب يرفع الطلب → يتم حفظ `student_email` و/أو تفضيل Telegram في Supabase.
 2. إذا ربط Telegram، `/api/telegram/webhook` يحفظ `telegram_chat_id`.
-3. عند وصول/جاهزية الطلب، الديسكتوب يستدعي `/api/desktop/telegram` عبر activation token، والبريد عبر `/api/notify/email`.
+3. عند وصول/جاهزية الطلب، الديسكتوب يستدعي `/api/desktop/telegram` و`/api/desktop/email` عبر activation token.
 4. للإعلان الجماعي، الديسكتوب يستدعي `/api/desktop/announcement` مع activation token.
 5. Gateway يقرأ كل مستلمي الأونلاين من `print_requests.source = 'online'` ثم يرسل عبر SMTP وTelegram Bot API.
 
@@ -196,7 +196,7 @@ CREATE INDEX idx_notif_failed ON notifications_log(status)
   WHERE status = 'failed';
 ```
 
-يعطينا: audit trail + retry tracking + تنبيه سعد عند تكرار الفشل.
+يعطينا: audit trail + retry tracking + تنبيه صاحب المكتب عند تكرار الفشل.
 
 ---
 
@@ -206,7 +206,7 @@ CREATE INDEX idx_notif_failed ON notifications_log(status)
 ┌─────────────────────────────────────────┐
 │  📧 البريد الإلكتروني (اختياري)           │
 │  ┌─────────────────────────────────────┐│
-│  │ bilal@example.com                   ││
+│  │ student@example.com                 ││
 │  └─────────────────────────────────────┘│
 │  سنرسل لك إشعار عند جاهزية الطلب         │
 │                                         │
@@ -217,7 +217,7 @@ CREATE INDEX idx_notif_failed ON notifications_log(status)
 ```
 
 - **زر "اربط حسابك"**: بعد إرسال الطلب، يفتح `t.me/UOADropBot?start=<token>` (C3 — token آمن بدل `ticket_no`).
-- في وضع Offline (ملاك)، الحقلان **مخفيان** تلقائياً بواسطة `source === 'online'` check.
+- في وضع Offline، الحقلان **مخفيان** تلقائياً بواسطة `source === 'online'` check.
 
 ---
 
@@ -230,16 +230,16 @@ CREATE INDEX idx_notif_failed ON notifications_log(status)
 ```
 Subject: 🎉 طلبك جاهز للاستلام — UOADrop B-0077
 
-مرحباً بلال،
+مرحباً،
 
-طلب الطباعة الخاص بك جاهز للاستلام من المكتبة.
+طلب الطباعة الخاص بك جاهز للاستلام من المكتب.
 
 رقم التذكرة: B-0077
 عدد الملفات: 1
 عدد النسخ: 2
 الحجم: A4 — أبيض وأسود — وجهين
 
-يرجى مراجعة الموظف سعد وإبراز رقم التذكرة.
+يرجى مراجعة صاحب المكتب وإبراز رقم التذكرة.
 
 شكراً لاستخدامك UOADrop 📎
 ```
@@ -249,12 +249,12 @@ Subject: 🎉 طلبك جاهز للاستلام — UOADrop B-0077
 ✅ *تم استلام طلبك*
 
 📎 رقم التذكرة: `B-2026-0077`
-� رقم الاستلام (PIN): `4729`  ← احفظه! سعد يطلبه عند التسليم.
+� رقم الاستلام (PIN): `4729`  ← احفظه! صاحب المكتب يطلبه عند التسليم.
 �📄 عدد الملفات: 1
 🖨️ عدد النسخ: 2
 📐 A4 — أبيض وأسود — وجهين
 
-راجع سعد في المكتبة لاستلام المطبوعات.
+راجع المكتب لاستلام المطبوعات.
 ```
 
 > **لماذا نُرسل PIN في Telegram مع أن DB يخزّن hash فقط؟** PIN يُولَّد مرة واحدة، يُعرض في صفحة التأكيد، **ثم نرسله فوراً** قبل تخزين الـ hash. الطالب يحفظه في محادثة Telegram (R2). لو نسيه → يرجع للمحادثة.
@@ -273,7 +273,7 @@ Subject: 🎉 طلبك جاهز للاستلام — UOADrop B-0077
 رقم التذكرة: `B-0077`
 السعر: 2000 دينار (يدفع عند الاستلام)
 الـ PIN: استخدم الرقم الذي ظهر لك عند الرفع.
-اذهب للمكتبة وأبرز الرقم لسعد.
+اذهب للمكتب وأبرز الرقم لصاحب المكتب.
 ```
 
 ### Email + Telegram — Blocked (C6)
@@ -290,7 +290,7 @@ Subject: 🎉 طلبك جاهز للاستلام — UOADrop B-0077
 ❌ *تم إلغاء طلبك*
 
 رقم التذكرة: `B-0077`
-إذا لم تقم أنت بالإلغاء، راجع المكتبة.
+إذا لم تقم أنت بالإلغاء، راجع المكتب.
 ```
 
 ---
@@ -349,7 +349,7 @@ async function sendTelegram(req: any, event: string) {
 
 ## 10. Telegram Bot — ربط الحساب (C3 hardened)
 
-بلال يعبّي النموذج بدون `chat_id`. السيرفر يولّد **token عشوائي 16 بايت** يربط الطلب بالمحادثة. بلال يضغط زر "اربط حسابك":
+الطالب يعبّي النموذج بدون `chat_id`. السيرفر يولّد **token عشوائي 16 بايت** يربط الطلب بالمحادثة. الطالب يضغط زر "اربط حسابك":
 
 ```
 t.me/UOADropBot?start=tok_f3k92m1q8v2nL9xA
@@ -413,7 +413,8 @@ export async function POST(req: Request) {
 Webhook setup:
 ```bash
 curl -X POST https://api.telegram.org/bot<TOKEN>/setWebhook \
-  -d "url=https://uoadrop.vercel.app/api/telegram/webhook"
+  -d "url=https://uoadrop.vercel.app/api/telegram/webhook" \
+  -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
 ```
 
 ---
@@ -426,7 +427,7 @@ curl -X POST https://api.telegram.org/bot<TOKEN>/setWebhook \
 | 2 | +1 دقيقة |
 | 3 | +10 دقائق |
 
-بعد 3 فشل → `status='failed'` + تنبيه في Dashboard سعد.
+بعد 3 فشل → `status='failed'` + تنبيه في Dashboard صاحب المكتب.
 
 Cron job في Supabase كل 5 دقائق يفحص notifications_log للـ pending + retry.
 
@@ -477,6 +478,7 @@ EMAIL_USER=...
 EMAIL_PASS=...
 EMAIL_FROM=UOADrop <...>
 TELEGRAM_BOT_TOKEN=123456:ABC-xyz
+TELEGRAM_WEBHOOK_SECRET=...
 BOT_USERNAME=UOADropBot
 SUPABASE_SERVICE_ROLE_KEY=...
 ```
@@ -488,7 +490,7 @@ SUPABASE_SERVICE_ROLE_KEY=...
 - **WhatsApp** — مكلف ومعقّد (تحقق Meta).
 - **SMS** — مكلف ($0.05/رسالة في العراق).
 - **Push notifications للـ PWA** — ممكن لاحقاً.
-- **إشعارات لسعد** — مو ضرورية (يجلس عند الـ Dashboard).
-- **إشعارات لملاك** — مو مطلوبة (تستلم مباشرة).
+- **إشعارات خارجية لصاحب المكتب** — مو ضرورية حالياً لأنه يجلس عند الـ Dashboard وتوصله إشعارات النظام المحلية.
+- **إشعارات خارجية لطلبات Offline** — مو مطلوبة عادة لأنها داخل نفس شبكة المكتب.
 
 </div>

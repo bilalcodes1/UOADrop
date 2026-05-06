@@ -69,6 +69,7 @@ type OnlineModeStatus = {
   librarySlug?: string;
   libraryName?: string;
   webBaseUrl: string;
+  onlineUploadUrl: string;
   hasGatewayUrl: boolean;
   hasDesktopToken: boolean;
 };
@@ -544,7 +545,7 @@ function formatEventActor(actor: RequestEvent['actor']): string {
 function formatAnnouncementError(error?: string): string {
   switch (error) {
     case 'activation_required':
-      return 'الأونلاين يحتاج باسورد التفعيل أولاً';
+      return 'الأونلاين يحتاج كود التفعيل أولاً';
     case 'missing_gateway_config':
       return 'تفعيل Gateway غير مكتمل';
     case 'missing_web_base_url':
@@ -569,7 +570,7 @@ function formatOnlineModeReason(status?: OnlineModeStatus | null): string {
     case 'enabled':
       return 'الأونلاين مفعل على هذا الجهاز';
     case 'activation_required':
-      return 'الأونلاين مقفول إلى أن تدخل باسورد التفعيل';
+      return 'الأونلاين مقفول إلى أن تدخل كود التفعيل';
     case 'missing_gateway_url':
       return 'رابط سيرفر الأونلاين غير مضبوط';
     default:
@@ -580,7 +581,7 @@ function formatOnlineModeReason(status?: OnlineModeStatus | null): string {
 function formatOnlineActivationError(error?: string): string {
   switch (error) {
     case 'invalid_activation_password':
-      return 'باسورد التفعيل غير صحيح';
+      return 'كود التفعيل غير صحيح';
     case 'activation_write_failed':
       return 'تعذر حفظ تفعيل الأونلاين على هذا الجهاز';
     case 'activation_network_error':
@@ -607,6 +608,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [onlineModeStatus, setOnlineModeStatus] = useState<OnlineModeStatus | null>(null);
   const [onlineActivationPassword, setOnlineActivationPassword] = useState('');
+  const [onlineReactivationOpen, setOnlineReactivationOpen] = useState(false);
   const [onlineActivationBusy, setOnlineActivationBusy] = useState(false);
   const [onlineActivationError, setOnlineActivationError] = useState<string | null>(null);
   const [onlineDiagnostics, setOnlineDiagnostics] = useState<OnlineGatewayDiagnostics | null>(null);
@@ -715,7 +717,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
     const passphrase = onlineActivationPassword.trim();
     setOnlineActivationError(null);
     if (!passphrase) {
-      setOnlineActivationError('أدخل باسورد تفعيل الأونلاين');
+      setOnlineActivationError('أدخل كود تفعيل الأونلاين');
       return;
     }
 
@@ -728,7 +730,8 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
         return;
       }
       setOnlineActivationPassword('');
-      showToast('تم تفعيل الأونلاين على هذا الجهاز');
+      setOnlineReactivationOpen(false);
+      showToast(res.status.libraryName || res.status.librarySlug ? `تم ربط الجهاز بـ ${res.status.libraryName || res.status.librarySlug}` : 'تم تفعيل الأونلاين على هذا الجهاز');
       void refreshOnlineDiagnostics();
     } finally {
       setOnlineActivationBusy(false);
@@ -801,18 +804,21 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
     }
   };
 
+  const onlineLibraryMissing = Boolean(onlineModeStatus?.enabled && !onlineModeStatus.libraryId);
+  const showOnlineActivationForm = !onlineModeStatus?.enabled || onlineReactivationOpen || onlineLibraryMissing;
+
   return (
     <section className="settings-panel">
       <div className="settings-section">
         <div className="settings-section-head">
           <h2 className="settings-section-title">حالة الأونلاين لهذا الجهاز</h2>
-          <p className="settings-section-desc">الأونلاين يبقى مقفولاً إلى أن تدخل باسورد التفعيل. بعد التفعيل يُحفظ محلياً على هذا الجهاز.</p>
+          <p className="settings-section-desc">الأونلاين يبقى مقفولاً إلى أن تدخل كود التفعيل. بعد التفعيل يُحفظ محلياً على هذا الجهاز.</p>
         </div>
         <div className="settings-fields">
           <div className={`online-mode-card ${onlineModeStatus?.enabled ? 'online-mode-card-enabled' : 'online-mode-card-disabled'}`}>
             <span>{onlineModeStatus?.enabled ? 'Online enabled' : 'Online locked'}</span>
             <strong>{formatOnlineModeReason(onlineModeStatus)}</strong>
-            <p>{onlineModeStatus?.enabled ? 'طلبات الأونلاين والمزامنة والإعلانات متاحة عبر Vercel Gateway بدون مفاتيح داخل التطبيق.' : 'أدخل باسورد التفعيل لفتح ميزات الأونلاين على هذا الجهاز.'}</p>
+            <p>{onlineModeStatus?.enabled ? 'طلبات الأونلاين والمزامنة والإعلانات متاحة عبر Vercel Gateway بدون مفاتيح داخل التطبيق.' : 'أدخل كود التفعيل لفتح ميزات الأونلاين على هذا الجهاز.'}</p>
             <div className="online-mode-diagnostics">
               <span>Gateway: {onlineModeStatus?.hasGatewayUrl ? 'جاهز' : 'غير مضبوط'}</span>
               <span>Token: {onlineModeStatus?.hasDesktopToken ? 'محفوظ' : 'غير موجود'}</span>
@@ -820,25 +826,52 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
               <span>Server: {onlineDiagnostics ? (onlineDiagnostics.serverReachable ? 'متصل' : 'غير متصل') : 'غير مفحوص'}</span>
               <span>Pending: {onlineDiagnostics?.pendingOnlineRequests?.toLocaleString('ar-IQ') ?? '-'}</span>
               {onlineDiagnostics?.error && <span>Error: {onlineDiagnostics.error}</span>}
-              <span dir="ltr">{onlineModeStatus?.webBaseUrl || '...'}</span>
+              <span dir="ltr">{onlineModeStatus?.onlineUploadUrl || onlineModeStatus?.webBaseUrl || '...'}</span>
             </div>
-            <button
-              type="button"
-              className="announcement-refresh"
-              disabled={onlineDiagnosticsBusy}
-              onClick={() => void refreshOnlineDiagnostics()}
-            >
-              {onlineDiagnosticsBusy ? 'جارٍ الفحص...' : 'فحص اتصال الأونلاين'}
-            </button>
+            {onlineLibraryMissing && (
+              <p>هذا التفعيل قديم ولا يحتوي معلومات مكتبة. أدخل كود التفعيل الجديد لربط الجهاز بالمكتبة.</p>
+            )}
+            <div className="online-mode-actions">
+              <button
+                type="button"
+                className="announcement-refresh"
+                disabled={onlineDiagnosticsBusy}
+                onClick={() => void refreshOnlineDiagnostics()}
+              >
+                {onlineDiagnosticsBusy ? 'جارٍ الفحص...' : 'فحص اتصال الأونلاين'}
+              </button>
+              {onlineModeStatus?.enabled && !onlineLibraryMissing && (
+                <button
+                  type="button"
+                  className="announcement-refresh"
+                  onClick={() => window.open(onlineModeStatus.onlineUploadUrl || onlineModeStatus.webBaseUrl, '_blank')}
+                >
+                  فتح صفحة الرفع
+                </button>
+              )}
+              {onlineModeStatus?.enabled && !onlineLibraryMissing && (
+                <button
+                  type="button"
+                  className="announcement-refresh"
+                  onClick={() => {
+                    setOnlineReactivationOpen((open) => !open);
+                    setOnlineActivationError(null);
+                    setOnlineActivationPassword('');
+                  }}
+                >
+                  {onlineReactivationOpen ? 'إلغاء إعادة التفعيل' : 'تغيير المكتبة / إعادة التفعيل'}
+                </button>
+              )}
+            </div>
           </div>
-          {!onlineModeStatus?.enabled && (
+          {showOnlineActivationForm && (
             <>
               <div className="settings-field">
-                <label className="settings-label">باسورد تفعيل الأونلاين</label>
+                <label className="settings-label">{onlineModeStatus?.enabled ? 'كود إعادة التفعيل' : 'كود تفعيل الأونلاين'}</label>
                 <input
                   className="settings-input"
                   type="password"
-                  placeholder="أدخل باسورد التفعيل"
+                  placeholder="مثال: UOA-H5DW-R755-H7"
                   value={onlineActivationPassword}
                   onChange={(e) => { setOnlineActivationPassword(e.target.value); setOnlineActivationError(null); }}
                   onKeyDown={(e) => {
@@ -852,7 +885,7 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
                 disabled={onlineActivationBusy}
                 onClick={() => void handleActivateOnlineMode()}
               >
-                {onlineActivationBusy ? 'جارٍ التفعيل...' : 'تفعيل الأونلاين'}
+                {onlineActivationBusy ? 'جارٍ التفعيل...' : onlineModeStatus?.enabled ? 'ربط الجهاز بالمكتبة' : 'تفعيل الأونلاين'}
               </button>
             </>
           )}

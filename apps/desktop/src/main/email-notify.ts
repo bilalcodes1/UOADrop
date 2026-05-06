@@ -1,28 +1,31 @@
 import type { PrintRequest } from '@uoadrop/shared';
 import { logRequestEvent } from './db';
-import { getWebBaseUrl } from './runtime-config';
+import { getDesktopGatewayConfig } from './runtime-config';
 
-function getEmailNotifyUrl(): string {
-  const base = getWebBaseUrl();
-  return base ? `${base}/api/notify/email` : '';
+type EmailNotificationEvent = 'received' | 'ready';
+
+async function sendGatewayEmailEvent(requestId: string, event: EmailNotificationEvent): Promise<boolean> {
+  const config = getDesktopGatewayConfig();
+  if (!config) return false;
+  try {
+    const res = await fetch(`${config.baseUrl}/api/desktop/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.token}`,
+      },
+      body: JSON.stringify({ requestId, event }),
+    });
+    const payload = (await res.json().catch(() => ({}))) as { ok?: boolean };
+    return res.ok && payload.ok !== false;
+  } catch {
+    return false;
+  }
 }
 
 export async function notifyEmailReceived(request: PrintRequest): Promise<void> {
   if (!request.studentEmail) return;
-  const url = getEmailNotifyUrl();
-  if (!url) return;
-
-  let ok = false;
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requestId: request.id, event: 'received' }),
-    });
-    ok = res.ok;
-  } catch {
-    ok = false;
-  }
+  const ok = await sendGatewayEmailEvent(request.id, 'received');
 
   logRequestEvent({
     requestId: request.id,
@@ -35,20 +38,7 @@ export async function notifyEmailReceived(request: PrintRequest): Promise<void> 
 
 export async function notifyEmailReady(request: PrintRequest): Promise<void> {
   if (!request.studentEmail) return;
-  const url = getEmailNotifyUrl();
-  if (!url) return;
-
-  let ok = false;
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requestId: request.id, event: 'ready' }),
-    });
-    ok = res.ok;
-  } catch {
-    ok = false;
-  }
+  const ok = await sendGatewayEmailEvent(request.id, 'ready');
 
   logRequestEvent({
     requestId: request.id,

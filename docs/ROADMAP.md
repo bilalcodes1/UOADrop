@@ -14,7 +14,7 @@
 ### المنجز
 - [x] `README.md` — نظرة عامة
 - [x] `docs/ARCHITECTURE.md` — المعمارية الكاملة
-- [x] `docs/SETUP.md` — دليل سعد
+- [x] `docs/SETUP.md` — دليل إعداد صاحب المكتب
 - [x] `docs/RISKS.md` — المخاطر والاستجابة
 - [x] `docs/ROADMAP.md` — هذا الملف
 - [x] `docs/GLOSSARY.md` — المصطلحات
@@ -60,7 +60,7 @@
 - [x] Magic-byte verification + SHA-256 dedup
 - [x] حساب تلقائي لعدد الصفحات للأنواع المدعومة
 - [x] خدمة `student.html` والشعارات من `resources/` عبر نفس الخادم المحلي
-- [x] ربط الخادم على `0.0.0.0` ليتاح عبر الشبكة المحلية داخل المكتبة
+- [x] ربط الخادم على `0.0.0.0` ليتاح عبر الشبكة المحلية داخل المكتب
 
 ### 1.6 — صفحة رفع الطالب `/` ✅
 - [x] HTML standalone في `apps/desktop/resources/student.html`
@@ -78,7 +78,7 @@
 - [x] `cleanup.ts` — حذف طلبات `abandoned` > 24 ساعة
 - [x] Runs on startup + daily interval
 
-### 1.7 — Dashboard المكتبة ✅
+### 1.7 — Dashboard المكتب ✅
 - [x] React + Vite renderer
 - [x] WebSocket للتحديث اللحظي + **native OS Notification** (نظام) عند وصول طلب/ملف
 - [x] Counters وفلاتر وحالات `pending/printing/ready/done/canceled/blocked`
@@ -110,17 +110,17 @@
 - [x] ESLint/Prettier
 - [x] تحسين الهوية البصرية العربية في صفحة الطالب والدشبورد بدون الاعتماد على موارد خارجية
 - [x] التحقق من عمل الشعارات محلياً بعد إعادة التشغيل وعلى الشبكة المحلية
-- [ ] اختبار مع iOS + Android حقيقي (يحتاج جهاز سعد على شبكة حقيقية)
+- [ ] اختبار مع iOS + Android حقيقي داخل شبكة مكتب فعلية
 - [ ] اختبار سيناريو طلب متعدد الملفات بإعدادات مختلفة لكل ملف
 
-**مخرجات Phase 1**: الطالب يرفع الملفات محلياً من المتصفح، ولكل ملف إعداداته الخاصة، وتظهر له واجهة محلية مكتملة الهوية البصرية، وسعد يدير الطلب من لوحة شغالة بالكامل داخل Electron.
+**مخرجات Phase 1**: الطالب يرفع الملفات محلياً من المتصفح، ولكل ملف إعداداته الخاصة، وتظهر له واجهة محلية مكتملة الهوية البصرية، وصاحب المكتب يدير الطلب من لوحة شغالة بالكامل داخل Electron.
 
 ---
 
 ## Phase 2 — Online Integration 🌐 ✅
 
 **الحالة**: منفّذ عملياً عبر Next.js/Vercel + Supabase + Desktop intake.
-**الهدف**: بلال يرفع من خارج المكتبة، وسعد يرى طلبات Online داخل نفس الدشبورد مع مزامنة السعر والحالة والدفع.
+**الهدف**: الطالب يرفع من خارج المكتب، وصاحب المكتب يرى طلبات Online داخل نفس الدشبورد مع مزامنة السعر والحالة والدفع.
 
 ### 2.1 — Supabase + Vercel Setup ✅
 - [x] Supabase Postgres + Storage bucket `print-files`
@@ -156,7 +156,7 @@
 - [x] إعدادات runtime للديسكتوب عبر `runtime-config.json`
 - [x] توثيق متغيرات البيئة في `.env.example` و`docs/SETUP.md`
 
-**مخرجات Phase 2**: بلال يقدر يرفع من البيت. سعد يشوف طلبات Online وLocal في واجهة واحدة، والإعلانات الجماعية تعمل لمستلمي Online فقط.
+**مخرجات Phase 2**: الطالب يقدر يرفع من خارج المكتب. صاحب المكتب يشوف طلبات Online وLocal في واجهة واحدة، والإعلانات الجماعية تعمل لمستلمي Online فقط.
 
 ---
 
@@ -184,17 +184,17 @@
 
 ---
 
-## Phase 4 — Packaging & Operations 🚀
+## Phase 4 — Packaging & Operations ✅
 
-**المدة المتوقعة**: 2-3 أيام.
-**الهدف**: installer جاهز + auto-update + cleanup + backup.
+**الحالة**: تسليم أول جاهز بالإصدارات اليدوية على GitHub Releases.
+**الهدف**: installer جاهز + إصدارات macOS/Windows + تشغيل متعدد المكاتب.
 
 ### 4.1 — Installer (يوم)
-- [ ] `electron-builder` config
-- [ ] Build `.dmg` للـ Mac (Universal: Intel + ARM)
-- [ ] Build `.exe` للـ Windows (NSIS)
-- [ ] App icon + splash screen
-- [ ] Code signing (لو متاح)
+- [x] `electron-builder` config
+- [x] Build `.dmg` و `.zip` للـ Mac Apple Silicon وIntel
+- [x] Build `.exe` للـ Windows x64 بنسخة Installer وPortable
+- [x] App icon + splash screen
+- [ ] Code signing / notarization رسمي
 
 ### 4.2 — Auto-Update (نصف يوم)
 - [ ] `electron-updater` + GitHub Releases
@@ -213,12 +213,12 @@
 - [ ] تشغيل يدوي من Dashboard لحالات الطوارئ
 
 ### 4.5 — الاختبار النهائي (نصف يوم)
-- [ ] اختبار كامل في بيئة المكتبة الفعلية
+- [ ] اختبار كامل في بيئة مكتب فعلية
 - [ ] اختبار مع 10+ أجهزة مختلفة
 - [ ] stress test: 20 طلب متزامن
 - [ ] اختبار sleep/wake/restart scenarios
 
-**مخرجات Phase 4**: منتج جاهز للتسليم لسعد — مكتمل ونهائي.
+**مخرجات Phase 4**: منتج جاهز للتسليم الأولي لكل مكتب طباعة/مكتبة مسجلة، مع إصدارات desktop يدوية عبر GitHub Releases.
 
 ---
 
@@ -226,10 +226,10 @@
 
 | المعلم | بعد نهاية Phase |
 |--------|-----------------|
-| Offline يشتغل مع ملاك | Phase 1 |
-| Online يشتغل مع بلال | Phase 2 / 3 |
+| Offline يشتغل داخل المكتب | Phase 1 |
+| Online يشتغل خارج المكتب | Phase 2 / 3 |
 | إشعارات خارجية | Phase 3 |
-| جاهز للتسليم لسعد | Phase 4 |
+| جاهز للتسليم للمكاتب | Phase 4 |
 
 ---
 
@@ -237,7 +237,7 @@
 
 - **Offline يسبق Online دائماً**: لأنه القلب.
 - **اعتمادية تسبق ميزات**: ما نضيف ميزة جديدة قبل ما الأساس صلب.
-- **Desktop أهم من Web**: سعد عنده جهاز واحد، الطلاب متعددين لكن صفحتهم بسيطة.
+- **Desktop أهم من Web**: صاحب المكتب عنده جهاز تشغيل واحد، الطلاب متعددين لكن صفحتهم بسيطة.
 - **اختبار يدوي في كل phase**: قبل الانتقال للـ next.
 
 </div>
