@@ -69,7 +69,6 @@ const MAX_FILES = 10;
 const ONLINE_UPLOAD_CONCURRENCY = 3;
 const TELEGRAM_BOT_USERNAME = 'uoadrop_bot';
 const FORM_PREFS_KEY = 'uoadrop:web:upload-form-prefs';
-const DEFAULT_LIBRARY_SLUG = String(process.env.NEXT_PUBLIC_UOADROP_DEFAULT_LIBRARY_SLUG ?? 'main-library').trim() || 'main-library';
 const ONLINE_ENCRYPTION_PUBLIC_KEY = String(process.env.NEXT_PUBLIC_UOADROP_ENCRYPTION_PUBLIC_KEY ?? '').trim();
 const ONLINE_FILE_ENCRYPTION_ALGORITHM = 'AES-256-GCM+RSA-OAEP-SHA256';
 
@@ -269,14 +268,14 @@ function readStoredFormPrefs(): {
   }
 }
 
-function readLibrarySlugFromUrl(): string {
+function readLibrarySlugFromUrl(): string | null {
   try {
     const url = new URL(window.location.href);
-    const raw = url.searchParams.get('library') || url.searchParams.get('l') || DEFAULT_LIBRARY_SLUG;
+    const raw = url.searchParams.get('library') || url.searchParams.get('l') || '';
     const slug = raw.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
-    return slug || DEFAULT_LIBRARY_SLUG;
+    return slug || null;
   } catch {
-    return DEFAULT_LIBRARY_SLUG;
+    return null;
   }
 }
 
@@ -333,6 +332,8 @@ export default function UploadPage() {
   const [currentFile, setCurrentFile] = useState(0);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
   const [library, setLibrary] = useState<LibraryInfo | null>(null);
+  const [libraries, setLibraries] = useState<LibraryInfo[]>([]);
+  const [generalEntry, setGeneralEntry] = useState(false);
   const [libraryLookupDone, setLibraryLookupDone] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -371,6 +372,24 @@ export default function UploadPage() {
     let active = true;
     const loadLibrary = async () => {
       const slug = readLibrarySlugFromUrl();
+      if (!slug) {
+        setGeneralEntry(true);
+        const { data, error } = await supabase
+          .from('libraries')
+          .select('id, slug, name')
+          .eq('status', 'active')
+          .order('name', { ascending: true });
+        if (!active) return;
+        const rows = !error ? (data ?? []) as LibraryInfo[] : [];
+        setLibraries(rows);
+        const onlyLibrary = rows[0];
+        if (rows.length === 1 && onlyLibrary) setLibrary(onlyLibrary);
+        if (error || rows.length === 0) setError('لا توجد مكتبات مفعّلة حالياً.');
+        setLibraryLookupDone(true);
+        return;
+      }
+
+      setGeneralEntry(false);
       const { data, error } = await supabase
         .from('libraries')
         .select('id, slug, name')
@@ -378,7 +397,13 @@ export default function UploadPage() {
         .eq('status', 'active')
         .maybeSingle();
       if (!active) return;
-      if (!error && data) setLibrary(data as LibraryInfo);
+      if (!error && data) {
+        const row = data as LibraryInfo;
+        setLibrary(row);
+        setLibraries([row]);
+      } else {
+        setError('رابط المكتبة غير صحيح أو غير مفعّل');
+      }
       setLibraryLookupDone(true);
     };
     void loadLibrary();
@@ -429,12 +454,23 @@ export default function UploadPage() {
   const updateSettings = (id: string, patch: Partial<PrintSettings>) =>
     setFiles(prev => prev.map(f => (f.id === id ? { ...f, settings: { ...f.settings, ...patch } } : f)));
 
+  const selectLibrary = (libraryId: string) => {
+    const next = libraries.find(item => item.id === libraryId) ?? null;
+    setLibrary(next);
+    setError('');
+    if (next && generalEntry) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('library', next.slug);
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  };
+
   const handleSubmit = async () => {
     setError('');
     if (!name.trim()) { setError('اسم الطالب مطلوب'); return; }
     if (files.length === 0) { setError('اختر ملفاً واحداً على الأقل'); return; }
     if (!libraryLookupDone) { setError('جاري تحميل إعدادات المكتبة، انتظر لحظة'); return; }
-    if (!library && readLibrarySlugFromUrl() !== DEFAULT_LIBRARY_SLUG) { setError('رابط المكتبة غير صحيح أو غير مفعّل'); return; }
+    if (!library) { setError(generalEntry ? 'اختر المكتبة قبل إرسال الطلب' : 'رابط المكتبة غير صحيح أو غير مفعّل'); return; }
     const normalizedEmail = email.trim();
     if (notifyEmail && !normalizedEmail) { setError('أدخل البريد الإلكتروني أو ألغِ خيار إشعارات البريد الإلكتروني'); return; }
     const emailForNotifications = notifyEmail ? normalizedEmail : '';
@@ -610,23 +646,31 @@ export default function UploadPage() {
   const defaultsValue = formatDefaultOptionsText(defaultSettings);
   const readinessValue = state === 'uploading'
     ? 'جاري الرفع'
-    : files.length === 0
-      ? 'بانتظار الملفات'
-      : !name.trim()
-        ? 'الاسم مطلوب'
-        : 'جاهز للإرسال';
+    : !libraryLookupDone
+      ? 'تحميل المكتبات'
+      : !library
+        ? 'اختر المكتبة'
+        : files.length === 0
+          ? 'بانتظار الملفات'
+          : !name.trim()
+            ? 'الاسم مطلوب'
+            : 'جاهز للإرسال';
   const readinessHint = state === 'uploading'
     ? `يتم الآن رفع ${Math.max(currentFile, 1)} من ${Math.max(files.length, 1)} ملفات.`
-    : files.length === 0
-      ? 'أضف ملفاً واحداً على الأقل.'
-      : !name.trim()
-        ? 'اكتب اسم الطالب للمتابعة.'
-        : 'يمكنك إرسال الطلب الآن وسيظهر مباشرة في لوحة الطباعة.';
+    : !libraryLookupDone
+      ? 'جاري تحميل المكتبات المتاحة.'
+      : !library
+        ? 'اختر مكتبتك من القائمة قبل إرسال الطلب.'
+        : files.length === 0
+          ? 'أضف ملفاً واحداً على الأقل.'
+          : !name.trim()
+            ? 'اكتب اسم الطالب للمتابعة.'
+            : 'يمكنك إرسال الطلب الآن وسيظهر مباشرة في لوحة الطباعة.';
   const notificationSummary = [
     notifyEmail && email.trim() ? 'البريد الإلكتروني' : '',
     notifyTelegram ? 'Telegram' : '',
   ].filter(Boolean).join(' • ') || 'اختياري';
-  const libraryDisplayName = library?.name || (libraryLookupDone ? 'المكتبة الافتراضية' : 'جارٍ تحميل المكتبة');
+  const libraryDisplayName = library?.name || (!libraryLookupDone ? 'جارٍ تحميل المكتبة' : generalEntry ? 'اختر المكتبة' : 'رابط مكتبة غير صحيح');
   const guideSteps = [
     {
       step: '1',
@@ -707,6 +751,28 @@ export default function UploadPage() {
                 </div>
 
                 <div className={styles.formStack}>
+                  {generalEntry && (
+                    <section className={`${styles.formSection} ${styles.librarySelectorSection}`}>
+                      <span className={styles.sectionEyebrow}>0. المكتبة</span>
+                      <h3 className={styles.formSectionTitle}>اختر المكتبة</h3>
+                      <p className={styles.librarySelectorHint}>
+                        أنت داخل من الرابط العام. اختار المكتبة المطلوبة، أما رابط الباركود الخاص بالمكتبة فيحددها تلقائياً.
+                      </p>
+                      <select
+                        className={styles.input}
+                        value={library?.id ?? ''}
+                        onChange={event => selectLibrary(event.target.value)}
+                        disabled={!libraryLookupDone || libraries.length === 0}
+                      >
+                        <option value="">اختر المكتبة</option>
+                        {libraries.map(item => (
+                          <option key={item.id} value={item.id}>{item.name}</option>
+                        ))}
+                      </select>
+                      {library && <div className={styles.selectedLibraryNotice}>تم اختيار: {library.name}</div>}
+                    </section>
+                  )}
+
                   <section className={`${styles.formSection} ${styles.uploadFirstSection}`}>
                     <div className={styles.queueShell}>
                       <div className={styles.queueHead}>
@@ -965,7 +1031,7 @@ export default function UploadPage() {
                     <button
                       className={styles.submitBtn}
                       onClick={handleSubmit}
-                      disabled={!name.trim() || files.length === 0}
+                      disabled={!library || !name.trim() || files.length === 0}
                     >
                       إرسال الطلب إلى المكتبة
                     </button>
