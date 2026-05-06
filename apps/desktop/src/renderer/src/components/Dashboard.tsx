@@ -80,6 +80,14 @@ type OnlineGatewayDiagnostics = {
   pendingOnlineRequests?: number;
   status: OnlineModeStatus;
 };
+type NetworkInterfaceInfo = {
+  name: string;
+  address: string;
+  mac: string;
+  family: 'IPv4';
+  netmask?: string;
+  cidr?: string | null;
+};
 
 const EMPTY_DASHBOARD_STATS: DashboardStats = {
   total: 0,
@@ -629,6 +637,8 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
     skippedEmail: boolean;
     skippedTelegram: boolean;
   } | null>(null);
+  const [networkInterfaces, setNetworkInterfaces] = useState<NetworkInterfaceInfo[]>([]);
+  const [networkLoading, setNetworkLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -642,8 +652,33 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
       if (!active) return;
       setOnlineModeStatus(status);
     });
+    void window.api.getNetworkInterfaces().then((res) => {
+      if (!active) return;
+      setNetworkInterfaces(res.interfaces);
+    });
     return () => { active = false; };
   }, []);
+
+  const refreshNetworkInterfaces = useCallback(async (): Promise<void> => {
+    setNetworkLoading(true);
+    try {
+      const res = await window.api.getNetworkInterfaces();
+      setNetworkInterfaces(res.interfaces);
+    } finally {
+      setNetworkLoading(false);
+    }
+  }, []);
+
+  const copyNetworkValue = useCallback(async (value: string, label: string): Promise<void> => {
+    const text = value.trim();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`تم نسخ ${label}`);
+    } catch {
+      showToast(`انسخ ${label} يدوياً`);
+    }
+  }, [showToast]);
 
   const refreshOnlineDiagnostics = useCallback(async (): Promise<void> => {
     setOnlineDiagnosticsBusy(true);
@@ -806,6 +841,8 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
 
   const onlineLibraryMissing = Boolean(onlineModeStatus?.enabled && !onlineModeStatus.libraryId);
   const showOnlineActivationForm = !onlineModeStatus?.enabled || onlineReactivationOpen || onlineLibraryMissing;
+  const primaryNetworkInterface = networkInterfaces[0] ?? null;
+  const primaryOfflineUrl = primaryNetworkInterface ? `http://${primaryNetworkInterface.address}:3737/` : '';
 
   return (
     <section className="settings-panel">
@@ -931,8 +968,38 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
             </div>
             <div className="offline-network-checklist">
               <div>
-                <span>الرابط المتوقع</span>
-                <strong dir="ltr">http://192.168.1.9:3737/</strong>
+                <span>IP الجهاز الحالي</span>
+                <strong dir="ltr">{primaryNetworkInterface?.address || 'غير متوفر'}</strong>
+                {primaryNetworkInterface?.address && (
+                  <button type="button" onClick={() => void copyNetworkValue(primaryNetworkInterface.address, 'IP الجهاز')}>
+                    نسخ IP
+                  </button>
+                )}
+              </div>
+              <div>
+                <span>MAC Address للراوتر</span>
+                <strong dir="ltr">{primaryNetworkInterface?.mac || 'غير متوفر'}</strong>
+                {primaryNetworkInterface?.mac && primaryNetworkInterface.mac !== 'غير متوفر' && (
+                  <button type="button" onClick={() => void copyNetworkValue(primaryNetworkInterface.mac, 'MAC Address')}>
+                    نسخ MAC
+                  </button>
+                )}
+              </div>
+              <div>
+                <span>رابط QR المتوقع</span>
+                <strong dir="ltr">{primaryOfflineUrl || 'غير متوفر'}</strong>
+                {primaryOfflineUrl && (
+                  <button type="button" onClick={() => void copyNetworkValue(primaryOfflineUrl, 'رابط الأوفلاين')}>
+                    نسخ الرابط
+                  </button>
+                )}
+              </div>
+              <div>
+                <span>واجهة الشبكة</span>
+                <strong>{primaryNetworkInterface ? `${primaryNetworkInterface.name}${primaryNetworkInterface.cidr ? ` • ${primaryNetworkInterface.cidr}` : ''}` : 'لا يوجد اتصال LAN/Wi‑Fi واضح'}</strong>
+                <button type="button" disabled={networkLoading} onClick={() => void refreshNetworkInterfaces()}>
+                  {networkLoading ? 'جارٍ التحديث...' : 'تحديث'}
+                </button>
               </div>
               <div>
                 <span>شرط الشبكة</span>
@@ -947,6 +1014,18 @@ function SettingsPanel({ showToast }: { showToast: (msg: string) => void }): JSX
                 <strong>اسمح للتطبيق باستقبال الاتصالات من الشبكة</strong>
               </div>
             </div>
+            {networkInterfaces.length > 1 && (
+              <div className="offline-network-interfaces">
+                <span>كل عناوين هذا الجهاز</span>
+                {networkInterfaces.map((item) => (
+                  <div key={`${item.name}-${item.address}-${item.mac}`} className="offline-network-interface">
+                    <strong>{item.name}</strong>
+                    <code>{item.address}</code>
+                    <code>{item.mac}</code>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

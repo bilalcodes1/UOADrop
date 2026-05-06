@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createHash } from 'node:crypto';
-import { createDesktopToken, getAdminClient, json, verifyActivationPassword } from '../_lib';
+import { createDesktopToken, getAdminClient, json } from '../_lib';
 
 type LibraryRow = {
   id: string;
@@ -18,19 +18,6 @@ type ActivationCodeRow = {
   revoked_at: string | null;
 };
 
-const DEFAULT_LIBRARY_SLUG = normalizeSlug(process.env.UOADROP_DEFAULT_LIBRARY_SLUG || 'main-library');
-const DEFAULT_LIBRARY_NAME = String(process.env.UOADROP_DEFAULT_LIBRARY_NAME || 'UOADrop Main Library').trim() || 'UOADrop Main Library';
-
-function normalizeSlug(value: string): string {
-  const slug = String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 64);
-  return slug || 'main-library';
-}
-
 function hashActivationCode(value: string): string {
   return createHash('sha256').update(String(value ?? '').trim()).digest('hex');
 }
@@ -43,21 +30,6 @@ async function loadLibrary(libraryId: string): Promise<LibraryRow | null> {
     .maybeSingle();
   if (error) throw error;
   return (data as LibraryRow | null) ?? null;
-}
-
-async function upsertDefaultLibrary(): Promise<LibraryRow> {
-  const { data, error } = await getAdminClient()
-    .from('libraries')
-    .upsert({
-      slug: DEFAULT_LIBRARY_SLUG,
-      name: DEFAULT_LIBRARY_NAME,
-      status: 'active',
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'slug' })
-    .select('id, slug, name, status')
-    .single();
-  if (error) throw error;
-  return data as LibraryRow;
 }
 
 async function resolveActivationCode(passphrase: string, deviceId: string): Promise<LibraryRow | null> {
@@ -97,9 +69,7 @@ async function resolveActivationCode(passphrase: string, deviceId: string): Prom
 async function resolveActivationLibrary(passphrase: string, deviceId: string): Promise<LibraryRow | null> {
   const codeLibrary = await resolveActivationCode(passphrase, deviceId);
   if (codeLibrary) return codeLibrary;
-  if (!verifyActivationPassword(passphrase)) return null;
-  const defaultLibrary = await upsertDefaultLibrary();
-  return defaultLibrary.status === 'active' ? defaultLibrary : null;
+  return null;
 }
 
 async function recordDesktopDevice(deviceId: string, library: LibraryRow): Promise<void> {

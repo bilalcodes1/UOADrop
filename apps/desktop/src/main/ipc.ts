@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow, shell, dialog } from 'electron';
 import { basename } from 'node:path';
 import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { networkInterfaces } from 'node:os';
 import type { OnlineImportState, PaymentStatus, PrinterStatus, RequestEvent, RequestSourceOfTruth } from '@uoadrop/shared';
 import { PIN_LOCKOUT_MINUTES, PIN_MAX_ATTEMPTS } from '@uoadrop/shared';
 import {
@@ -47,6 +48,29 @@ import { getOnlineAnnouncementPreview, sendOnlineAnnouncement } from './online-a
 import { activateOnlineMode, checkOnlineGatewayDiagnostics, getOnlineModeStatus } from './runtime-config';
 
 const NO_PRINTERS_ERROR = 'NO_PRINTERS_CONFIGURED';
+
+type NetworkInterfaceInfo = {
+  name: string;
+  address: string;
+  mac: string;
+  family: 'IPv4';
+  netmask?: string;
+  cidr?: string | null;
+};
+
+function getLocalNetworkInterfaces(): NetworkInterfaceInfo[] {
+  return Object.entries(networkInterfaces())
+    .flatMap(([name, addresses]) => (addresses ?? []).map((address) => ({ name, address })))
+    .filter(({ address }) => address.family === 'IPv4' && !address.internal)
+    .map(({ name, address }) => ({
+      name,
+      address: address.address,
+      mac: address.mac && address.mac !== '00:00:00:00:00:00' ? address.mac : 'غير متوفر',
+      family: 'IPv4' as const,
+      ...(address.netmask ? { netmask: address.netmask } : {}),
+      ...(address.cidr ? { cidr: address.cidr } : {}),
+    }));
+}
 
 async function syncOnlineMirrorIfNeeded(requestId: string): Promise<void> {
   const request = getRequestById(requestId);
@@ -103,6 +127,7 @@ export function registerIpcHandlers(): void {
       }),
   );
   ipcMain.handle('dashboard:stats', async () => getDashboardStats());
+  ipcMain.handle('network:interfaces', async () => ({ interfaces: getLocalNetworkInterfaces() }));
   ipcMain.handle('online:getStatus', async () => getOnlineModeStatus());
   ipcMain.handle('online:diagnostics', async () => checkOnlineGatewayDiagnostics());
   ipcMain.handle('online:activate', async (_e, passphrase: string) => {

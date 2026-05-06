@@ -86,6 +86,15 @@ export interface OnlineGatewayDiagnostics {
   status: OnlineModeStatus;
 }
 
+export interface NetworkInterfaceInfo {
+  name: string;
+  address: string;
+  mac: string;
+  family: 'IPv4';
+  netmask?: string;
+  cidr?: string | null;
+}
+
 export const api = {
   unlock: (
     pin: string,
@@ -107,6 +116,9 @@ export const api = {
 
   getDashboardStats: (): Promise<DashboardStats> =>
     ipcRenderer.invoke('dashboard:stats'),
+
+  getNetworkInterfaces: (): Promise<{ interfaces: NetworkInterfaceInfo[] }> =>
+    ipcRenderer.invoke('network:interfaces'),
 
   getOnlineModeStatus: (): Promise<OnlineModeStatus> =>
     ipcRenderer.invoke('online:getStatus'),

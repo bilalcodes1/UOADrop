@@ -73,6 +73,15 @@ type OnlineGatewayDiagnostics = {
   status: OnlineModeStatus;
 };
 
+type NetworkInterfaceInfo = {
+  name: string;
+  address: string;
+  mac: string;
+  family: 'IPv4';
+  netmask?: string;
+  cidr?: string | null;
+};
+
 declare global {
   interface Window {
     api: {
@@ -89,6 +98,7 @@ declare global {
         offset?: number;
       }) => Promise<{ items: PrintRequest[]; total: number }>;
       getDashboardStats: () => Promise<DashboardStats>;
+      getNetworkInterfaces: () => Promise<{ interfaces: NetworkInterfaceInfo[] }>;
       getOnlineModeStatus: () => Promise<OnlineModeStatus>;
       getOnlineDiagnostics: () => Promise<OnlineGatewayDiagnostics>;
       activateOnlineMode: (passphrase: string) => Promise<OnlineModeActivationResult>;
