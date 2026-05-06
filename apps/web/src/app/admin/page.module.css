@@ -114,7 +114,8 @@
 .primaryButton,
 .secondaryButton,
 .ghostButton,
-.smallButton {
+.smallButton,
+.dangerButton {
   border: 0;
   border-radius: 16px;
   padding: 12px 18px;
@@ -141,9 +142,15 @@
   background: #eef2ff;
 }
 
+.dangerButton {
+  color: #fff;
+  background: #dc2626;
+}
+
 .primaryButton:disabled,
 .secondaryButton:disabled,
-.smallButton:disabled {
+.smallButton:disabled,
+.dangerButton:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -151,7 +158,8 @@
 .primaryButton:not(:disabled):hover,
 .secondaryButton:not(:disabled):hover,
 .ghostButton:hover,
-.smallButton:not(:disabled):hover {
+.smallButton:not(:disabled):hover,
+.dangerButton:not(:disabled):hover {
   transform: translateY(-1px);
 }
 
@@ -415,6 +423,71 @@
   font-size: 13px;
 }
 
+.table tbody tr {
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.table tbody tr:hover,
+.selectedRow {
+  background: #eef2ff;
+}
+
+.selectedRow td {
+  border-bottom-color: #c7d2fe;
+}
+
+.tableActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.codeList {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 14px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.codeListHead,
+.codeCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.codeListHead span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.codeCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+}
+
+.codeCardMain {
+  display: grid;
+  gap: 4px;
+}
+
+.codeCardMain strong {
+  letter-spacing: 0.06em;
+}
+
+.codeCardMain span {
+  color: #64748b;
+  font-size: 12px;
+}
+
 .statusDot {
   display: inline-block;
   width: 9px;
@@ -618,7 +691,8 @@
   .primaryButton,
   .secondaryButton,
   .ghostButton,
-  .smallButton {
+  .smallButton,
+  .dangerButton {
     width: 100%;
   }
 }

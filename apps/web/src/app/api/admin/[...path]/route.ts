@@ -17,6 +17,10 @@ type ActivationCodeBody = {
   expiresInDays?: number | null;
 };
 
+type DeleteLibraryBody = {
+  confirmation?: string;
+};
+
 type DatabaseError = {
   code?: string;
   message?: string;
@@ -24,6 +28,10 @@ type DatabaseError = {
 };
 
 const ADMIN_PASSWORD = String(process.env.UOADROP_ADMIN_PASSWORD ?? '').trim();
+const ACTIVATION_CODE_SELECT = 'id, library_id, label, display_code, expires_at, used_at, used_by_device_id, revoked_at, created_at, libraries(name, slug)';
+const ACTIVATION_CODE_SELECT_FALLBACK = 'id, library_id, label, expires_at, used_at, used_by_device_id, revoked_at, created_at, libraries(name, slug)';
+const ACTIVATION_CODE_ROW_SELECT = 'id, library_id, label, display_code, expires_at, used_at, used_by_device_id, revoked_at, created_at';
+const ACTIVATION_CODE_ROW_SELECT_FALLBACK = 'id, library_id, label, expires_at, used_at, used_by_device_id, revoked_at, created_at';
 
 function getPath(ctx: RouteContext): string[] {
   return ctx.params.path ?? [];
@@ -75,6 +83,12 @@ function isUniqueViolation(error: unknown): boolean {
   return value?.code === '23505' || /duplicate key|unique constraint/i.test(text);
 }
 
+function isMissingColumn(error: unknown, column: string): boolean {
+  const value = error as DatabaseError;
+  const text = `${value?.message ?? ''} ${value?.details ?? ''}`;
+  return value?.code === 'PGRST204' || (new RegExp(`\\b${column}\\b`, 'i').test(text) && /schema cache|does not exist|column/i.test(text));
+}
+
 function hashActivationCode(value: string): string {
   return createHash('sha256').update(String(value ?? '').trim()).digest('hex');
 }
@@ -124,11 +138,22 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     }
 
     if (path.length === 1 && path[0] === 'activation-codes') {
-      const { data, error } = await admin
+      const primary = await admin
         .from('library_activation_codes')
-        .select('id, library_id, label, expires_at, used_at, used_by_device_id, revoked_at, created_at, libraries(name, slug)')
+        .select(ACTIVATION_CODE_SELECT)
         .order('created_at', { ascending: false })
         .limit(200);
+      let data: unknown = primary.data;
+      let error: unknown = primary.error;
+      if (isMissingColumn(error, 'display_code')) {
+        const fallback = await admin
+          .from('library_activation_codes')
+          .select(ACTIVATION_CODE_SELECT_FALLBACK)
+          .order('created_at', { ascending: false })
+          .limit(200);
+        data = fallback.data;
+        error = fallback.error;
+      }
       if (error) throw error;
       return json({ ok: true, activationCodes: data ?? [] });
     }
@@ -170,18 +195,35 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       const body = (await req.json().catch(() => ({}))) as ActivationCodeBody;
       const code = generateActivationCode();
       const expiresAt = resolveActivationExpiry(body.expiresInDays);
-      const { data, error } = await admin
+      const primary = await admin
         .from('library_activation_codes')
         .insert({
           library_id: libraryId,
           code_hash: hashActivationCode(code),
+          display_code: code,
           label: normalizeName(body.label ?? ''),
           expires_at: expiresAt,
         })
-        .select('id, library_id, label, expires_at, used_at, used_by_device_id, revoked_at, created_at')
+        .select(ACTIVATION_CODE_ROW_SELECT)
         .single();
-      if (error) throw error;
-      return json({ ok: true, activationCode: data, code });
+      if (isMissingColumn(primary.error, 'display_code')) {
+        const fallback = await admin
+          .from('library_activation_codes')
+          .insert({
+            library_id: libraryId,
+            code_hash: hashActivationCode(code),
+            label: normalizeName(body.label ?? ''),
+            expires_at: expiresAt,
+          })
+          .select(ACTIVATION_CODE_ROW_SELECT_FALLBACK)
+          .single();
+        if (fallback.error) throw fallback.error;
+        const fallbackRow = fallback.data as Record<string, unknown> | null;
+        const activationCode = fallbackRow ? { ...fallbackRow, display_code: code } : fallbackRow;
+        return json({ ok: true, activationCode, code });
+      }
+      if (primary.error) throw primary.error;
+      return json({ ok: true, activationCode: primary.data, code });
     }
 
     return json({ ok: false, error: 'not_found' }, { status: 404 });
@@ -213,14 +255,80 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     }
 
     if (path.length === 2 && path[0] === 'activation-codes') {
-      const { data, error } = await admin
+      const primary = await admin
         .from('library_activation_codes')
         .update({ revoked_at: new Date().toISOString() })
         .eq('id', path[1])
-        .select('id, library_id, label, expires_at, used_at, used_by_device_id, revoked_at, created_at')
+        .select(ACTIVATION_CODE_ROW_SELECT)
         .single();
+      let data: unknown = primary.data;
+      let error: unknown = primary.error;
+      if (isMissingColumn(error, 'display_code')) {
+        const fallback = await admin
+          .from('library_activation_codes')
+          .update({ revoked_at: new Date().toISOString() })
+          .eq('id', path[1])
+          .select(ACTIVATION_CODE_ROW_SELECT_FALLBACK)
+          .single();
+        data = fallback.data;
+        error = fallback.error;
+      }
       if (error) throw error;
       return json({ ok: true, activationCode: data });
+    }
+
+    return json({ ok: false, error: 'not_found' }, { status: 404 });
+  } catch (err) {
+    return json({ ok: false, error: 'server_error', details: String((err as Error)?.message ?? err).slice(0, 200) }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest, ctx: RouteContext) {
+  try {
+    const auth = requireAdmin(req);
+    if (auth !== true) return auth;
+    const path = getPath(ctx);
+    const admin = getAdminClient();
+
+    if (path.length === 2 && path[0] === 'libraries') {
+      const body = (await req.json().catch(() => ({}))) as DeleteLibraryBody;
+      const { data: library, error: libraryError } = await admin
+        .from('libraries')
+        .select('id, slug, name, status, created_at, updated_at')
+        .eq('id', path[1])
+        .maybeSingle();
+      if (libraryError) throw libraryError;
+      if (!library) return json({ ok: false, error: 'not_found' }, { status: 404 });
+      const confirmation = String(body.confirmation ?? '').trim();
+      if (confirmation !== library.name && confirmation !== library.slug) {
+        return json({ ok: false, error: 'delete_confirmation_failed' }, { status: 400 });
+      }
+      const { data: files, error: filesError } = await admin
+        .from('request_files')
+        .select('storage_path')
+        .eq('library_id', library.id);
+      if (filesError) throw filesError;
+      const storagePaths = [...new Set((files ?? [])
+        .map((file) => String(file.storage_path ?? '').trim())
+        .filter(Boolean))];
+      for (let index = 0; index < storagePaths.length; index += 100) {
+        const { error } = await admin.storage.from('print-files').remove(storagePaths.slice(index, index + 100));
+        if (error) throw error;
+      }
+      const cleanup = [
+        ['request_files', 'library_id'],
+        ['print_requests', 'library_id'],
+        ['desktop_devices', 'library_id'],
+        ['library_activation_codes', 'library_id'],
+        ['payment_settings', 'library_id'],
+      ] as const;
+      for (const [table, column] of cleanup) {
+        const { error } = await admin.from(table).delete().eq(column, library.id);
+        if (error) throw error;
+      }
+      const { error } = await admin.from('libraries').delete().eq('id', library.id);
+      if (error) throw error;
+      return json({ ok: true, library });
     }
 
     return json({ ok: false, error: 'not_found' }, { status: 404 });

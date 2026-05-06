@@ -27,6 +27,7 @@ type ActivationCodeRow = {
   id: string;
   library_id: string;
   label?: string | null;
+  display_code?: string | null;
   expires_at?: string | null;
   used_at?: string | null;
   used_by_device_id?: string | null;
@@ -88,6 +89,7 @@ function formatAdminError(value: unknown): string {
     missing_admin_password: 'باسورد الأدمن غير مهيأ على السيرفر.',
     invalid_library: 'تأكد من اسم المكتبة والرابط المختصر.',
     library_exists: 'هذا الرابط المختصر مستخدم من مكتبة ثانية.',
+    delete_confirmation_failed: 'اكتب اسم المكتبة أو الرابط المختصر لتأكيد الحذف.',
     not_found: 'المسار غير موجود.',
     server_error: 'حدث خطأ في الخادم.',
     http_400: 'الطلب غير صحيح.',
@@ -132,6 +134,8 @@ export default function AdminPage() {
   const activeLibraries = useMemo(() => libraries.filter((library) => library.status === 'active'), [libraries]);
   const activeCodes = useMemo(() => activationCodes.filter((code) => getCodeStatus(code).active), [activationCodes]);
   const selectedExpiry = EXPIRY_OPTIONS.find((option) => option.value === activationExpiry) ?? DEFAULT_EXPIRY_OPTION;
+  const selectedLibrary = useMemo(() => libraries.find((library) => library.id === selectedLibraryId) ?? null, [libraries, selectedLibraryId]);
+  const selectedLibraryCodes = useMemo(() => activationCodes.filter((code) => code.library_id === selectedLibraryId), [activationCodes, selectedLibraryId]);
 
   const adminRequest = async (path: string, init?: RequestInit): Promise<AdminPayload> => {
     const res = await fetch(`/api/admin${path}`, {
@@ -159,11 +163,12 @@ export default function AdminPage() {
         adminRequest('/devices'),
         adminRequest('/activation-codes'),
       ]);
-      setLibraries(librariesPayload.libraries ?? []);
+      const nextLibraries = librariesPayload.libraries ?? [];
+      setLibraries(nextLibraries);
       setDevices(devicesPayload.devices ?? []);
       setActivationCodes(codesPayload.activationCodes ?? []);
-      const firstLibrary = (librariesPayload.libraries ?? [])[0];
-      setSelectedLibraryId((current) => current || firstLibrary?.id || '');
+      const firstLibrary = nextLibraries[0];
+      setSelectedLibraryId((current) => nextLibraries.some((library) => library.id === current) ? current : firstLibrary?.id || '');
     } catch (err) {
       setError(formatAdminError(err));
       setAuthorized(false);
@@ -240,6 +245,34 @@ export default function AdminPage() {
         body: JSON.stringify({ status: library.status === 'active' ? 'disabled' : 'active' }),
       });
       await loadAdminData();
+    } catch (err) {
+      setError(formatAdminError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteLibrary = async (library: LibraryRow) => {
+    const confirmation = window.prompt(`للحذف النهائي اكتب اسم المكتبة أو الرابط المختصر:\n${library.name}\n${library.slug}`);
+    if (confirmation === null) return;
+    const normalizedConfirmation = confirmation.trim();
+    if (normalizedConfirmation !== library.name && normalizedConfirmation !== library.slug) {
+      setError('اكتب اسم المكتبة أو الرابط المختصر بشكل مطابق لتأكيد الحذف النهائي.');
+      return;
+    }
+    const approved = window.confirm(`سيتم حذف مكتبة ${library.name} نهائياً مع أجهزتها وأكوادها وطلبات الرفع. هل أنت متأكد؟`);
+    if (!approved) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const payload = await adminRequest(`/libraries/${library.id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmation: normalizedConfirmation }),
+      });
+      setGeneratedCode('');
+      await loadAdminData();
+      setNotice(`تم حذف مكتبة ${payload.library?.name ?? library.name} نهائياً.`);
     } catch (err) {
       setError(formatAdminError(err));
     } finally {
@@ -368,7 +401,7 @@ export default function AdminPage() {
             </div>
           </div>
           <div className={styles.formStack}>
-            <select className={styles.input} value={selectedLibraryId} onChange={(event) => setSelectedLibraryId(event.target.value)}>
+            <select className={styles.input} value={selectedLibraryId} onChange={(event) => { setSelectedLibraryId(event.target.value); setGeneratedCode(''); }}>
               <option value="">اختر مكتبة</option>
               {libraries.map((library) => (
                 <option key={library.id} value={library.id}>{library.name}</option>
@@ -390,8 +423,32 @@ export default function AdminPage() {
             <button className={styles.primaryButton} disabled={busy || !selectedLibraryId} onClick={() => void createActivationCode()}>توليد كود</button>
             {generatedCode && (
               <div className={styles.generatedCode}>
-                <span>انسخ الكود الآن، لن يظهر مرة ثانية</span>
+                <span>انسخ الكود الآن، وسيظهر ضمن أكواد المكتبة</span>
                 <strong dir="ltr">{generatedCode}</strong>
+              </div>
+            )}
+            {selectedLibrary && (
+              <div className={styles.codeList}>
+                <div className={styles.codeListHead}>
+                  <strong>أكواد {selectedLibrary.name}</strong>
+                  <span>{selectedLibraryCodes.length.toLocaleString('ar-IQ')} كود</span>
+                </div>
+                {selectedLibraryCodes.map((code) => {
+                  const status = getCodeStatus(code);
+                  return (
+                    <div key={code.id} className={styles.codeCard}>
+                      <div className={styles.codeCardMain}>
+                        <strong dir="ltr">{code.display_code || 'غير محفوظ للعرض'}</strong>
+                        <span>{formatActivationLabel(code.label)}</span>
+                      </div>
+                      <div className={styles.listMeta}>
+                        <span className={`${styles.codeState} ${status.active ? styles.codeStateActive : ''}`}>{status.label}</span>
+                        <small>الصلاحية: {formatExpiry(code.expires_at)}</small>
+                      </div>
+                    </div>
+                  );
+                })}
+                {selectedLibraryCodes.length === 0 && <div className={styles.emptyState}>لا توجد أكواد لهذه المكتبة بعد.</div>}
               </div>
             )}
           </div>
@@ -413,17 +470,26 @@ export default function AdminPage() {
                 <th>الرابط</th>
                 <th>الحالة</th>
                 <th>رابط الرفع</th>
-                <th>إجراء</th>
+                <th>الإجراءات</th>
               </tr>
             </thead>
             <tbody>
               {libraries.map((library) => (
-                <tr key={library.id}>
+                <tr
+                  key={library.id}
+                  className={selectedLibraryId === library.id ? styles.selectedRow : ''}
+                  onClick={() => { setSelectedLibraryId(library.id); setGeneratedCode(''); }}
+                >
                   <td>{library.name}</td>
                   <td dir="ltr">{library.slug}</td>
                   <td><StatusDot active={library.status === 'active'} /> {library.status === 'active' ? 'فعالة' : 'متوقفة'}</td>
                   <td dir="ltr">/?library={library.slug}</td>
-                  <td><button className={styles.smallButton} disabled={busy} onClick={() => void toggleLibrary(library)}>{library.status === 'active' ? 'تعطيل' : 'تفعيل'}</button></td>
+                  <td>
+                    <div className={styles.tableActions}>
+                      <button className={styles.smallButton} disabled={busy} onClick={(event) => { event.stopPropagation(); void toggleLibrary(library); }}>{library.status === 'active' ? 'تعطيل' : 'تفعيل'}</button>
+                      <button className={styles.dangerButton} disabled={busy} onClick={(event) => { event.stopPropagation(); void deleteLibrary(library); }}>حذف نهائي</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -457,7 +523,7 @@ export default function AdminPage() {
           <div className={styles.panelHead}>
             <div>
               <h2>أكواد التفعيل</h2>
-              <p>لا يتم تخزين الكود نفسه، فقط بصمة آمنة.</p>
+              <p>الأكواد الحديثة محفوظة للعرض داخل الأدمن، والقديمة تظهر كغير محفوظة للعرض.</p>
             </div>
           </div>
           <div className={styles.listStack}>
@@ -467,6 +533,7 @@ export default function AdminPage() {
                 <div key={code.id} className={styles.listItem}>
                   <div>
                     <strong>{code.libraries?.name || code.library_id}</strong>
+                    <span dir="ltr">{code.display_code || 'غير محفوظ للعرض'}</span>
                     <span>{formatActivationLabel(code.label)}</span>
                   </div>
                   <div className={styles.listMeta}>
