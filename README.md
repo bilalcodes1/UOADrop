@@ -102,6 +102,7 @@
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | قرارات المنتج النهائية (PIN، pricing، queue، ...) |
 | [`docs/HARDENING.md`](docs/HARDENING.md) | إصلاحات Phase 0.5 الأمنية والموثوقية (C1-C17) |
 | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | المصطلحات والشخصيات |
+| [`docs/RELEASE-v0.1.5.md`](docs/RELEASE-v0.1.5.md) | ملاحظات الإصدار الحالي وملفات التحميل |
 
 ---
 
@@ -132,6 +133,20 @@ UOADrop/
 ---
 
 ## الحالة الحالية
+
+**الإصدار الحالي:** `v0.1.5`
+
+**تحميل النسخة الجاهزة:** [GitHub Releases — UOADrop v0.1.5](https://github.com/bilalcodes1/UOADrop/releases/tag/v0.1.5)
+
+ملفات الإصدار المنشورة:
+
+- `UOADrop.Setup.0.1.5.exe` — Windows Installer
+- `UOADrop.0.1.5.exe` — Windows Portable
+- `UOADrop-0.1.5.dmg` — macOS Intel
+- `UOADrop-0.1.5-mac.zip` — macOS Intel ZIP
+- `UOADrop-0.1.5-arm64.dmg` — macOS Apple Silicon
+- `UOADrop-0.1.5-arm64-mac.zip` — macOS Apple Silicon ZIP
+- `SHA256SUMS.txt` — checksums للتحقق من الملفات
 
 ✅ **Phase 1 — Desktop Offline MVP** يعمل فعلياً
 
