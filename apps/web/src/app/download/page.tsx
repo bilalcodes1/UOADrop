@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import styles from './page.module.css';
 
 export const metadata: Metadata = {
-  title: 'UOADrop — تحميل تطبيق مكاتب الطباعة والمنصة الذكية',
-  description: 'صفحة تحميل UOADrop الرسمية لكل مكاتب الطباعة والمكتبات المسجلة، مع التفعيل متعدد المكاتب، روابط الرفع الخاصة، وإصدارات سطح المكتب',
+  title: 'تحميل UOADrop — نظام إدارة طلبات الطباعة للمكاتب والمكتبات الجامعية',
+  description: 'حمّل تطبيق UOADrop الرسمي لأنظمة Windows وmacOS. نظام متكامل لإدارة طلبات الطباعة في المكاتب والمكتبات، مع تفعيل خاص بكل مكتب، روابط رفع مستقلة، وداشبورد عملي لاستلام الطلبات وتسعيرها وتسليمها.',
 };
 
 type DownloadAsset = {
@@ -46,104 +46,105 @@ type PartnerIconType = 'university' | 'college' | 'library' | 'integration';
 const downloadFile = (asset: string) => `/download/file?asset=${asset}`;
 
 const stats: StatItem[] = [
-  { value: 'v0.1.5', label: 'الإصدار الحالي', detail: 'إصدار التسليم النهائي الأولي لتطبيق UOADrop Desktop' },
-  { value: '6', label: 'حزم تشغيل', detail: 'Windows Installer وPortable + macOS Intel وApple Silicon بصيغ DMG وZIP' },
-  { value: 'Multi-Office', label: 'تشغيل متعدد المكاتب', detail: 'كل مكتب أو مكتبة لها كود تفعيل، رابط رفع، وباركود خاص' },
-  { value: 'SHA-256', label: 'تحقق الملفات', detail: 'ملف Checksums منشور مع الإصدار لمطابقة ملفات التحميل' },
+  { value: 'v0.1.5', label: 'الإصدار المستقر', detail: 'النسخة الرسمية الحالية، مُختبرة وتعمل في الإنتاج لدى المكاتب المُفعَّلة' },
+  { value: '٦ ملفات', label: 'حزم تثبيت', detail: 'Windows Installer وPortable، إضافة إلى macOS Intel وApple Silicon بصيغتي DMG وZIP' },
+  { value: 'متعدد المكاتب', label: 'تشغيل مستقل', detail: 'كل مكتبة مستقلة بكود تفعيل ورابط رفع وباركود خاص بها لا يتداخل مع غيرها' },
+  { value: 'SHA-256', label: 'تحقق سلامة الملف', detail: 'ملف بصمات تحقق منشور مع الإصدار للتأكد من مطابقة الملف الذي حمّلته للنسخة الرسمية' },
 ];
 
 const platforms: PlatformInfo[] = [
   {
     name: 'macOS',
-    arch: 'Apple Silicon arm64 + Intel x64',
-    description: 'نسخة macOS الرسمية لأجهزة Apple Silicon وIntel. بعد التثبيت يتم ربط التطبيق بمكتب/مكتبة محددة عبر كود التفعيل، ثم يظهر داخل التطبيق رابط الرفع الأونلاين الخاص بتلك الجهة.',
+    arch: 'Apple Silicon (M1/M2/M3) + Intel x64',
+    description: 'نسخة macOS الرسمية تدعم أجهزة Apple Silicon (M1 وM2 وM3 وما بعدها) إضافة إلى الأجهزة الأقدم بمعالجات Intel. بعد التثبيت، يبدأ التطبيق بشاشة فارغة حتى تُدخل كود التفعيل الخاص بمكتبتك، فيظهر اسمها ورابط الرفع المخصّص لها داخل الإعدادات.',
     iconType: 'mac',
-    requirement: 'macOS 12 Monterey أو أحدث، صلاحية الوصول للطابعة، اتصال إنترنت للتفعيل والمزامنة، وكود تفعيل صادر من لوحة الأدمن.',
+    requirement: 'macOS 12 (Monterey) أو أحدث · ذاكرة 4GB · مساحة 200MB على القرص · إنترنت للتفعيل ومزامنة الطلبات الأونلاين · كود تفعيل صادر من لوحة الأدمن.',
     assets: [
-      { label: 'Apple Silicon DMG', format: 'arm64', fileName: 'UOADrop-0.1.5-arm64.dmg', note: 'الخيار الأفضل لأجهزة Mac الحديثة بمعالجات M1/M2/M3 وما بعدها.', href: downloadFile('mac-arm64-dmg'), primary: true },
-      { label: 'Intel DMG', format: 'x64', fileName: 'UOADrop-0.1.5.dmg', note: 'لأجهزة Mac بمعالجات Intel.', href: downloadFile('mac-x64-dmg') },
-      { label: 'Apple Silicon ZIP', format: 'arm64', fileName: 'UOADrop-0.1.5-arm64-mac.zip', note: 'نسخة مضغوطة للتشغيل أو الأرشفة.', href: downloadFile('mac-arm64-zip') },
-      { label: 'Intel ZIP', format: 'x64', fileName: 'UOADrop-0.1.5-mac.zip', note: 'نسخة مضغوطة لأجهزة Intel.', href: downloadFile('mac-x64-zip') },
+      { label: 'macOS Apple Silicon — DMG', format: '~135MB', fileName: 'UOADrop-0.1.5-arm64.dmg', note: 'الخيار الموصى به لأجهزة Mac الحديثة بمعالجات Apple Silicon (M1/M2/M3/M4). افتح الملف ثم اسحب أيقونة UOADrop إلى مجلد Applications.', href: downloadFile('mac-arm64-dmg'), primary: true },
+      { label: 'macOS Intel — DMG', format: '~140MB', fileName: 'UOADrop-0.1.5.dmg', note: 'النسخة المخصصة لأجهزة Mac القديمة بمعالجات Intel. لا تستخدم هذا الملف على أجهزة Apple Silicon.', href: downloadFile('mac-x64-dmg') },
+      { label: 'macOS Apple Silicon — ZIP', format: '~130MB', fileName: 'UOADrop-0.1.5-arm64-mac.zip', note: 'نفس النسخة بصيغة مضغوطة، مفيدة للأرشفة أو النقل بين الأجهزة.', href: downloadFile('mac-arm64-zip') },
+      { label: 'macOS Intel — ZIP', format: '~135MB', fileName: 'UOADrop-0.1.5-mac.zip', note: 'نسخة Intel مضغوطة للنسخ الاحتياطي أو التشغيل اليدوي.', href: downloadFile('mac-x64-zip') },
     ],
   },
   {
     name: 'Windows',
-    arch: 'x64',
-    description: 'نسخة Windows الرسمية لأجهزة مكاتب الطباعة والمكتبات. يدعم التطبيق استقبال طلبات الجهة المرتبطة فقط، مع Dashboard محلي، استيراد Online، وإشعارات عبر Desktop Gateway.',
+    arch: 'Windows 10 / 11 — 64-bit',
+    description: 'نسخة Windows الرسمية لأجهزة المكاتب والمكتبات. تستقبل طلبات المكتبة المرتبطة بها فقط، مع داشبورد محلي يعمل بدون إنترنت، واستيراد لطلبات الويب، وإشعارات تصل عبر بوابة آمنة دون تخزين أي مفاتيح حساسة على جهازك.',
     iconType: 'windows',
-    requirement: 'Windows 10 أو Windows 11، معالج 64-bit، صلاحية الوصول للطابعة، مساحة تخزين محلية للملفات، واتصال إنترنت للتفعيل والمزامنة.',
+    requirement: 'Windows 10 أو Windows 11 · معالج 64-bit · ذاكرة 4GB · مساحة 200MB على القرص · إنترنت للتفعيل ومزامنة الطلبات · كود تفعيل صادر من لوحة الأدمن.',
     assets: [
-      { label: 'Windows Installer', format: 'x64', fileName: 'UOADrop.Setup.0.1.5.exe', note: 'الخيار الموصى به للتثبيت الرسمي على جهاز المكتب.', href: downloadFile('win-x64-installer'), primary: true },
-      { label: 'Windows Portable', format: 'x64', fileName: 'UOADrop.0.1.5.exe', note: 'نسخة محمولة للتشغيل السريع أو الاختبار بدون مثبت.', href: downloadFile('win-x64-portable') },
+      { label: 'Windows Installer', format: '~114MB', fileName: 'UOADrop.Setup.0.1.5.exe', note: 'الخيار الموصى به للتثبيت الدائم على جهاز المكتبة، يضيف اختصاراً في قائمة Start ويدعم التحديث فوق النسخة القديمة.', href: downloadFile('win-x64-installer'), primary: true },
+      { label: 'Windows Portable', format: '~114MB', fileName: 'UOADrop.0.1.5.exe', note: 'نسخة محمولة تعمل بدون تثبيت، مفيدة للتجربة السريعة أو لتشغيل التطبيق من فلاش USB.', href: downloadFile('win-x64-portable') },
     ],
   },
 ];
 
 const releaseHighlights = [
   {
-    title: 'تفعيل رسمي لكل مكتب',
-    text: 'التطبيق لا يعمل كنسخة عامة عشوائية؛ كل جهاز ديسكتوب يرتبط بمكتب/مكتبة محددة عبر كود تفعيل، وتظهر بيانات الجهة ورابطها داخل الداشبورد.',
+    title: 'تفعيل مستقل لكل مكتبة',
+    text: 'كل تطبيق يرتبط بمكتبة محددة عبر كود تفعيل تُولّده لوحة الأدمن. لا يمكن لـ تطبيق واحد استقبال طلبات أكثر من مكتبة، ولن تصل إليك أي طلبات قبل إدخال كود التفعيل الخاص بك.',
   },
   {
-    title: 'روابط رفع دقيقة',
-    text: 'الرابط العام يسمح للطالب باختيار المكتب، أما باركود المكتب فيفتح رابط الرفع الخاص مباشرة باستخدام slug الجهة، بدون خلط بين طلبات المكاتب.',
+    title: 'روابط وباركودات منفصلة',
+    text: 'لكل مكتبة باركود QR خاص يوجّه الطالب مباشرة إلى صفحة رفع تخصّها، أما الرابط العام فيعرض قائمة بالمكتبات النشطة ليختار منها. لا تداخل بين طلبات الجهات المختلفة تحت أي ظرف.',
   },
   {
-    title: 'أسرار النظام خارج التطبيق',
-    text: 'مفاتيح Supabase وTelegram وSMTP والتشفير تبقى داخل Vercel/Desktop Gateway، بينما تطبيق الديسكتوب يستخدم activation token فقط.',
+    title: 'أمان مدمج في التصميم',
+    text: 'تطبيق المكتبة لا يحوي أي مفاتيح حساسة أو بيانات إدارية؛ جميع الأسرار (قاعدة البيانات، الإشعارات، مفاتيح التشفير) تبقى على خوادم النظام. إذا فُقد الجهاز، يمكن إلغاء تفعيله فوراً من اللوحة المركزية.',
   },
 ];
 
 const downloadGuides = [
   {
-    title: 'إذا كان جهازك Windows',
-    text: 'حمّل Installer للتثبيت الدائم. استخدم Portable فقط إذا تريد اختبار سريع أو تشغيل مؤقت بدون تثبيت.',
+    title: 'جهازك Windows 10 أو 11',
+    text: 'حمّل ملف Windows Installer (حجمه 114MB) وهو الخيار الموصى به للتثبيت الدائم على جهاز المكتبة. النسخة المحمولة (Portable) تبقى خياراً للتجربة السريعة أو لتشغيل التطبيق مباشرة من فلاش USB دون تثبيت.',
   },
   {
-    title: 'إذا كان جهازك Mac حديث',
-    text: 'أجهزة Apple Silicon مثل M1/M2/M3 تستخدم ملف arm64. ملف DMG هو الخيار الأنسب للتثبيت.',
+    title: 'Mac بمعالج Apple Silicon',
+    text: 'أجهزة Mac المصنوعة من عام 2020 فصاعداً (بمعالجات M1 وM2 وM3 وM4) تستخدم نسخة arm64. حمّل ملف DMG (حجمه 135MB) وهو الأنسب للتثبيت، ثم اسحب أيقونة التطبيق إلى مجلد Applications.',
   },
   {
-    title: 'إذا كان جهازك Mac Intel',
-    text: 'استخدم ملف Intel x64. لا تختار arm64 إلا إذا كان الجهاز بمعالج Apple Silicon.',
+    title: 'Mac بمعالج Intel',
+    text: 'أجهزة Mac الأقدم (قبل عام 2020) تستخدم نسخة Intel x64 (حجمها 140MB). لا تختر ملف arm64 على هذه الأجهزة، فالتطبيق لن يعمل. للتأكد من نوع المعالج، افتح قائمة Apple ثم About This Mac.',
   },
 ];
 
 const setupSteps = [
   {
-    title: 'إنشاء المكتب من لوحة الأدمن',
-    text: 'يتم إنشاء المكتب/المكتبة من صفحة الأدمن، ثم توليد كود تفعيل خاص بالجهة.',
+    title: 'إنشاء المكتبة في لوحة الأدمن',
+    text: 'يدخل مدير النظام إلى لوحة الأدمن، ويُنشئ سجلاً جديداً لمكتبتك باسم واضح ووصلة (slug)، ثم يُولّد كود تفعيل خاصاً بها. هذا الكود لا يعمل إلا مع مكتبتك وجهاز واحد.',
   },
   {
-    title: 'تثبيت تطبيق الديسكتوب',
-    text: 'حمّل نسخة نظام التشغيل المناسبة وثبّت التطبيق على جهاز صاحب المكتب المتصل بالطابعة.',
+    title: 'تحميل التطبيق وتثبيته',
+    text: 'اختر من أسفل الصفحة النسخة المناسبة لنظام تشغيل جهاز المكتبة الموصول بالطابعة، ثم ثبّته بالطريقة المعتادة. للتحديثات لاحقاً، يكفي تشغيل المثبّت الجديد فوق النسخة القديمة دون فقدان أي بيانات.',
   },
   {
     title: 'إدخال كود التفعيل',
-    text: 'من إعدادات التطبيق، أدخل كود التفعيل حتى يرتبط الجهاز بالمكتب الصحيح وتظهر روابطه وطلباته فقط.',
+    text: 'افتح التطبيق، توجه إلى الإعدادات، والصق كود التفعيل الصادر لك من الأدمن. عند نجاح التفعيل، سيظهر اسم مكتبتك ورابط الرفع الخاص بها داخل التطبيق جاهزاً للنسخ والمشاركة.',
   },
   {
-    title: 'استخدام رابط الرفع أو الباركود',
-    text: 'بعد التفعيل، استخدم رابط الرفع الأونلاين أو باركود المكتب من داخل التطبيق لتوجيه الطلاب بدقة.',
+    title: 'بدء استقبال الطلبات',
+    text: 'اعرض باركود QR الخاص بمكتبتك على الحائط أو في لافتة المدخل، أو شارك الرابط مع الطلبة مباشرة. كل طلب جديد سيظهر فوراً في الداشبورد جاهزاً للمراجعة والتسعير والطباعة.',
   },
 ];
 
 const verificationItems = [
   {
-    title: 'مطابقة SHA256SUMS',
-    text: 'ملف SHA256SUMS.txt منشور مع الإصدار، ويمكن استخدامه للتحقق من أن ملف التحميل مطابق للنسخة الرسمية.',
+    title: 'التحقق من بصمة SHA-256',
+    text: 'ملف SHA256SUMS.txt منشور رسمياً مع كل إصدار. يمكنك التأكد من أن الملف الذي حملته مطابق تماماً للنسخة الرسمية بإجراء بسيط في Terminal أو PowerShell.',
+    command: 'shasum -a 256 -c SHA256SUMS.txt',
   },
   {
-    title: 'تحذيرات التوقيع الرقمي',
-    text: 'الإصدارات الحالية غير موقعة رقمياً، لذلك قد يظهر SmartScreen على Windows أو تحذير فتح التطبيق على macOS.',
+    title: 'تحذيرات نظام التشغيل عند أول تشغيل',
+    text: 'النسخة الحالية غير موقّعة بشهادة رسمية، لذلك قد يظهر على Windows تحذير SmartScreen (اضغط More info « ثم Run anyway)، وعلى macOS قد يطلب منك السماح للتطبيق من System Settings » Privacy & Security. هذا سلوك طبيعي وأمن لأن الملف منشور من المصدر الرسمي.',
   },
   {
-    title: 'لا تضع الأسرار داخل الديسكتوب',
-    text: 'لا يحتاج التطبيق إلى service-role keys أو Telegram bot token أو SMTP password داخل ملفات الديسكتوب.',
+    title: 'خصوصية بياناتك وطلبات طلبتك',
+    text: 'التطبيق المثبّت على جهازك لا يحوي أي مفاتيح حساسة أو بيانات إدارية؛ جميع المفاتيح تبقى في خوادم النظام. حتى لو فُقد الجهاز أو تعرّض للسرقة، لا تُكشف بيانات النظام، ويمكن إلغاء تفعيل التطبيق فوراً من اللوحة المركزية.',
   },
   {
-    title: 'رسالة damaged على macOS',
-    text: 'إذا ظهرت رسالة “UOADrop is damaged and can’t be opened”، انسخ التطبيق إلى Applications ثم أزل quarantine من Terminal.',
+    title: 'حل رسالة damaged على macOS',
+    text: 'إذا ظهرت رسالة «UOADrop is damaged» بعد التثبيت، انقل التطبيق أولاً إلى مجلد Applications، ثم نفّذ الأمر التالي في Terminal لإزالة علامة الحجر الصحي التي يضعها النظام على الملفات المحملة من الإنترنت.',
     command: 'xattr -dr com.apple.quarantine /Applications/UOADrop.app',
   },
 ];
@@ -151,28 +152,28 @@ const verificationItems = [
 const timeline: TimelineItem[] = [
   {
     phase: '01',
-    title: 'المشكلة اليومية',
-    text: 'انطلقت الفكرة من ملاحظة تأخر واضح وفوضى أثناء نقل ملفات الطلبة إلى مكاتب الطباعة: ملفات تصل عبر أكثر من تطبيق، أسئلة متكررة، ووقت يضيع قبل أن تبدأ الطباعة.',
+    title: 'رصد المشكلة الحقيقية',
+    text: 'بدأت الفكرة من معاناة يومية في إيصال ملفات الطباعة إلى المكتبات: طالب يرسل عبر Telegram، وآخر عبر WhatsApp، وثالث جاء بفلاش USB، وبينهم أسئلة متكررة تستهلك وقت صاحب المكتبة والطلبة قبل تشغيل أول صفحة.',
   },
   {
     phase: '02',
-    title: 'توحيد المسار',
-    text: 'تم تحويل الأسئلة المتكررة حول مكان إرسال الملف، وعدد النسخ، ونوع الطباعة، وموعد الاستلام إلى نموذج رفع واضح يجمع معلومات الطلب من البداية.',
+    title: 'توحيد قناة الاستلام',
+    text: 'تم تصميم صفحة رفع موحّدة تجمع كل تفاصيل الطلب منذ اللحظة الأولى: الملفات، عدد النسخ، لون الطباعة، نوع الورق، الموعد المطلوب، وبيانات التواصل. انتهت فوضى تعدد التطبيقات، وصار لكل طلب سجل واحد واضح.',
   },
   {
     phase: '03',
-    title: 'داشبورد المكتب',
-    text: 'بُنيت لوحة تشغيل لأصحاب المكاتب تستقبل الطلبات، تعرض التفاصيل، تحدد السعر، تدير الدفع، وتحدّث حالة الطلب أمام الطالب.',
+    title: 'بناء داشبورد المكتبة',
+    text: 'طُوّرت لوحة تحكّم عملية لصاحب المكتبة تجمع كل ما يحتاجه في مكان واحد: استلام الطلبات لحظيّاً، مراجعة الملفات، تحديد السعر يدويّاً، إدارة الدفع، وتحديث حالة الطلب ليراها الطالب فوراً.',
   },
   {
     phase: '04',
-    title: 'مكاتب متعددة',
-    text: 'أضيفت لوحة أدمن لإدارة المكاتب والمكتبات، توليد أكواد التفعيل، حذف المكتب عند الحاجة، وربط كل تطبيق ديسكتوب بجهة محددة.',
+    title: 'التوسّع لعدة مكتبات',
+    text: 'أُضيفت لوحة أدمن مركزية لإدارة المكتبات الأخرى: إنشاء مكتبة جديدة، توليد أكواد تفعيل، تعطيل وحذف عند الحاجة، وربط كل تطبيق بجهة محددة لمنع أي تداخل أو إتلاف للبيانات.',
   },
   {
     phase: '05',
-    title: 'روابط رفع ذكية',
-    text: 'صار الباركود الخاص بكل مكتب يفتح رابط الرفع الخاص به مباشرة، بينما الرابط العام يسمح للطالب باختيار المكتب من الجهات النشطة.',
+    title: 'الباركودات الذكية',
+    text: 'كل مكتبة الآن تحصل على باركود QR خاص يفتح صفحة الرفع موجّهاً إليها مباشرة، والرابط العام يبقى متاحاً ليختار الطالب من قائمة المكتبات المسجلة والنشطة، لتلبية أسلوبي التوزيع في البيئة الأكاديمية.',
   },
 ];
 
@@ -180,96 +181,97 @@ const partners = [
   {
     iconType: 'university' as PartnerIconType,
     name: 'جامعة الأنبار',
-    role: 'البيئة الأكاديمية التي صُممت التجربة لخدمتها',
+    role: 'البيئة الأكاديمية الحاضنة للمشروع والداعمة لفكرة تطوير تجربة الطباعة الجامعية.',
   },
   {
     iconType: 'college' as PartnerIconType,
     name: 'كلية علوم الحاسوب وتكنولوجيا المعلومات',
-    role: 'بيئة الانطلاق الأكاديمية الأولى، والنظام الآن قابل للعمل مع كل مكاتب الطباعة',
+    role: 'بيئة الانطلاق الأولى للمشروع. النظام مفتوح الآن للعمل مع كل مكاتب الطباعة الأكاديمية والجامعية.',
   },
   {
     iconType: 'library' as PartnerIconType,
-    name: 'المكاتب والمكتبات المسجلة',
-    role: 'كل مكتب له كود تفعيل، رابط رفع، أجهزة، أكواد، وحسابات دفع مستقلة',
+    name: 'المكتبات ومكاتب الطباعة',
+    role: 'كل مكتبة تعمل بشكل مستقل تماماً: كود تفعيل خاص، رابط رفع مستقل، حسابات دفع، وأسعار تحددها بنفسك.',
   },
   {
     iconType: 'integration' as PartnerIconType,
-    name: 'تقنيات التكامل',
-    role: 'تطبيق سطح مكتب، منصة ويب، قاعدة بيانات لحظية، وإشعارات لخدمة منظومة متكاملة',
+    name: 'بنية تقنية متكاملة',
+    role: 'تطبيق سطح مكتب، منصة ويب للرفع، قاعدة بيانات لحظية، وإشعارات عبر البريد وTelegram تعمل بتجانس ودون تدخل يدوي.',
   },
 ];
 
 const capabilities = [
-  'استقبال طلبات الطباعة من صفحة رفع منظمة بدل الرسائل المتفرقة',
-  'اختيار المكتب من الرابط العام أو التوجيه المباشر عند الدخول من باركود مكتب',
-  'ربط تطبيق سطح المكتب بمكتب محدد عن طريق كود تفعيل مستقل',
-  'عرض رابط الرفع الأونلاين الكامل داخل التطبيق مع زر فتح مباشر',
-  'عرض عدد النسخ ونوع الطباعة والملاحظات والملفات داخل الداشبورد',
-  'تحديد السعر يدوياً من صاحب المكتب قبل بدء التنفيذ',
-  'تحديث حالة الطلب للطالب بدون اتصالات ورسائل متكررة',
-  'تشفير ملفات الطلبة قبل وصولها إلى نظام المكتب',
-  'دفع اختياري عبر Qi Card وZainCash مع تحقق إداري',
-  'إدارة حسابات الدفع ورمز PIN من إعدادات الداشبورد لكل مكتب',
-  'إصدارات مستقلة ومحدثة لأنظمة macOS وWindows',
+  'استقبال طلبات الطباعة عبر صفحة واحدة منظمة بدلاً من فوضى WhatsApp وTelegram والبريد',
+  'توجيه الطالب إلى مكتبتك تلقائيّاً عند دخوله من باركود QR، أو اختيارها من الرابط العام',
+  'ربط التطبيق بمكتبتك عبر كود تفعيل مستقل لا يعمل على أكثر من جهاز',
+  'عرض رابط الرفع وباركود QR الخاص بمكتبتك داخل الإعدادات مع أزرار نسخ وفتح مباشر',
+  'استلام عدد النسخ ولون الطباعة ونوع الورق وملاحظات الطالب لكل ملف على حدة',
+  'تسعير يدوي مرن تتحكّم فيه دون تدخل خارجي أو عمولات مفروضة',
+  'تحديث حالة الطلب بضغطة واحدة: قيد التنفيذ « جاهز « تم التسليم، تصل للطالب تلقائيّاً',
+  'تشفير ملفات الطلبة أثناء الرفع، وفك التشفير داخل جهاز مكتبتك فقط',
+  'دعم وسائل الدفع المحلية: Qi Card وZainCash، مع خيار الدفع نقداً عند الاستلام',
+  'إدارة حسابات الدفع ورمز PIN التطبيق من داخل الداشبورد دون تدخل خارجي',
+  'عرض IP وMAC جهاز المكتبة داخل التطبيق لتسهيل حجز عنوان IP ثابت في الراوتر',
+  'تحديثات مستمرة لأنظمة macOS وWindows تُنشر رسمياً على GitHub Releases',
 ];
 
 const heroProofItems = [
-  { value: 'Multi-Office', label: 'كل مكتب له رابط وتفعيل مستقل' },
-  { value: 'Realtime', label: 'متابعة مباشرة بين الطالب والمكتب' },
-  { value: 'QR خاص', label: 'باركود يفتح مكتب محدد مباشرة' },
+  { value: 'متعدد المكاتب', label: 'كل مكتبة تعمل مستقلة ببياناتها' },
+  { value: 'تحديث لحظي', label: 'الطالب يرى حالة طلبه فوراً' },
+  { value: 'QR لكل مكتبة', label: 'باركود خاص يوجّه بدقة' },
 ];
 
 const workflowProblems = [
-  'أجهزة iPhone لا ترسل الملفات بسهولة عبر Bluetooth.',
-  'الطالب يحتاج طريقة واضحة لإرسال الملف بدون سؤال متكرر عن قناة الإرسال.',
-  'تكرار أسئلة حساب المكتب وحساب الطالب ولقطة التحويل.',
-  'ضياع تفاصيل الطلب مثل عدد النسخ ونوع الطباعة وموعد الاستلام.',
+  'أجهزة iPhone لا تدعم إرسال الملفات عبر Bluetooth إلى أجهزة Windows.',
+  'كل طالب يختار قناة إرسال مختلفة (Telegram أو البريد أو WhatsApp) بدون توحيد.',
+  'تكرار الأسئلة بين كل طالب وصاحب المكتبة: عدد النسخ، اللون، الورق، وطريقة الدفع.',
+  'ضياع تفاصيل الطلب أثناء الحوار وغياب سجل واضح للملفات والأسعار.',
 ];
 
 const techStack: TechStackItem[] = [
   {
-    title: 'واجهة الويب',
-    items: ['Next.js', 'React', 'TypeScript', 'اختيار المكتب من الرابط العام'],
+    title: 'منصة الويب وصفحة الرفع',
+    items: ['Next.js 14', 'React 18', 'TypeScript', 'تصميم متجاوب للهاتف'],
   },
   {
-    title: 'تطبيق سطح المكتب',
-    items: ['Electron', 'SQLite', 'تفعيل بمكتب', 'رابط رفع أونلاين داخل التطبيق'],
+    title: 'تطبيق المكتبة المحلي',
+    items: ['Electron Desktop', 'SQLite محلي', 'Fastify Server', 'React Dashboard'],
   },
   {
-    title: 'المزامنة والبيانات',
-    items: ['Supabase', 'Realtime', 'PostgreSQL', 'Admin API للمكاتب والأكواد'],
+    title: 'البنية السحابية',
+    items: ['Supabase Postgres', 'Realtime Subscriptions', 'Storage محمي', 'Vercel Edge'],
   },
   {
-    title: 'الأمان والتنبيهات',
-    items: ['AES-256-GCM', 'RSA-OAEP-SHA256', 'Telegram Bot', 'Email Notifications'],
+    title: 'التشفير والإشعارات',
+    items: ['AES-256-GCM', 'RSA-OAEP-SHA256', 'Telegram Webhook', 'SMTP Email'],
   },
 ];
 
 const latestUpdates = [
-  'لوحة أدمن أونلاين لإنشاء مكاتب الطباعة وتفعيلها وتعطيلها وحذفها نهائياً عند الحاجة',
-  'توليد أكواد تفعيل قابلة للنسخ، والأكواد الحديثة تبقى ظاهرة داخل لوحة الأدمن',
-  'صفحة الرفع العامة تعرض اختيار المكتب، ورابط الباركود يحدد المكتب تلقائياً',
-  'تطبيق الديسكتوب يعرض رابط الرفع الأونلاين الكامل الخاص بالمكتب مع زر فتح مباشر',
-  'ملصق وباركود الأونلاين يستخدمان رابط المكتب الصحيح بدل الرابط العام',
-  'دعم تشغيل أكثر من نسخة ديسكتوب للتجربة مع بيانات ومنافذ مستقلة أثناء التطوير',
+  'لوحة أدمن متكاملة لإدارة المكتبات: إنشاء وتفعيل وتعطيل وحذف نهائي، مع توليد ونسخ أكواد التفعيل',
+  'إعدادات الراوتر داخل التطبيق تعرض IP الجهاز وعنوان MAC مع أزرار نسخ، لتسهيل حجز IP ثابت في الراوتر',
+  'صفحة الرفع العامة تعرض قائمة المكتبات النشطة، أما باركود المكتبة فيوجّه الطالب مباشرة إليها',
+  'تطبيق المكتبة يعرض اسم الجهة المرتبطة ورابط الرفع الكامل مع زر فتح مباشر للنسخ والمشاركة',
+  'ملصقات الحائط وباركودات QR تُولّد برابط المكتبة الصحيح بدلاً من الرابط العام',
+  'منع الربط التلقائي بأي مكتبة افتراضية، لإلزام التفعيل بكود رسمي صادر من الأدمن فقط',
 ];
 
 const faqItems = [
   {
-    question: 'هل الداشبورد مناسب لأصحاب المكاتب؟',
-    answer: 'نعم، الداشبورد مصمم لصاحب المكتب أو أمين المكتبة حتى يستقبل طلبات جهته فقط، يراجع الملفات، يحدد السعر، يغيّر الحالة، ويتابع الدفع من مكان واحد.',
+    question: 'هل التطبيق مناسب لمكتبتي إذا لم تكن لديّ خبرة تقنية عميقة؟',
+    answer: 'نعم. تم تصميم التطبيق ليكون بسيطاً وعملياً: تثبيت بنقرتين، تفعيل بلصق كود واحد، ولا يحتاج إعداداً تقنياً معقداً. كل ما تحتاجه هو استلام الطلب من الداشبورد، تحديد السعر، والضغط على طباعة. دليل إعداد الراوتر والشبكة متوفر بخطوات واضحة إن احتجته.',
   },
   {
-    question: 'كيف يختار الطالب المكتب الصحيح؟',
-    answer: 'إذا دخل من باركود المكتب فالموقع يحدده مباشرة. وإذا دخل من الرابط العام، تظهر له قائمة بالمكاتب والمكتبات المسجلة والنشطة حتى يختار الجهة قبل الإرسال.',
+    question: 'كيف يعرف الطالب أين يرسل ملفه؟',
+    answer: 'أمامه طريقتان: إما مسح باركود QR المعروض في المكتبة فيُوجّه مباشرة إلى صفحة الرفع الخاصة بها، أو الدخول من الرابط العام واختيار المكتبة من قائمة الجهات النشطة قبل الإرسال.',
   },
   {
-    question: 'كيف يتم تفعيل تطبيق المكتب؟',
-    answer: 'الأدمن يولد كود تفعيل للمكتب المطلوب، وصاحب المكتب يدخله داخل تطبيق الديسكتوب. بعدها يرتبط التطبيق بتلك الجهة وتظهر روابطها وطلباتها فقط.',
+    question: 'ماذا لو دخل طالب بالخطأ على مكتبة أخرى؟',
+    answer: 'كل مكتبة لديها باركود خاص ورابط رفع منفصل بوصلة (slug) فريدة. لا تستقبل مكتبتك إلا طلبات موجّهة إليها صراحة، والرابط العام يلزم الطالب باختيار المكتبة قبل الإرسال. إذا اختار مكتبة خاطئة، لن يصل الطلب إلى داشبورد مكتبتك.',
   },
   {
-    question: 'هل السعر والدفع بيد صاحب المكتب؟',
-    answer: 'نعم، السعر النهائي يحدده صاحب المكتب من الداشبورد. حسابات Qi Card وZainCash تكون مرتبطة بالمكتب، والكاش يبقى مدعوماً عند الحاجة.',
+    question: 'هل أتحكّم بأسعاري وحساباتي وإعداداتي؟',
+    answer: 'نعم. السعر النهائي تحدده بنفسك يدوياً لكل طلب قبل تأكيده، ولا توجد أسعار مفروضة أو عمولات خفية. حسابات Qi Card وZainCash ورمز PIN دخول التطبيق كلها قابلة للتعديل من إعدادات الداشبورد ولا يطّلع عليها أي طرف خارجي.',
   },
 ];
 
@@ -541,7 +543,7 @@ export default function DownloadPage() {
       <div className={styles.glowTwo} />
       <div className={styles.container}>
         <section className={styles.hero}>
-          <div className={styles.heroBadge}>آخر تحديث: كل مكاتب الطباعة + باركود خاص لكل مكتب</div>
+          <div className={styles.heroBadge}>الإصدار الرسمي v0.1.5 · متاح لأنظمة Windows وmacOS</div>
           <div className={styles.heroGrid}>
             <div className={styles.heroCopy}>
               <div className={styles.brandRow}>
@@ -549,12 +551,12 @@ export default function DownloadPage() {
                   <img className={styles.brandMarkLogo} src="/uoadrop-logo.png" alt="UOADrop" />
                 </div>
                 <div className={styles.brandText}>
-                  <span className={styles.kicker}>UOADrop Desktop</span>
-                  <h1 className={styles.heroTitle}>UOADrop صار لكل مكاتب الطباعة والمكتبات المسجلة</h1>
+                  <span className={styles.kicker}>UOADrop Desktop · تطبيق إدارة المكتبة</span>
+                  <h1 className={styles.heroTitle}>نظام UOADrop لإدارة طلبات الطباعة في المكتبات والمكاتب الجامعية</h1>
                 </div>
               </div>
               <p className={styles.heroSub}>
-                النظام لم يعد محصوراً بجهة واحدة. أي مكتب طباعة أو مكتبة مسجلة تحصل على كود تفعيل ورابط رفع وباركود خاص، والطالب إمّا يدخل من باركود المكتب فيتوجه له مباشرة أو يختاره من الرابط العام.
+                تطبيق متكامل يجمع طلبات طباعة الطلبة في داشبورد واحد منظّم، يربط كل مكتبة بكود تفعيل خاص ورابط رفع مستقل، ويُمكّن صاحب المكتبة من استلام الملفات، تسعيرها، وتسليمها بدون فوضى تطبيقات المراسلة المتعددة.
               </p>
               <div className={styles.heroProof}>
                 {heroProofItems.map((item) => (
@@ -565,11 +567,11 @@ export default function DownloadPage() {
                 ))}
               </div>
               <div className={styles.heroActions}>
-                <a href="/download/file" className={styles.primaryAction} download>
+                <a href="#official-downloads" className={styles.primaryAction}>
                   <DownloadIcon />
-                  تحميل آخر إصدار
+                  تحميل الإصدار الرسمي
                 </a>
-                <a href="/" className={styles.secondaryAction}>صفحة رفع الملفات</a>
+                <a href="/" className={styles.secondaryAction}>تجربة صفحة الرفع</a>
               </div>
             </div>
             <div className={styles.deviceCard}>
@@ -595,7 +597,7 @@ export default function DownloadPage() {
                   </div>
                 </div>
               </div>
-              <div className={styles.floatingChip}>Office QR + online upload link</div>
+              <div className={styles.floatingChip}>داشبورد المكتبة · استلام لحظي للطلبات</div>
             </div>
           </div>
         </section>
@@ -613,9 +615,9 @@ export default function DownloadPage() {
         <section className={styles.releasePanel} aria-label="ملخص الإصدار الحالي">
           <div className={styles.releaseHeader}>
             <span className={styles.cardEyebrow}>إصدار التشغيل الرسمي</span>
-            <h2>UOADrop v0.1.5 — نسخة التسليم النهائي الأولي</h2>
+            <h2>UOADrop v0.1.5 — نسخة التسليم الرسمية</h2>
             <p>
-              هذه الصفحة مخصصة لتحميل تطبيق سطح المكتب الخاص بصاحب المكتب. بعد التثبيت، يتم تفعيل الجهاز بكود صادر من لوحة الأدمن حتى يستقبل طلبات المكتب أو المكتبة المرتبطة به فقط.
+              هذه الصفحة مخصصة لتحميل التطبيق الرسمي لصاحب المكتبة. بعد التثبيت، تُفعّل النسخة بكود خاص تُولّده لوحة الأدمن حتى يستقبل الداشبورد طلبات مكتبتك فقط دون تداخل مع أي جهة أخرى. جميع الملفات موقّعة ببصمة SHA-256 للتأكد من سلامتها.
             </p>
           </div>
           <div className={styles.releaseHighlights}>
@@ -631,8 +633,8 @@ export default function DownloadPage() {
 
         <section className={styles.downloadGuideSection}>
           <div className={styles.sectionHead}>
-            <span>اختيار النسخة الصحيحة</span>
-            <h2>أي ملف أحمّل؟</h2>
+            <span>اختيار النسخة المناسبة</span>
+            <h2>دليل مختصر لاختيار الملف الصحيح</h2>
           </div>
           <div className={styles.downloadGuideGrid}>
             {downloadGuides.map((item) => (
@@ -644,9 +646,9 @@ export default function DownloadPage() {
           </div>
         </section>
 
-        <section className={styles.logoStripSection} aria-label="الشعارات المستخدمة">
+        <section className={styles.logoStripSection} aria-label="الشعارات ووسائل الدفع المدعومة">
           <div className={styles.logoStripCard}>
-            <span className={styles.cardEyebrow}>الهوية والشعارات</span>
+            <span className={styles.cardEyebrow}>الهوية ووسائل الدفع المدعومة</span>
             <div className={styles.logoStrip}>
               {pageLogos.map((logo) => (
                 <div key={logo.src} className={styles.logoStripItem} data-logo={logo.key}>
@@ -662,17 +664,17 @@ export default function DownloadPage() {
 
         <section className={styles.storySection}>
           <div className={styles.sectionHead}>
-            <span>الفكرة</span>
+            <span>الفكرة والدوافع</span>
             <h2>لماذا تم بناء UOADrop؟</h2>
           </div>
           <div className={styles.storyGrid}>
             <article className={styles.storyCardLarge}>
-              <h3>حل مشكلة يومية بطريقة نظامية</h3>
+              <h3>معالجة مشكلة حقيقية بحل نظامي واحد</h3>
               <p>
-                جزء كبير من وقت الطالب ومكتب الطباعة يضيع قبل بدء الطباعة نفسها: طالب يريد إرسال ملف من iPhone ولا يستطيع نقله عبر Bluetooth، وآخر يبحث عن قناة إرسال واضحة، ثم تبدأ أسئلة إضافية عن حساب الدفع، لقطة التحويل، عدد النسخ، ونوع الطباعة.
+                جزء كبير من وقت الطالب وصاحب المكتبة يُستهلك في مرحلة ما قبل الطباعة: طالب يحاول إرسال ملف من iPhone بلا جدوى، وآخر يتساءل عن الوسيلة الصحيحة، ثم تتوالى الأسئلة عن حساب الدفع، لقطة التحويل، عدد النسخ، ونوع الورق واللون.
               </p>
               <p>
-                لذلك يجمع UOADrop هذه التفاصيل في مسار واحد واضح: الطالب يرفع الملف ويكتب تفاصيل الطلب، والداشبورد يستقبل كل شيء مرتباً أمام صاحب المكتب، من الملفات إلى السعر والدفع وحالة التسليم.
+                يجمع UOADrop كل هذه التفاصيل في مسار واحد منظّم: الطالب يرفع ملفه ويكتب التفاصيل في نموذج واحد، والداشبورد يستقبل كل شيء مرتباً أمامك: الملفات، الإعدادات، السعر، الدفع، وحالة التسليم لحظيّاً.
               </p>
               <div className={styles.problemGrid}>
                 {workflowProblems.map((problem) => (
@@ -684,7 +686,7 @@ export default function DownloadPage() {
               <span className={styles.cardEyebrow}>المطور</span>
               <h3>بلال زامل احمد</h3>
               <p>
-                طالب مرحلة ثانية في علوم الحاسوب، مهتم بتقديم حلول برمجية لمشاكل واقعية بدل الاكتفاء بالأفكار النظرية. يعمل على استخدام التكنولوجيا بشكل فعلي لبناء أدوات مفهومة، عملية، وفي متناول الجميع، خصوصاً عندما تكون المشكلة قريبة من حياة الطلبة والمؤسسات اليومية.
+                طالب في المرحلة الثانية بتخصص علوم الحاسوب، مهتم ببناء حلول برمجية عملية لمشاكل واقعية تواجهها البيئة الأكاديمية، بدل الاكتفاء بالأفكار النظرية. يركّز عمله على تقديم أدوات تقنية بسيطة، واضحة، وفي متناول غير المتخصصين، خصوصاً حين ترتبط المشكلة بالحياة اليومية للطلبة والمؤسسات.
               </p>
               <div className={styles.developerMeta}>
                 <span>المرحلة: الثانية — علوم حاسوب</span>
@@ -696,7 +698,7 @@ export default function DownloadPage() {
                   <TelegramIcon />
                   Telegram: bilalcodes1
                 </a>
-                <span>الهدف: تحويل المشاكل اليومية إلى حلول تقنية عملية</span>
+                <span>الهدف: تحويل المشاكل اليومية إلى حلول برمجية عملية</span>
               </div>
             </article>
           </div>
@@ -704,8 +706,8 @@ export default function DownloadPage() {
 
         <section className={styles.partnersSection}>
           <div className={styles.sectionHead}>
-            <span>الشراكات والجهات</span>
-            <h2>بيئة العمل والتكامل</h2>
+            <span>البيئة والجهات الداعمة</span>
+            <h2>منظومة عمل متكاملة</h2>
           </div>
           <div className={styles.partnerGrid}>
             {partners.map((partner) => {
@@ -723,8 +725,8 @@ export default function DownloadPage() {
 
         <section className={styles.techSection}>
           <div className={styles.sectionHead}>
-            <span>التقنيات المستخدمة</span>
-            <h2>تقنيات المشروع مرتبة حسب دورها</h2>
+            <span>البنية التقنية</span>
+            <h2>التقنيات المعتمدة في بناء النظام</h2>
           </div>
           <div className={styles.techGrid}>
             {techStack.map((group) => (
@@ -742,8 +744,8 @@ export default function DownloadPage() {
 
         <section className={styles.capabilitySection}>
           <div className={styles.sectionHead}>
-            <span>آخر التحديثات</span>
-            <h2>أحدث ما تمت إضافته للمنظومة</h2>
+            <span>أحدث التحديثات</span>
+            <h2>ما الجديد في إصدار v0.1.5</h2>
           </div>
           <div className={styles.capabilityGrid}>
             {latestUpdates.map((item) => (
@@ -757,8 +759,8 @@ export default function DownloadPage() {
 
         <section className={styles.capabilitySection}>
           <div className={styles.sectionHead}>
-            <span>القدرات</span>
-            <h2>ماذا يقدم النظام؟</h2>
+            <span>قدرات النظام</span>
+            <h2>ماذا يقدّم UOADrop لمكتبتك؟</h2>
           </div>
           <div className={styles.capabilityGrid}>
             {capabilities.map((item) => (
@@ -772,7 +774,7 @@ export default function DownloadPage() {
 
         <section className={styles.timelineSection}>
           <div className={styles.sectionHead}>
-            <span>المدة والتطور</span>
+            <span>رحلة التطوير</span>
             <h2>من فكرة إلى منظومة تشغيلية خلال شهرين</h2>
           </div>
           <div className={styles.timeline}>
@@ -792,9 +794,9 @@ export default function DownloadPage() {
           <div className={styles.securityIcon}><ShieldIcon /></div>
           <div>
             <span className={styles.cardEyebrow}>الأمان والخصوصية</span>
-            <h2>ملفات الطلبة لا تمر كنص خام</h2>
+            <h2>ملفات الطلبة محمية بالتشفير منذ لحظة الرفع</h2>
             <p>
-              يدعم UOADrop تشفير الملفات قبل رفعها باستخدام مفتاح AES لكل ملف، ثم تغليف المفتاح بواسطة RSA. الداشبورد فقط هو الذي يملك مفتاح فك التشفير، والطلبات القديمة تبقى متوافقة مع النظام.
+              يدعم UOADrop تشفير الملفات لحظة رفعها بمفتاح AES-256 فريد لكل ملف، ثم يُغلّف هذا المفتاح بتشفير RSA. لا تُفكّ الملفات إلا داخل داشبورد مكتبتك المثبّت على جهازك، والطلبات الأقدم غير المشفّرة تبقى قابلة للاستيراد دون إخلال بالتوافق.
             </p>
           </div>
         </section>
@@ -802,7 +804,7 @@ export default function DownloadPage() {
         <section id="official-downloads" className={styles.platformSection}>
           <div className={styles.sectionHead}>
             <span>تحميل التطبيق</span>
-            <h2>ملفات التحميل الرسمية</h2>
+            <h2>ملفات التحميل الرسمية لأنظمة macOS وWindows</h2>
           </div>
           <div className={styles.platforms}>
             {platforms.map((platform) => {
@@ -863,8 +865,8 @@ export default function DownloadPage() {
 
         <section className={styles.setupSection}>
           <div className={styles.sectionHead}>
-            <span>خطوات التشغيل بعد التحميل</span>
-            <h2>من التحميل إلى استقبال الطلبات</h2>
+            <span>خطوات التشغيل</span>
+            <h2>أربع خطوات من التحميل إلى استقبال أول طلب</h2>
           </div>
           <div className={styles.setupSteps}>
             {setupSteps.map((item, index) => (
@@ -879,8 +881,8 @@ export default function DownloadPage() {
 
         <section className={styles.verificationSection}>
           <div className={styles.sectionHead}>
-            <span>الدقة والتحقق</span>
-            <h2>قبل تثبيت التطبيق</h2>
+            <span>التحقق والأمان</span>
+            <h2>معلومات مهمة قبل وبعد التثبيت</h2>
           </div>
           <div className={styles.verificationGrid}>
             {verificationItems.map((item) => (
@@ -896,8 +898,8 @@ export default function DownloadPage() {
 
         <section className={styles.faqSection}>
           <div className={styles.sectionHead}>
-            <span>أسئلة أصحاب المكاتب</span>
-            <h2>كيف يساعد الداشبورد في تنظيم العمل؟</h2>
+            <span>أسئلة شائعة</span>
+            <h2>إجابات على أبرز استفسارات أصحاب المكتبات</h2>
           </div>
           <div className={styles.faqGrid}>
             {faqItems.map((item, index) => (
@@ -915,15 +917,15 @@ export default function DownloadPage() {
         <section className={styles.downloadMethodSection}>
           <div className={styles.downloadMethodCard}>
             <div>
-              <span className={styles.cardEyebrow}>طريقة التحميل</span>
-              <h2>اضغط زر التحميل وتبدأ العملية مباشرة</h2>
+              <span className={styles.cardEyebrow}>جاهز للبدء؟</span>
+              <h2>ثلاث خطوات تفصلك عن تشغيل مكتبتك</h2>
               <p>
-                كل أزرار التحميل في هذه الصفحة تمر عبر مسار رسمي داخل موقع UOADrop ثم تحوّل إلى ملف الإصدار المنشور على GitHub Releases. اختَر نسخة نظام التشغيل المناسبة، وبعد التثبيت فعّل التطبيق بكود المكتب حتى تظهر بيانات الجهة وروابطها الصحيحة.
+                جميع أزرار التحميل تمر عبر مسار آمن داخل uoadrop.vercel.app ثم تحوّل إلى ملف الإصدار الرسمي المنشور على GitHub Releases. اختر النسخة المناسبة لنظام تشغيلك، ثبّت التطبيق، ثم أدخل كود التفعيل الخاص بمكتبتك لتبدأ باستقبال أول طلب.
               </p>
             </div>
             <a href="#official-downloads" className={styles.primaryAction}>
               <SparkIcon />
-              اختيار النسخة المناسبة
+              ابدأ التحميل الآن
             </a>
           </div>
         </section>
