@@ -9,6 +9,8 @@ export const metadata: Metadata = {
 type DownloadAsset = {
   label: string;
   format: string;
+  fileName: string;
+  note: string;
   href: string;
   primary?: boolean;
 };
@@ -44,36 +46,100 @@ type PartnerIconType = 'university' | 'college' | 'library' | 'integration';
 const downloadFile = (asset: string) => `/download/file?asset=${asset}`;
 
 const stats: StatItem[] = [
-  { value: '21.7K+', label: 'سطر كود', detail: 'تقريباً 21,740 سطر في ملفات الويب والديسكتوب والـ migrations' },
-  { value: '66+', label: 'ملف مصدر', detail: 'Next.js، Electron، Supabase، سكربتات التشغيل، وملفات الواجهة' },
-  { value: 'شهرين', label: 'مدة تطوير', detail: 'تصميم، تطوير، اختبار، وتحسين تجربة الاستخدام' },
-  { value: '0.1.5', label: 'آخر نسخة', detail: 'نسخة الديسكتوب الحالية مع دعم كل المكاتب وروابط الرفع الخاصة' },
+  { value: 'v0.1.5', label: 'الإصدار الحالي', detail: 'إصدار التسليم النهائي الأولي لتطبيق UOADrop Desktop' },
+  { value: '6', label: 'حزم تشغيل', detail: 'Windows Installer وPortable + macOS Intel وApple Silicon بصيغ DMG وZIP' },
+  { value: 'Multi-Office', label: 'تشغيل متعدد المكاتب', detail: 'كل مكتب أو مكتبة لها كود تفعيل، رابط رفع، وباركود خاص' },
+  { value: 'SHA-256', label: 'تحقق الملفات', detail: 'ملف Checksums منشور مع الإصدار لمطابقة ملفات التحميل' },
 ];
 
 const platforms: PlatformInfo[] = [
   {
     name: 'macOS',
     arch: 'Apple Silicon arm64 + Intel x64',
-    description: 'نسخة محدثة لأجهزة Mac الحديثة والقديمة بصيغة DMG للتثبيت أو ZIP للتشغيل السريع، مع تفعيل مكتب مستقل ورابط رفع أونلاين خاص.',
+    description: 'نسخة macOS الرسمية لأجهزة Apple Silicon وIntel. بعد التثبيت يتم ربط التطبيق بمكتب/مكتبة محددة عبر كود التفعيل، ثم يظهر داخل التطبيق رابط الرفع الأونلاين الخاص بتلك الجهة.',
     iconType: 'mac',
-    requirement: 'macOS 12 Monterey أو أحدث، صلاحية الطابعة، اتصال إنترنت للتفعيل والمزامنة، وكود تفعيل خاص بالمكتب أو المكتبة.',
+    requirement: 'macOS 12 Monterey أو أحدث، صلاحية الوصول للطابعة، اتصال إنترنت للتفعيل والمزامنة، وكود تفعيل صادر من لوحة الأدمن.',
     assets: [
-      { label: 'DMG — Apple Silicon', format: 'arm64', href: downloadFile('mac-arm64-dmg'), primary: true },
-      { label: 'DMG — Intel', format: 'x64', href: downloadFile('mac-x64-dmg') },
-      { label: 'ZIP — Apple Silicon', format: 'arm64', href: downloadFile('mac-arm64-zip') },
-      { label: 'ZIP — Intel', format: 'x64', href: downloadFile('mac-x64-zip') },
+      { label: 'Apple Silicon DMG', format: 'arm64', fileName: 'UOADrop-0.1.5-arm64.dmg', note: 'الخيار الأفضل لأجهزة Mac الحديثة بمعالجات M1/M2/M3 وما بعدها.', href: downloadFile('mac-arm64-dmg'), primary: true },
+      { label: 'Intel DMG', format: 'x64', fileName: 'UOADrop-0.1.5.dmg', note: 'لأجهزة Mac بمعالجات Intel.', href: downloadFile('mac-x64-dmg') },
+      { label: 'Apple Silicon ZIP', format: 'arm64', fileName: 'UOADrop-0.1.5-arm64-mac.zip', note: 'نسخة مضغوطة للتشغيل أو الأرشفة.', href: downloadFile('mac-arm64-zip') },
+      { label: 'Intel ZIP', format: 'x64', fileName: 'UOADrop-0.1.5-mac.zip', note: 'نسخة مضغوطة لأجهزة Intel.', href: downloadFile('mac-x64-zip') },
     ],
   },
   {
     name: 'Windows',
     arch: 'x64',
-    description: 'مناسب لأجهزة المختبرات ومكاتب الطباعة، مع مثبت رسمي ونسخة Portable، ويدعم استقبال طلبات مكتب واحد حسب كود التفعيل.',
+    description: 'نسخة Windows الرسمية لأجهزة مكاتب الطباعة والمكتبات. يدعم التطبيق استقبال طلبات الجهة المرتبطة فقط، مع Dashboard محلي، استيراد Online، وإشعارات عبر Desktop Gateway.',
     iconType: 'windows',
-    requirement: 'Windows 10/11، معالج 64-bit، صلاحية الوصول للطابعة، مساحة تخزين محلية للملفات، واتصال للتفعيل الأونلاين.',
+    requirement: 'Windows 10 أو Windows 11، معالج 64-bit، صلاحية الوصول للطابعة، مساحة تخزين محلية للملفات، واتصال إنترنت للتفعيل والمزامنة.',
     assets: [
-      { label: 'Installer — x64', format: 'exe', href: downloadFile('win-x64-installer'), primary: true },
-      { label: 'Portable — x64', format: 'exe', href: downloadFile('win-x64-portable') },
+      { label: 'Windows Installer', format: 'x64', fileName: 'UOADrop.Setup.0.1.5.exe', note: 'الخيار الموصى به للتثبيت الرسمي على جهاز المكتب.', href: downloadFile('win-x64-installer'), primary: true },
+      { label: 'Windows Portable', format: 'x64', fileName: 'UOADrop.0.1.5.exe', note: 'نسخة محمولة للتشغيل السريع أو الاختبار بدون مثبت.', href: downloadFile('win-x64-portable') },
     ],
+  },
+];
+
+const releaseHighlights = [
+  {
+    title: 'تفعيل رسمي لكل مكتب',
+    text: 'التطبيق لا يعمل كنسخة عامة عشوائية؛ كل جهاز ديسكتوب يرتبط بمكتب/مكتبة محددة عبر كود تفعيل، وتظهر بيانات الجهة ورابطها داخل الداشبورد.',
+  },
+  {
+    title: 'روابط رفع دقيقة',
+    text: 'الرابط العام يسمح للطالب باختيار المكتب، أما باركود المكتب فيفتح رابط الرفع الخاص مباشرة باستخدام slug الجهة، بدون خلط بين طلبات المكاتب.',
+  },
+  {
+    title: 'أسرار النظام خارج التطبيق',
+    text: 'مفاتيح Supabase وTelegram وSMTP والتشفير تبقى داخل Vercel/Desktop Gateway، بينما تطبيق الديسكتوب يستخدم activation token فقط.',
+  },
+];
+
+const downloadGuides = [
+  {
+    title: 'إذا كان جهازك Windows',
+    text: 'حمّل Installer للتثبيت الدائم. استخدم Portable فقط إذا تريد اختبار سريع أو تشغيل مؤقت بدون تثبيت.',
+  },
+  {
+    title: 'إذا كان جهازك Mac حديث',
+    text: 'أجهزة Apple Silicon مثل M1/M2/M3 تستخدم ملف arm64. ملف DMG هو الخيار الأنسب للتثبيت.',
+  },
+  {
+    title: 'إذا كان جهازك Mac Intel',
+    text: 'استخدم ملف Intel x64. لا تختار arm64 إلا إذا كان الجهاز بمعالج Apple Silicon.',
+  },
+];
+
+const setupSteps = [
+  {
+    title: 'إنشاء المكتب من لوحة الأدمن',
+    text: 'يتم إنشاء المكتب/المكتبة من صفحة الأدمن، ثم توليد كود تفعيل خاص بالجهة.',
+  },
+  {
+    title: 'تثبيت تطبيق الديسكتوب',
+    text: 'حمّل نسخة نظام التشغيل المناسبة وثبّت التطبيق على جهاز صاحب المكتب المتصل بالطابعة.',
+  },
+  {
+    title: 'إدخال كود التفعيل',
+    text: 'من إعدادات التطبيق، أدخل كود التفعيل حتى يرتبط الجهاز بالمكتب الصحيح وتظهر روابطه وطلباته فقط.',
+  },
+  {
+    title: 'استخدام رابط الرفع أو الباركود',
+    text: 'بعد التفعيل، استخدم رابط الرفع الأونلاين أو باركود المكتب من داخل التطبيق لتوجيه الطلاب بدقة.',
+  },
+];
+
+const verificationItems = [
+  {
+    title: 'مطابقة SHA256SUMS',
+    text: 'ملف SHA256SUMS.txt منشور مع الإصدار، ويمكن استخدامه للتحقق من أن ملف التحميل مطابق للنسخة الرسمية.',
+  },
+  {
+    title: 'تحذيرات التوقيع الرقمي',
+    text: 'الإصدارات الحالية غير موقعة رقمياً، لذلك قد يظهر SmartScreen على Windows أو تحذير فتح التطبيق على macOS.',
+  },
+  {
+    title: 'لا تضع الأسرار داخل الديسكتوب',
+    text: 'لا يحتاج التطبيق إلى service-role keys أو Telegram bot token أو SMTP password داخل ملفات الديسكتوب.',
   },
 ];
 
@@ -81,12 +147,12 @@ const timeline: TimelineItem[] = [
   {
     phase: '01',
     title: 'المشكلة اليومية',
-    text: 'بلال لاحظ تأخيراً واضحاً وفوضى أثناء نقل ملفات الطلبة إلى مكاتب الطباعة: ملفات تصل عبر أكثر من تطبيق، أسئلة متكررة، ووقت يضيع قبل أن تبدأ الطباعة.',
+    text: 'انطلقت الفكرة من ملاحظة تأخر واضح وفوضى أثناء نقل ملفات الطلبة إلى مكاتب الطباعة: ملفات تصل عبر أكثر من تطبيق، أسئلة متكررة، ووقت يضيع قبل أن تبدأ الطباعة.',
   },
   {
     phase: '02',
     title: 'توحيد المسار',
-    text: 'تم تحويل السؤال المتكرر: أين أرسل الملف؟ كم نسخة؟ ملون لو عادي؟ إلى نموذج رفع واضح يجمع معلومات الطلب من البداية.',
+    text: 'تم تحويل الأسئلة المتكررة حول مكان إرسال الملف، وعدد النسخ، ونوع الطباعة، وموعد الاستلام إلى نموذج رفع واضح يجمع معلومات الطلب من البداية.',
   },
   {
     phase: '03',
@@ -150,9 +216,9 @@ const heroProofItems = [
 
 const workflowProblems = [
   'أجهزة iPhone لا ترسل الملفات بسهولة عبر Bluetooth.',
-  'الطالب يطلب: افتح لي نت أو وين أرسل الملف؟',
+  'الطالب يحتاج طريقة واضحة لإرسال الملف بدون سؤال متكرر عن قناة الإرسال.',
   'تكرار أسئلة حساب المكتب وحساب الطالب ولقطة التحويل.',
-  'ضياع تفاصيل الطلب: كم نسخة؟ ملون أم عادي؟ ومتى الاستلام؟',
+  'ضياع تفاصيل الطلب مثل عدد النسخ ونوع الطباعة وموعد الاستلام.',
 ];
 
 const techStack: TechStackItem[] = [
@@ -189,11 +255,11 @@ const faqItems = [
     answer: 'نعم، الداشبورد مصمم لصاحب المكتب أو أمين المكتبة حتى يستقبل طلبات جهته فقط، يراجع الملفات، يحدد السعر، يغيّر الحالة، ويتابع الدفع من مكان واحد.',
   },
   {
-    question: 'شلون يختار الطالب المكتب الصحيح؟',
+    question: 'كيف يختار الطالب المكتب الصحيح؟',
     answer: 'إذا دخل من باركود المكتب فالموقع يحدده مباشرة. وإذا دخل من الرابط العام، تظهر له قائمة بالمكاتب والمكتبات المسجلة والنشطة حتى يختار الجهة قبل الإرسال.',
   },
   {
-    question: 'شلون يتفعل تطبيق المكتب؟',
+    question: 'كيف يتم تفعيل تطبيق المكتب؟',
     answer: 'الأدمن يولد كود تفعيل للمكتب المطلوب، وصاحب المكتب يدخله داخل تطبيق الديسكتوب. بعدها يرتبط التطبيق بتلك الجهة وتظهر روابطها وطلباتها فقط.',
   },
   {
@@ -455,7 +521,7 @@ function ProjectCreditsSection() {
 
           <article className={`${styles.creditsCard} ${styles.creditsCardWide}`}>
             <span className={styles.creditsLabel}>رسالة شكر</span>
-            <p>شكر خاص إلى <span className={styles.creditsInlineEmphasis}>الطالب عمر عبد الجبار مجبل</span> و<span className={styles.creditsInlineEmphasis}>الطالبة ملاك مازن يوسف</span> على مساعدتهم ودعمهم القيّم خلال مراحل العمل على هذا المشروع.</p>
+            <p>شكر خاص لكل من ساهم في اختبار الفكرة ودعم مراحل العمل على المشروع، من مراجعة التجربة إلى تحسين قابلية الاستخدام قبل التسليم.</p>
           </article>
         </div>
       </details>
@@ -483,7 +549,7 @@ export default function DownloadPage() {
                 </div>
               </div>
               <p className={styles.heroSub}>
-                النظام لم يعد محصوراً بمكتبة كلية علوم الحاسوب. أي مكتب طباعة أو مكتبة مسجلة تحصل على كود تفعيل ورابط رفع وباركود خاص، والطالب إمّا يدخل من باركود المكتب فيتوجه له مباشرة أو يختاره من الرابط العام.
+                النظام لم يعد محصوراً بجهة واحدة. أي مكتب طباعة أو مكتبة مسجلة تحصل على كود تفعيل ورابط رفع وباركود خاص، والطالب إمّا يدخل من باركود المكتب فيتوجه له مباشرة أو يختاره من الرابط العام.
               </p>
               <div className={styles.heroProof}>
                 {heroProofItems.map((item) => (
@@ -539,6 +605,40 @@ export default function DownloadPage() {
           ))}
         </section>
 
+        <section className={styles.releasePanel} aria-label="ملخص الإصدار الحالي">
+          <div className={styles.releaseHeader}>
+            <span className={styles.cardEyebrow}>إصدار التشغيل الرسمي</span>
+            <h2>UOADrop v0.1.5 — نسخة التسليم النهائي الأولي</h2>
+            <p>
+              هذه الصفحة مخصصة لتحميل تطبيق سطح المكتب الخاص بصاحب المكتب. بعد التثبيت، يتم تفعيل الجهاز بكود صادر من لوحة الأدمن حتى يستقبل طلبات المكتب أو المكتبة المرتبطة به فقط.
+            </p>
+          </div>
+          <div className={styles.releaseHighlights}>
+            {releaseHighlights.map((item) => (
+              <article key={item.title} className={styles.releaseHighlightCard}>
+                <div className={styles.releaseHighlightIcon}><CheckIcon /></div>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.downloadGuideSection}>
+          <div className={styles.sectionHead}>
+            <span>اختيار النسخة الصحيحة</span>
+            <h2>أي ملف أحمّل؟</h2>
+          </div>
+          <div className={styles.downloadGuideGrid}>
+            {downloadGuides.map((item) => (
+              <article key={item.title} className={styles.downloadGuideCard}>
+                <strong>{item.title}</strong>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section className={styles.logoStripSection} aria-label="الشعارات المستخدمة">
           <div className={styles.logoStripCard}>
             <span className={styles.cardEyebrow}>الهوية والشعارات</span>
@@ -558,16 +658,16 @@ export default function DownloadPage() {
         <section className={styles.storySection}>
           <div className={styles.sectionHead}>
             <span>الفكرة</span>
-            <h2>ليش انبنى UOADrop؟</h2>
+            <h2>لماذا تم بناء UOADrop؟</h2>
           </div>
           <div className={styles.storyGrid}>
             <article className={styles.storyCardLarge}>
               <h3>حل مشكلة يومية بطريقة نظامية</h3>
               <p>
-                بلال لاحظ أن جزءاً كبيراً من وقت الطالب ومكتب الطباعة يضيع قبل الطباعة نفسها: طالب يريد إرسال ملف من iPhone ولا يستطيع نقله عبر Bluetooth، طالب يطلب فتح الإنترنت لإرسال الملف، وآخر يسأل أين حساب المكتب أو أين أرسل لقطة التحويل، ثم تبدأ أسئلة جديدة عن عدد النسخ وهل الطباعة ملونة أم عادية.
+                جزء كبير من وقت الطالب ومكتب الطباعة يضيع قبل بدء الطباعة نفسها: طالب يريد إرسال ملف من iPhone ولا يستطيع نقله عبر Bluetooth، وآخر يبحث عن قناة إرسال واضحة، ثم تبدأ أسئلة إضافية عن حساب الدفع، لقطة التحويل، عدد النسخ، ونوع الطباعة.
               </p>
               <p>
-                لذلك قرر بناء UOADrop ليجمع هذه التفاصيل في مسار واحد واضح: الطالب يرفع الملف ويكتب تفاصيل الطلب، والداشبورد يستقبل كل شيء مرتباً أمام صاحب المكتب، من الملفات إلى السعر والدفع وحالة التسليم.
+                لذلك يجمع UOADrop هذه التفاصيل في مسار واحد واضح: الطالب يرفع الملف ويكتب تفاصيل الطلب، والداشبورد يستقبل كل شيء مرتباً أمام صاحب المكتب، من الملفات إلى السعر والدفع وحالة التسليم.
               </p>
               <div className={styles.problemGrid}>
                 {workflowProblems.map((problem) => (
@@ -697,7 +797,7 @@ export default function DownloadPage() {
         <section className={styles.platformSection}>
           <div className={styles.sectionHead}>
             <span>تحميل التطبيق</span>
-            <h2>اختر نظام التشغيل المناسب</h2>
+            <h2>ملفات التحميل الرسمية</h2>
           </div>
           <div className={styles.platforms}>
             {platforms.map((platform) => {
@@ -731,7 +831,10 @@ export default function DownloadPage() {
                           download
                         >
                           <DownloadIcon />
-                          <span>{asset.label}</span>
+                          <span>
+                            <strong>{asset.label}</strong>
+                            <small>{asset.fileName}</small>
+                          </span>
                           <em>{asset.format}</em>
                         </a>
                       ))
@@ -739,9 +842,49 @@ export default function DownloadPage() {
                       <span className={styles.downloadUnavailable}>سيتوفر ملف هذا النظام قريباً</span>
                     )}
                   </div>
+                  <div className={styles.assetNotes}>
+                    {platform.assets.map((asset) => (
+                      <div key={`${asset.fileName}-note`} className={styles.assetNote}>
+                        <strong>{asset.fileName}</strong>
+                        <span>{asset.note}</span>
+                      </div>
+                    ))}
+                  </div>
                 </article>
               );
             })}
+          </div>
+        </section>
+
+        <section className={styles.setupSection}>
+          <div className={styles.sectionHead}>
+            <span>خطوات التشغيل بعد التحميل</span>
+            <h2>من التحميل إلى استقبال الطلبات</h2>
+          </div>
+          <div className={styles.setupSteps}>
+            {setupSteps.map((item, index) => (
+              <article key={item.title} className={styles.setupStep}>
+                <div className={styles.setupStepNumber}>{String(index + 1).padStart(2, '0')}</div>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.verificationSection}>
+          <div className={styles.sectionHead}>
+            <span>الدقة والتحقق</span>
+            <h2>قبل تثبيت التطبيق</h2>
+          </div>
+          <div className={styles.verificationGrid}>
+            {verificationItems.map((item) => (
+              <article key={item.title} className={styles.verificationCard}>
+                <div className={styles.verificationIcon}><ShieldIcon /></div>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -769,7 +912,7 @@ export default function DownloadPage() {
               <span className={styles.cardEyebrow}>طريقة التحميل</span>
               <h2>اضغط زر التحميل وتبدأ العملية مباشرة</h2>
               <p>
-                كل أزرار التحميل في هذه الصفحة موجهة لمسار تنزيل مباشر داخل موقع UOADrop. اختَر نسخة نظام التشغيل المناسبة، وسيبدأ المتصفح بتنزيل ملف التطبيق بدون الحاجة لفتح أي صفحة خارجية.
+                كل أزرار التحميل في هذه الصفحة تمر عبر مسار رسمي داخل موقع UOADrop ثم تحوّل إلى ملف الإصدار المنشور على GitHub Releases. اختَر نسخة نظام التشغيل المناسبة، وبعد التثبيت فعّل التطبيق بكود المكتب حتى تظهر بيانات الجهة وروابطها الصحيحة.
               </p>
             </div>
             <a href="/download/file" className={styles.primaryAction} download>

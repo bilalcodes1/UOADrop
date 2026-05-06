@@ -769,6 +769,9 @@
 }
 
 .statCard,
+.releasePanel,
+.releaseHighlightCard,
+.downloadGuideCard,
 .storyCardLarge,
 .developerCard,
 .logoStripCard,
@@ -779,6 +782,8 @@
 .securitySection,
 .faqItem,
 .downloadMethodCard,
+.setupStep,
+.verificationCard,
 .platformCard {
   border: 1px solid rgba(226, 232, 240, 0.9);
   background: rgba(255, 255, 255, 0.86);
@@ -817,6 +822,8 @@
 }
 
 .storySection,
+.releasePanel,
+.downloadGuideSection,
 .logoStripSection,
 .partnersSection,
 .techSection,
@@ -824,8 +831,102 @@
 .timelineSection,
 .platformSection,
 .faqSection,
+.setupSection,
+.verificationSection,
 .downloadMethodSection {
   margin-top: 24px;
+}
+
+.releasePanel {
+  overflow: hidden;
+  padding: 28px;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(34, 197, 94, 0.12), transparent 30%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(238, 242, 255, 0.92));
+}
+
+.releaseHeader {
+  max-width: 860px;
+}
+
+.releaseHeader h2 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: clamp(1.55rem, 2.5vw, 2.35rem);
+  line-height: 1.3;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+
+.releaseHeader p {
+  margin: 0;
+  color: #475569;
+  font-size: 15px;
+  line-height: 1.95;
+}
+
+.releaseHighlights,
+.downloadGuideGrid,
+.verificationGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.releaseHighlightCard,
+.downloadGuideCard,
+.verificationCard {
+  padding: 20px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.releaseHighlightIcon,
+.verificationIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  color: #065f46;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+}
+
+.releaseHighlightIcon svg,
+.verificationIcon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.releaseHighlightCard h3,
+.downloadGuideCard strong,
+.verificationCard h3,
+.setupStep h3 {
+  display: block;
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 950;
+  line-height: 1.45;
+}
+
+.releaseHighlightCard p,
+.downloadGuideCard p,
+.verificationCard p,
+.setupStep p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.downloadGuideCard {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
 }
 
 .sectionHead {
@@ -1312,10 +1413,35 @@
 }
 
 .downloadBtn {
+  width: 100%;
   min-height: 46px;
   border-radius: 16px;
   font-size: 13px;
   font-weight: 900;
+  justify-content: flex-start;
+  text-align: right;
+}
+
+.downloadBtn > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.downloadBtn strong {
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.downloadBtn small {
+  color: inherit;
+  opacity: 0.78;
+  font-size: 10px;
+  font-weight: 850;
+  direction: ltr;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .downloadBtn em {
@@ -1331,6 +1457,83 @@
 
 .downloadBtnSecondary em {
   background: rgba(79, 70, 229, 0.08);
+}
+
+.assetNotes {
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.assetNote {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.assetNote strong {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 950;
+  direction: ltr;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.assetNote span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.6;
+}
+
+.setupSteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.setupStep {
+  position: relative;
+  overflow: hidden;
+  padding: 22px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.9));
+}
+
+.setupStep::after {
+  content: "";
+  position: absolute;
+  inset: auto 18px 18px auto;
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.08), transparent 72%);
+  pointer-events: none;
+}
+
+.setupStepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 14px;
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(135deg, #4f46e5, #2563eb);
+  font-size: 13px;
+  font-weight: 950;
+  direction: ltr;
+}
+
+.verificationCard {
+  background:
+    radial-gradient(circle at top left, rgba(79, 70, 229, 0.07), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
 }
 
 .downloadMethodCard {
@@ -1749,12 +1952,16 @@
   }
 
   .statsGrid,
+  .releaseHighlights,
+  .downloadGuideGrid,
   .logoStrip,
   .partnerGrid,
   .techGrid,
   .capabilityGrid,
   .timeline,
   .platforms,
+  .setupSteps,
+  .verificationGrid,
   .faqGrid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1825,6 +2032,8 @@
   }
 
   .statsGrid,
+  .releaseHighlights,
+  .downloadGuideGrid,
   .logoStrip,
   .partnerGrid,
   .heroProof,
@@ -1833,6 +2042,8 @@
   .capabilityGrid,
   .timeline,
   .platforms,
+  .setupSteps,
+  .verificationGrid,
   .faqGrid {
     grid-template-columns: 1fr;
   }
@@ -1854,12 +2065,17 @@
   }
 
   .storyCardLarge,
+  .releasePanel,
+  .releaseHighlightCard,
+  .downloadGuideCard,
   .developerCard,
   .logoStripCard,
   .techCard,
   .securitySection,
   .faqItem,
   .downloadMethodCard,
+  .setupStep,
+  .verificationCard,
   .platformCard {
     padding: 20px;
     border-radius: 24px;
