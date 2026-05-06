@@ -3,7 +3,7 @@ import styles from './page.module.css';
 
 export const metadata: Metadata = {
   title: 'UOADrop — تحميل التطبيق ومنصة الطباعة الذكية',
-  description: 'صفحة تحميل UOADrop الرسمية مع معلومات المشروع، المطور، الشركاء، التقنية، المتطلبات، وإصدارات سطح المكتب',
+  description: 'صفحة تحميل UOADrop الرسمية مع آخر تحديثات تطبيق المكتبة، التفعيل متعدد المكتبات، روابط الرفع الخاصة، وإصدارات سطح المكتب',
 };
 
 type DownloadAsset = {
@@ -44,19 +44,19 @@ type PartnerIconType = 'university' | 'college' | 'library' | 'integration';
 const downloadFile = (asset: string) => `/download/file?asset=${asset}`;
 
 const stats: StatItem[] = [
-  { value: '21K+', label: 'سطر كود', detail: 'تقريباً 21,214 سطر متتبع بدون ملف القفل' },
-  { value: '145', label: 'ملف مشروع', detail: 'ويب، ديسكتوب، shared packages، migrations' },
+  { value: '21.7K+', label: 'سطر كود', detail: 'تقريباً 21,740 سطر في ملفات الويب والديسكتوب والـ migrations' },
+  { value: '66+', label: 'ملف مصدر', detail: 'Next.js، Electron، Supabase، سكربتات التشغيل، وملفات الواجهة' },
   { value: 'شهرين', label: 'مدة تطوير', detail: 'تصميم، تطوير، اختبار، وتحسين تجربة الاستخدام' },
-  { value: '2', label: 'أنظمة تشغيل', detail: 'macOS و Windows بإصدارات محدثة' },
+  { value: '0.1.4', label: 'آخر نسخة', detail: 'نسخة الديسكتوب الحالية مع دعم المكتبات وروابط الرفع الخاصة' },
 ];
 
 const platforms: PlatformInfo[] = [
   {
     name: 'macOS',
     arch: 'Apple Silicon arm64 + Intel x64',
-    description: 'نسخة مصممة لأجهزة Mac الحديثة والقديمة بصيغة DMG للتثبيت أو ZIP للتشغيل السريع.',
+    description: 'نسخة محدثة لأجهزة Mac الحديثة والقديمة بصيغة DMG للتثبيت أو ZIP للتشغيل السريع، مع تفعيل مكتبة مستقل ورابط رفع أونلاين خاص.',
     iconType: 'mac',
-    requirement: 'macOS 12 Monterey أو أحدث، صلاحية الطابعة، واتصال إنترنت للمزامنة الأونلاين.',
+    requirement: 'macOS 12 Monterey أو أحدث، صلاحية الطابعة، اتصال إنترنت للتفعيل والمزامنة، وكود تفعيل خاص بالمكتبة.',
     assets: [
       { label: 'DMG — Apple Silicon', format: 'arm64', href: downloadFile('mac-arm64-dmg'), primary: true },
       { label: 'DMG — Intel', format: 'x64', href: downloadFile('mac-x64-dmg') },
@@ -67,9 +67,9 @@ const platforms: PlatformInfo[] = [
   {
     name: 'Windows',
     arch: 'x64',
-    description: 'مناسب لأجهزة المختبرات والمكاتب، مع مثبت رسمي ونسخة Portable للتشغيل بدون تثبيت كامل.',
+    description: 'مناسب لأجهزة المختبرات والمكاتب، مع مثبت رسمي ونسخة Portable، ويدعم استقبال طلبات مكتبة واحدة حسب كود التفعيل.',
     iconType: 'windows',
-    requirement: 'Windows 10/11، معالج 64-bit، صلاحية الوصول للطابعة ومساحة تخزين محلية للملفات.',
+    requirement: 'Windows 10/11، معالج 64-bit، صلاحية الوصول للطابعة، مساحة تخزين محلية للملفات، واتصال للتفعيل الأونلاين.',
     assets: [
       { label: 'Installer — x64', format: 'exe', href: downloadFile('win-x64-installer'), primary: true },
       { label: 'Portable — x64', format: 'exe', href: downloadFile('win-x64-portable') },
@@ -95,8 +95,13 @@ const timeline: TimelineItem[] = [
   },
   {
     phase: '04',
-    title: 'منظومة كاملة',
-    text: 'اكتمل النظام بصفحة رفع، داشبورد سطح مكتب، تشفير، إشعارات، دفع اختياري، وإصدارات محدثة لأنظمة macOS وWindows.',
+    title: 'مكتبات متعددة',
+    text: 'أضيفت لوحة أدمن لإدارة المكتبات، توليد أكواد التفعيل، حذف المكتبات عند الحاجة، وربط كل تطبيق مكتبة بمكتبة محددة.',
+  },
+  {
+    phase: '05',
+    title: 'روابط رفع ذكية',
+    text: 'صار الباركود الخاص بكل مكتبة يفتح رابط الرفع الخاص بها مباشرة، بينما الرابط العام يسمح للطالب باختيار المكتبة من المكتبات النشطة.',
   },
 ];
 
@@ -113,8 +118,8 @@ const partners = [
   },
   {
     iconType: 'library' as PartnerIconType,
-    name: 'مكتبة الكلية',
-    role: 'مركز التشغيل اليومي: استلام، تسعير، طباعة، وتسليم',
+    name: 'المكتبات المسجلة',
+    role: 'كل مكتبة لها كود تفعيل، رابط رفع، أجهزة، أكواد، وحسابات دفع مستقلة',
   },
   {
     iconType: 'integration' as PartnerIconType,
@@ -125,19 +130,22 @@ const partners = [
 
 const capabilities = [
   'استقبال طلبات الطباعة من صفحة رفع منظمة بدل الرسائل المتفرقة',
+  'اختيار المكتبة من الرابط العام أو التوجيه المباشر عند الدخول من باركود مكتبة',
+  'ربط تطبيق سطح المكتب بمكتبة محددة عن طريق كود تفعيل مستقل',
+  'عرض رابط الرفع الأونلاين الكامل داخل التطبيق مع زر فتح مباشر',
   'عرض عدد النسخ ونوع الطباعة والملاحظات والملفات داخل الداشبورد',
   'تحديد السعر يدوياً من صاحب المكتب قبل بدء التنفيذ',
   'تحديث حالة الطلب للطالب بدون اتصالات ورسائل متكررة',
   'تشفير ملفات الطلبة قبل وصولها إلى نظام المكتبة',
   'دفع اختياري عبر Qi Card وZainCash مع تحقق إداري',
-  'إدارة حسابات الدفع ورمز PIN من إعدادات الداشبورد',
+  'إدارة حسابات الدفع ورمز PIN من إعدادات الداشبورد لكل مكتبة',
   'إصدارات مستقلة ومحدثة لأنظمة macOS وWindows',
 ];
 
 const heroProofItems = [
-  { value: 'داشبورد', label: 'إدارة طلبات المكتبة من شاشة واحدة' },
+  { value: 'Multi-Library', label: 'كل مكتبة لها رابط وتفعيل مستقل' },
   { value: 'Realtime', label: 'متابعة مباشرة بين الطالب والمكتب' },
-  { value: 'AES + RSA', label: 'حماية ملفات الطلبة أثناء النقل' },
+  { value: 'QR خاص', label: 'باركود يفتح مكتبة محددة مباشرة' },
 ];
 
 const workflowProblems = [
@@ -150,15 +158,15 @@ const workflowProblems = [
 const techStack: TechStackItem[] = [
   {
     title: 'واجهة الويب',
-    items: ['Next.js', 'React', 'TypeScript', 'CSS Modules'],
+    items: ['Next.js', 'React', 'TypeScript', 'اختيار المكتبة من الرابط العام'],
   },
   {
     title: 'تطبيق سطح المكتب',
-    items: ['Electron', 'SQLite', 'طابور طلبات', 'إصدارات macOS وWindows'],
+    items: ['Electron', 'SQLite', 'تفعيل بمكتبة', 'رابط رفع أونلاين داخل التطبيق'],
   },
   {
     title: 'المزامنة والبيانات',
-    items: ['Supabase', 'Realtime', 'PostgreSQL', 'مسارات API داخل Next.js'],
+    items: ['Supabase', 'Realtime', 'PostgreSQL', 'Admin API للمكتبات والأكواد'],
   },
   {
     title: 'الأمان والتنبيهات',
@@ -166,22 +174,31 @@ const techStack: TechStackItem[] = [
   },
 ];
 
+const latestUpdates = [
+  'لوحة أدمن أونلاين لإنشاء المكتبات وتفعيلها وتعطيلها وحذفها نهائياً عند الحاجة',
+  'توليد أكواد تفعيل قابلة للنسخ، والأكواد الحديثة تبقى ظاهرة داخل لوحة الأدمن',
+  'صفحة الرفع العامة تعرض اختيار المكتبة، ورابط الباركود يحدد المكتبة تلقائياً',
+  'تطبيق الديسكتوب يعرض رابط الرفع الأونلاين الكامل الخاص بالمكتبة مع زر فتح مباشر',
+  'ملصق وباركود الأونلاين يستخدمان رابط المكتبة الصحيح بدل الرابط العام',
+  'دعم تشغيل أكثر من نسخة ديسكتوب للتجربة مع بيانات ومنافذ مستقلة أثناء التطوير',
+];
+
 const faqItems = [
   {
     question: 'هل الداشبورد مناسب لأصحاب المكاتب؟',
-    answer: 'نعم، الداشبورد مصمم لصاحب المكتب أو أمين المكتبة حتى يستقبل الطلبات، يراجع الملفات، يحدد السعر، يغيّر الحالة، ويتابع الدفع من مكان واحد.',
+    answer: 'نعم، الداشبورد مصمم لصاحب المكتب أو أمين المكتبة حتى يستقبل طلبات مكتبته فقط، يراجع الملفات، يحدد السعر، يغيّر الحالة، ويتابع الدفع من مكان واحد.',
   },
   {
-    question: 'كيف يقلل الفوضى بين الطالب والمكتبة؟',
-    answer: 'بدل إرسال الملفات عبر Bluetooth أو رسائل متعددة، الطالب يرفع الطلب من صفحة واضحة ويكتب عدد النسخ ونوع الطباعة والملاحظات، فتصل كل التفاصيل مرتبة للداشبورد.',
+    question: 'شلون يختار الطالب المكتبة الصحيحة؟',
+    answer: 'إذا دخل من باركود المكتبة فالموقع يحددها مباشرة. وإذا دخل من الرابط العام، تظهر له قائمة بالمكتبات المسجلة والنشطة حتى يختار المكتبة قبل الإرسال.',
+  },
+  {
+    question: 'شلون يتفعل تطبيق المكتبة؟',
+    answer: 'الأدمن يولد كود تفعيل للمكتبة المطلوبة، وأمين المكتبة يدخله داخل تطبيق الديسكتوب. بعدها يرتبط التطبيق بتلك المكتبة وتظهر روابطها وطلباتها فقط.',
   },
   {
     question: 'هل السعر والدفع بيد صاحب المكتب؟',
-    answer: 'نعم، السعر النهائي يحدده صاحب المكتب من الداشبورد. الدفع الإلكتروني اختياري عبر Qi Card وZainCash، والكاش يبقى مدعوماً عند الحاجة.',
-  },
-  {
-    question: 'هل يحتاج المكتب خبرة تقنية كبيرة؟',
-    answer: 'لا، الفكرة أن تكون الواجهة قريبة من طريقة العمل اليومية: طلبات، ملفات، سعر، حالة، دفع، وتسليم. التقنية تعمل بالخلفية حتى تبقى التجربة بسيطة.',
+    answer: 'نعم، السعر النهائي يحدده صاحب المكتب من الداشبورد. حسابات Qi Card وZainCash تكون مرتبطة بالمكتبة، والكاش يبقى مدعوماً عند الحاجة.',
   },
 ];
 
@@ -453,7 +470,7 @@ export default function DownloadPage() {
       <div className={styles.glowTwo} />
       <div className={styles.container}>
         <section className={styles.hero}>
-          <div className={styles.heroBadge}>حل عملي لتنظيم الطباعة داخل المكتبة</div>
+          <div className={styles.heroBadge}>آخر تحديث: مكتبات متعددة + باركود خاص لكل مكتبة</div>
           <div className={styles.heroGrid}>
             <div className={styles.heroCopy}>
               <div className={styles.brandRow}>
@@ -462,11 +479,11 @@ export default function DownloadPage() {
                 </div>
                 <div className={styles.brandText}>
                   <span className={styles.kicker}>UOADrop Desktop</span>
-                  <h1 className={styles.heroTitle}>UOADrop ينظم الطلب من الطالب إلى داشبورد المكتب</h1>
+                  <h1 className={styles.heroTitle}>UOADrop يربط الطالب بالمكتبة الصحيحة من أول رابط</h1>
                 </div>
               </div>
               <p className={styles.heroSub}>
-                النظام صُمم لحل مشاكل نقل ملفات الطباعة: بدل Bluetooth، رسائل متفرقة، حسابات دفع ضائعة، وأسئلة عدد النسخ واللون، يصبح الطلب واضحاً من صفحة الرفع ويصل مرتباً إلى داشبورد صاحب المكتب.
+                النظام صار يدعم أكثر من مكتبة: الطالب يدخل من باركود المكتبة فيتوجه لها مباشرة، أو يدخل من الرابط العام ويختار المكتبة من القائمة، ثم يصل الطلب إلى داشبورد تطبيق المكتبة المرتبط بكود التفعيل.
               </p>
               <div className={styles.heroProof}>
                 {heroProofItems.map((item) => (
@@ -507,7 +524,7 @@ export default function DownloadPage() {
                   </div>
                 </div>
               </div>
-              <div className={styles.floatingChip}>Realtime + encrypted uploads</div>
+              <div className={styles.floatingChip}>Library QR + online upload link</div>
             </div>
           </div>
         </section>
@@ -614,6 +631,21 @@ export default function DownloadPage() {
                   ))}
                 </div>
               </article>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.capabilitySection}>
+          <div className={styles.sectionHead}>
+            <span>آخر التحديثات</span>
+            <h2>أحدث ما تمت إضافته للمنظومة</h2>
+          </div>
+          <div className={styles.capabilityGrid}>
+            {latestUpdates.map((item) => (
+              <div key={item} className={styles.capabilityItem}>
+                <div className={styles.checkMark}><SparkIcon /></div>
+                <span>{item}</span>
+              </div>
             ))}
           </div>
         </section>
