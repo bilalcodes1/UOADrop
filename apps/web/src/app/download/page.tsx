@@ -799,7 +799,7 @@ export default function DownloadPage() {
           </div>
         </section>
 
-        <section className={styles.platformSection}>
+        <section id="official-downloads" className={styles.platformSection}>
           <div className={styles.sectionHead}>
             <span>تحميل التطبيق</span>
             <h2>ملفات التحميل الرسمية</h2>
@@ -921,9 +921,9 @@ export default function DownloadPage() {
                 كل أزرار التحميل في هذه الصفحة تمر عبر مسار رسمي داخل موقع UOADrop ثم تحوّل إلى ملف الإصدار المنشور على GitHub Releases. اختَر نسخة نظام التشغيل المناسبة، وبعد التثبيت فعّل التطبيق بكود المكتب حتى تظهر بيانات الجهة وروابطها الصحيحة.
               </p>
             </div>
-            <a href="/download/file" className={styles.primaryAction} download>
+            <a href="#official-downloads" className={styles.primaryAction}>
               <SparkIcon />
-              تحميل النسخة المناسبة
+              اختيار النسخة المناسبة
             </a>
           </div>
         </section>
