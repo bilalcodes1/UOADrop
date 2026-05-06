@@ -280,6 +280,17 @@ export default function AdminPage() {
     }
   };
 
+  const copyActivationCode = async (code?: string | null) => {
+    const value = String(code ?? '').trim();
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setNotice('تم نسخ كود التفعيل.');
+    } catch {
+      window.prompt('انسخ الكود:', value);
+    }
+  };
+
   useEffect(() => {
     const stored = window.sessionStorage.getItem(ADMIN_PASSWORD_KEY) ?? '';
     if (stored) setPassword(stored);
@@ -425,6 +436,7 @@ export default function AdminPage() {
               <div className={styles.generatedCode}>
                 <span>انسخ الكود الآن، وسيظهر ضمن أكواد المكتبة</span>
                 <strong dir="ltr">{generatedCode}</strong>
+                <button type="button" className={styles.copyButton} onClick={() => void copyActivationCode(generatedCode)}>نسخ الكود</button>
               </div>
             )}
             {selectedLibrary && (
@@ -439,6 +451,7 @@ export default function AdminPage() {
                     <div key={code.id} className={styles.codeCard}>
                       <div className={styles.codeCardMain}>
                         <strong dir="ltr">{code.display_code || 'غير محفوظ للعرض'}</strong>
+                        {code.display_code && <button type="button" className={styles.copyButton} onClick={() => void copyActivationCode(code.display_code)}>نسخ الكود</button>}
                         <span>{formatActivationLabel(code.label)}</span>
                       </div>
                       <div className={styles.listMeta}>
@@ -523,7 +536,7 @@ export default function AdminPage() {
           <div className={styles.panelHead}>
             <div>
               <h2>أكواد التفعيل</h2>
-              <p>الأكواد الحديثة محفوظة للعرض داخل الأدمن، والقديمة تظهر كغير محفوظة للعرض.</p>
+              <p>الأكواد الحديثة تظهر ويمكن نسخها مباشرة، والقديمة تظهر كغير محفوظة للعرض.</p>
             </div>
           </div>
           <div className={styles.listStack}>
@@ -534,6 +547,7 @@ export default function AdminPage() {
                   <div>
                     <strong>{code.libraries?.name || code.library_id}</strong>
                     <span dir="ltr">{code.display_code || 'غير محفوظ للعرض'}</span>
+                    {code.display_code && <button type="button" className={styles.copyButton} onClick={() => void copyActivationCode(code.display_code)}>نسخ الكود</button>}
                     <span>{formatActivationLabel(code.label)}</span>
                   </div>
                   <div className={styles.listMeta}>

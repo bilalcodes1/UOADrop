@@ -115,7 +115,8 @@
 .secondaryButton,
 .ghostButton,
 .smallButton,
-.dangerButton {
+.dangerButton,
+.copyButton {
   border: 0;
   border-radius: 16px;
   padding: 12px 18px;
@@ -147,10 +148,22 @@
   background: #dc2626;
 }
 
+.copyButton {
+  width: fit-content;
+  justify-self: center;
+  color: #312e81;
+  background: #fff;
+  border: 1px solid #c7d2fe;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
 .primaryButton:disabled,
 .secondaryButton:disabled,
 .smallButton:disabled,
-.dangerButton:disabled {
+.dangerButton:disabled,
+.copyButton:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -159,7 +172,8 @@
 .secondaryButton:not(:disabled):hover,
 .ghostButton:hover,
 .smallButton:not(:disabled):hover,
-.dangerButton:not(:disabled):hover {
+.dangerButton:not(:disabled):hover,
+.copyButton:not(:disabled):hover {
   transform: translateY(-1px);
 }
 
@@ -692,7 +706,8 @@
   .secondaryButton,
   .ghostButton,
   .smallButton,
-  .dangerButton {
+  .dangerButton,
+  .copyButton {
     width: 100%;
   }
 }
