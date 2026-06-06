@@ -1,62 +1,100 @@
-<div dir="rtl">
-
 # UOADrop 📎
 
-نظام إدارة طلبات الطباعة لمكاتب الطباعة والمكتبات المسجلة. النسخة الحالية تعمل كـ **Desktop-first / Local-first** مع مسار Online اختياري: الطالب يستطيع الرفع من شبكة المكتب محلياً أو من موقع الويب، بينما صاحب المكتب يدير كل الطلبات من تطبيق Electron مرتبط بمكتب محدد.
+A **desktop-first, local-first print request management system** for registered print offices and libraries.
+
+The current version is designed mainly for local desktop use inside a print office, with an optional online workflow. Students can upload files either through the office’s local network or through the online website, while the office owner manages all requests from an Electron desktop application linked to a specific office.
 
 ---
 
-## المشكلة
+## The Problem
 
-في مكاتب الطباعة، الطالب اللي يريد يطبع ملف غالباً لازم إما:
-- **يرسل الملف على تيليجرام** لصاحب المكتب → يسأله يدوياً عن الاسم، الكمية، نوع الطباعة → بطيء وفيه أخطاء.
-- **يستخدم بلوتوث/كيبل** إذا ما عنده نت → آيفون ما يدعم، أخطاء متكررة، إضاعة وقت.
+In many university print offices, students usually send their files in inefficient ways:
 
-## الحل
+* **Telegram**: the student sends the file manually, then the office owner has to ask for the name, quantity, print type, and other details.
+* **Bluetooth or cable transfer**: this is slow, unreliable, and especially problematic for iPhone users.
+* **Manual handling**: files, names, quantities, and payment status can easily become mixed up.
 
-الحل الحالي يتكون من جزئين مترابطين:
-
-- **صفحة رفع للطالب** تعمل من أي متصفح على نفس الشبكة المحلية أو من الرابط الأونلاين.
-- **Dashboard للمكتب** داخل تطبيق Electron لإدارة الطلبات والملفات والطباعة.
-
-المزايا المنفّذة حالياً:
-
-- رفع عدة ملفات ضمن نفس الطلب.
-- دعم أكثر من مكتب/مكتبة: كل جهة لها كود تفعيل، رابط رفع، وباركود خاص.
-- الرابط العام يسمح للطالب باختيار المكتب، ورابط الباركود يحدد المكتب تلقائياً.
-- حفظ اسم الطالب والإعدادات الافتراضية محلياً لتسهيل الاستخدام المتكرر.
-- **إعدادات طباعة مستقلة لكل ملف** داخل الطلب نفسه.
-- عرض **رقم التذكرة** و**رمز الاستلام** مباشرة بعد الإرسال.
-- حساب تلقائي لعدد الصفحات لملفات `PDF` و `PPTX` والصور (`JPG/PNG`).
-- تحديث لحظي في الدشبورد عند وصول ملف جديد.
-- إمكانية مراجعة ملفات الطلب وتعديل إعدادات كل ملف من الدشبورد.
-- إدخال السعر يدوياً من صاحب المكتب قبل تحويل الطلب إلى `ready`.
-- فلاتر Dashboard حسب الحالة، المصدر (`local`/`online`)، الدفع، والبحث برقم التذكرة/الاسم/الإيميل/Telegram/رقم العملية.
-- أزرار تشغيل واضحة: `طباعة` → `جاهز` → `تم التسليم` مع انتقال تلقائي إلى قسم الجاهز أو الأرشيف.
-- مزامنة طلبات Online مع Supabase عند تغيير الحالة أو السعر أو الدفع، وإلغاء Mirror الأونلاين عند حذف طلب Online محلياً حتى لا يعود للاستيراد.
-- إعلان جماعي لطلبات Online فقط عبر Email/Telegram من إعدادات الدشبورد، مع عدّ مباشر للمستلمين من Supabase.
-- تبويب **معلومات المشروع** داخل الدشبورد مع بطاقات المطور والجهة الأكاديمية وروابط الصفحات الرسمية.
-- قسم **عن UOADrop** داخل صفحة الطالب مع شعارات الجامعة والكلية وبطاقات الاعتمادات الأكاديمية.
-- خدمة الشعارات وملفات الواجهة من الخادم المحلي نفسه لضمان عملها على الراوتر وداخل الشبكة المحلية بدون إنترنت.
+This causes delays, mistakes, repeated questions, and an unorganized printing workflow.
 
 ---
 
-## الشخصيات
+## The Solution
 
-| | الدور | الاتصال |
-|---|---|---|
-| 👨‍💼 **صاحب المكتب** | يدير الطباعة | لابتوب/كمبيوتر + راوتر + طابعة |
-| 👩‍🎓 **طالب داخل المكتب** | Offline/LAN | يرفع من شبكة المكتب المحلية |
-| 👨‍🎓 **طالب أونلاين** | Online | يرفع من الرابط العام أو باركود مكتب محدد |
+UOADrop provides a structured workflow between students and print offices.
+
+The system consists of two connected parts:
+
+* **Student Upload Page**
+  A browser-based upload page that works on the same local network or through the online website.
+
+* **Office Dashboard**
+  An Electron desktop dashboard used by the office owner to manage requests, files, pricing, status, and delivery.
 
 ---
 
-## المعمارية المختصرة
+## Implemented Features
 
-```
-                 📱 جهاز الطالب
+* Upload multiple files within the same request.
+* Support for multiple offices/libraries.
+* Each office has its own activation code, upload link, and QR code.
+* Public upload link allows the student to choose the office.
+* Office-specific QR link automatically selects the correct office.
+* Student name and default settings are saved locally for repeated use.
+* Independent print settings for each file inside the same request.
+* Ticket number and pickup PIN are displayed immediately after submission.
+* Automatic page counting for supported files:
+
+  * `PDF`
+  * `PPTX`
+  * `JPG`
+  * `PNG`
+* Real-time dashboard updates when a new request arrives.
+* Review request files and edit print settings from the dashboard.
+* Manual price entry by the office owner before marking an order as ready.
+* Dashboard filters by:
+
+  * status
+  * source: `local` / `online`
+  * payment status
+  * ticket number
+  * name
+  * email
+  * Telegram username
+  * transaction number
+* Clear workflow buttons:
+
+  * `Print`
+  * `Ready`
+  * `Received`
+* Automatic movement of requests to the ready section or archive.
+* Online requests are synced with Supabase when status, price, or payment changes.
+* Online mirror is removed when an online request is deleted locally, preventing re-import.
+* Bulk announcement system for online requests using Email/Telegram.
+* Live recipient count from Supabase before sending announcements.
+* Project information tab inside the dashboard.
+* Developer, academic, and official page cards inside the dashboard.
+* “About UOADrop” section inside the student page.
+* University and college branding inside the student page.
+* Local serving of logos and UI assets from the Fastify server to ensure the system works inside the local network without depending on external internet access.
+
+---
+
+## User Roles
+
+| Role           | Description                       | Device/Access                         |
+| -------------- | --------------------------------- | ------------------------------------- |
+| Office Owner   | Manages print requests            | Laptop/PC + router + printer          |
+| Local Student  | Uploads inside the office network | Browser connected to the office Wi-Fi |
+| Online Student | Uploads remotely                  | Public website or office QR link      |
+
+---
+
+## Architecture Overview
+
+```txt
+                 Student Device
                        │
-                 متصفح داخل الشبكة
+               Browser on Local Network
                        │
               http://<LAN-IP>:3737/
                        │
@@ -67,124 +105,180 @@
               └────────┬────────┘
                        │
                 React Dashboard
-                 لصاحب المكتب
+                 for Office Owner
 ```
 
 ---
 
 ## Tech Stack
 
-| الطبقة | التقنية |
-|--------|---------|
-| Language | **TypeScript** (everywhere) |
-| Student Page | **Standalone HTML/CSS/JS** داخل `apps/desktop/resources/student.html` |
-| Dashboard UI | **React + Vite** داخل Electron renderer |
-| Desktop | **Electron** (Windows أساسي + Mac) |
-| Local Server | **Fastify** + **better-sqlite3** |
-| Local Assets | شعارات وملفات `resources/` تُخدم محلياً من Fastify وتُضمّن مع نسخة التطبيق |
-| Page Counting | **pdf-lib** + تحليل PPTX محلي + الصور = صفحة واحدة |
-| Cloud / Web | **Next.js (Vercel)** + **Supabase** لمسار Online اختياري |
-| Monorepo | **pnpm workspaces** + **Turborepo** |
-| Notifications | إشعارات نظام محلية داخل Electron + (Online) Email/Telegram + تنبيه تأخير عبر Supabase `pg_cron` |
+| Layer            | Technology                                                                |
+| ---------------- | ------------------------------------------------------------------------- |
+| Language         | TypeScript                                                                |
+| Student Page     | Standalone HTML/CSS/JS inside `apps/desktop/resources/student.html`       |
+| Dashboard UI     | React + Vite inside Electron renderer                                     |
+| Desktop App      | Electron                                                                  |
+| Local Server     | Fastify                                                                   |
+| Local Database   | better-sqlite3                                                            |
+| Local Assets     | Logos and UI files served locally from `resources/`                       |
+| Page Counting    | pdf-lib + local PPTX analysis + images as one page                        |
+| Online Web App   | Next.js on Vercel                                                         |
+| Online Backend   | Supabase Storage + Supabase Postgres                                      |
+| Monorepo         | pnpm workspaces + Turborepo                                               |
+| Notifications    | Local Electron system notifications + online Email/Telegram notifications |
+| Scheduled Alerts | Supabase `pg_cron` for delay notifications                                |
 
 ---
 
-## الوثائق
+## Documentation
 
-| الملف | الغرض |
-|-------|-------|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | المعمارية الكاملة والتفاصيل التقنية |
-| [`docs/SETUP.md`](docs/SETUP.md) | دليل إعداد الراوتر واللابتوب لصاحب المكتب |
-| [`docs/RISKS.md`](docs/RISKS.md) | المخاطر والوقاية والاستجابة |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | خارطة الطريق والمراحل |
-| [`docs/NOTIFICATIONS.md`](docs/NOTIFICATIONS.md) | نظام الإشعارات (Email + Telegram) للطلبات الأونلاين |
-| [`docs/GAPS.md`](docs/GAPS.md) | التحليل النقدي للفجوات قبل الإطلاق |
-| [`docs/DECISIONS.md`](docs/DECISIONS.md) | قرارات المنتج النهائية (PIN، pricing، queue، ...) |
-| [`docs/HARDENING.md`](docs/HARDENING.md) | إصلاحات Phase 0.5 الأمنية والموثوقية (C1-C17) |
-| [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | المصطلحات والشخصيات |
-| [`docs/RELEASE-v0.1.5.md`](docs/RELEASE-v0.1.5.md) | ملاحظات الإصدار الحالي وملفات التحميل |
+| File                                               | Purpose                                                          |
+| -------------------------------------------------- | ---------------------------------------------------------------- |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)     | Full architecture and technical details                          |
+| [`docs/SETUP.md`](docs/SETUP.md)                   | Router and laptop setup guide for office owners                  |
+| [`docs/RISKS.md`](docs/RISKS.md)                   | Risks, prevention, and response plan                             |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md)               | Product roadmap and phases                                       |
+| [`docs/NOTIFICATIONS.md`](docs/NOTIFICATIONS.md)   | Online notification system using Email and Telegram              |
+| [`docs/GAPS.md`](docs/GAPS.md)                     | Critical gap analysis before release                             |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md)           | Final product decisions such as PIN, pricing, and queue behavior |
+| [`docs/HARDENING.md`](docs/HARDENING.md)           | Phase 0.5 security and reliability fixes                         |
+| [`docs/GLOSSARY.md`](docs/GLOSSARY.md)             | Terms, roles, and system vocabulary                              |
+| [`docs/RELEASE-v0.1.5.md`](docs/RELEASE-v0.1.5.md) | Current release notes and download files                         |
 
 ---
 
-## Quick Start (Developer)
+## Quick Start for Developers
 
-**المتطلبات:** Node.js ≥ 20، pnpm ≥ 8، Git.
+### Requirements
+
+* Node.js 20 or higher
+* pnpm 8 or higher
+* Git
+
+### Install dependencies
 
 ```bash
-pnpm install      # تثبيت dependencies لكل الـ workspaces
-pnpm --filter @uoadrop/desktop dev     # تشغيل تطبيق الديسكتوب
-pnpm --filter @uoadrop/desktop build   # بناء نسخة الإنتاج لتطبيق الديسكتوب
+pnpm install
 ```
 
-### هيكل الـ Monorepo
+### Run the desktop app
 
+```bash
+pnpm --filter @uoadrop/desktop dev
 ```
+
+### Build the desktop app
+
+```bash
+pnpm --filter @uoadrop/desktop build
+```
+
+---
+
+## Monorepo Structure
+
+```txt
 UOADrop/
 ├── apps/
-│   ├── web/         # Next.js online upload + notification APIs
+│   ├── web/         # Next.js online upload app + notification APIs
 │   └── desktop/     # Electron + Fastify + SQLite + React dashboard
 ├── packages/
-│   └── shared/      # types + constants + validation helpers
-├── docs/            # التوثيق الكامل
+│   └── shared/      # shared types, constants, and validation helpers
+├── docs/            # full documentation
 ├── pnpm-workspace.yaml
 └── turbo.json
 ```
 
 ---
 
-## الحالة الحالية
+## Current Status
 
-**الإصدار الحالي:** `v0.1.5`
+**Current version:** `v0.1.5`
 
-**تحميل النسخة الجاهزة:** [GitHub Releases — UOADrop v0.1.5](https://github.com/bilalcodes1/UOADrop/releases/tag/v0.1.5)
+**Download release:**
+[GitHub Releases — UOADrop v0.1.5](https://github.com/bilalcodes1/UOADrop/releases/tag/v0.1.5)
 
-ملفات الإصدار المنشورة:
+Published release files:
 
-- `UOADrop.Setup.0.1.5.exe` — Windows Installer
-- `UOADrop.0.1.5.exe` — Windows Portable
-- `UOADrop-0.1.5.dmg` — macOS Intel
-- `UOADrop-0.1.5-mac.zip` — macOS Intel ZIP
-- `UOADrop-0.1.5-arm64.dmg` — macOS Apple Silicon
-- `UOADrop-0.1.5-arm64-mac.zip` — macOS Apple Silicon ZIP
-- `SHA256SUMS.txt` — checksums للتحقق من الملفات
-
-✅ **Phase 1 — Desktop Offline MVP** يعمل فعلياً
-
-✅ **Online workflow (اختياري)** يعمل: رفع أونلاين عبر `https://uoadrop.vercel.app` + تخزين Supabase + استيراد داخل الديسكتوب.
-
-✅ **Multi-office workflow** يعمل: لوحة أدمن أونلاين لإدارة المكاتب/المكتبات، أكواد تفعيل، ربط كل تطبيق ديسكتوب بجهة محددة، وروابط رفع خاصة.
-
-المنفّذ حالياً:
-
-- [x] Electron app + React dashboard
-- [x] Fastify server محلي على المنفذ `3737`
-- [x] SQLite + migrations محلية
-- [x] صفحة رفع للطالب من المتصفح
-- [x] pickup PIN ظاهر في صفحة الطالب والدشبورد
-- [x] حساب عدد الصفحات للأنواع المدعومة
-- [x] **إعدادات مستقلة لكل ملف** في صفحة الرفع والدشبورد
-- [x] واجهة معلومات مشروع منفصلة في الدشبورد عبر تبويب `معلومات المشروع`
-- [x] شعارات وهوية بصرية محلية تعمل عبر `http://<LAN-IP>:3737/` بدون الاعتماد على CDN أو إنترنت خارجي
-- [x] قسم معلومات أكاديمية داخل صفحة الطالب والدشبورد يتضمن العميد ورئيس القسم والمشرفات وروابطهم الرسمية
-- [x] Online upload عبر Next.js/Vercel + Supabase Storage/Postgres
-- [x] استيراد طلبات Online إلى الديسكتوب وتنزيل ملفاتها محلياً
-- [x] مزامنة Mirror الأونلاين عند السعر/الحالة/الدفع/الحذف
-- [x] إشعارات Ready/Received وواجهة إعلان جماعي لمستلمي الأونلاين عبر Email/Telegram
-- [x] اختيار المكتب من الرابط العام أو تحديده تلقائياً من باركود المكتب
-- [x] أزرار نسخ أكواد التفعيل وحذف المكتبات من لوحة الأدمن
-- [x] إصدارات desktop جاهزة للبناء والرفع عبر GitHub Releases
-
-المؤجل لما بعد التسليم:
-
-- [ ] Code signing / notarization رسمي
-- [ ] Auto-update كامل
-
-شوف [`docs/ROADMAP.md`](docs/ROADMAP.md) للتفاصيل.
+* `UOADrop.Setup.0.1.5.exe` — Windows installer
+* `UOADrop.0.1.5.exe` — Windows portable version
+* `UOADrop-0.1.5.dmg` — macOS Intel
+* `UOADrop-0.1.5-mac.zip` — macOS Intel ZIP
+* `UOADrop-0.1.5-arm64.dmg` — macOS Apple Silicon
+* `UOADrop-0.1.5-arm64-mac.zip` — macOS Apple Silicon ZIP
+* `SHA256SUMS.txt` — file checksums
 
 ---
 
-## الترخيص
+## Completed
 
-خاص بمشروع جامعي — لم يُحدد بعد.
+* [x] Electron app with React dashboard
+* [x] Local Fastify server on port `3737`
+* [x] Local SQLite database and migrations
+* [x] Browser-based student upload page
+* [x] Pickup PIN shown in the student page and dashboard
+* [x] Page counting for supported file types
+* [x] Independent print settings per file
+* [x] Project information tab inside the dashboard
+* [x] Local visual identity assets served through the local server
+* [x] Academic information section inside the student page and dashboard
+* [x] Online upload through Next.js/Vercel and Supabase
+* [x] Import online requests into the desktop app
+* [x] Download online files locally
+* [x] Sync online mirror when price, status, payment, or deletion changes
+* [x] Ready/Received notifications
+* [x] Bulk announcement interface for online recipients through Email/Telegram
+* [x] Office selection from the public link
+* [x] Automatic office detection from office QR links
+* [x] Admin panel for managing offices/libraries
+* [x] Activation codes for offices
+* [x] Copy activation code buttons
+* [x] Delete libraries from the admin panel
+* [x] Desktop release builds uploaded through GitHub Releases
 
-</div>
+---
+
+## Working Workflows
+
+### Desktop Offline MVP
+
+The local-first desktop workflow is working and can be used inside a print office without depending on external internet access.
+
+### Optional Online Workflow
+
+The online workflow is also working:
+
+* Students upload through `https://uoadrop.vercel.app`
+* Files are stored in Supabase
+* Requests are imported into the desktop app
+* Status, price, payment, and deletion changes are synced back
+
+### Multi-Office Workflow
+
+The system supports multiple registered offices/libraries:
+
+* Each office has an activation code
+* Each desktop app is linked to a specific office
+* Each office has its own upload link and QR code
+* The public upload link allows students to choose the correct office
+
+---
+
+## Deferred After Submission
+
+* [ ] Official code signing and notarization
+* [ ] Full auto-update system
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for more details.
+
+---
+
+## Project Type
+
+University software project focused on solving a real workflow problem in print offices and libraries using a local-first desktop architecture with optional online support.
+
+---
+
+## License
+
+Private university project — license not specified yet.
